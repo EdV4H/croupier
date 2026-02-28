@@ -1,0 +1,123 @@
+# State Masking
+
+State masking controls what each player can see. This is essential for games with hidden information like poker hands or face-down cards.
+
+## The `playerView` Function
+
+Define a `view.playerView` function in your config that transforms the full game state into a player-specific view:
+
+```typescript
+const config: CroupierConfig = {
+  view: {
+    playerView(state, playerId) {
+      return {
+        // Show the requesting player's own hand
+        myHand: state.players[playerId].hand,
+        // Show only card counts for opponents
+        opponents: Object.fromEntries(
+          Object.entries(state.players)
+            .filter(([id]) => id !== playerId)
+            .map(([id, p]) => [id, { cardCount: p.hand.length }])
+        ),
+        // Community/public information
+        board: state.board,
+        pot: state.pot,
+      };
+    },
+  },
+};
+```
+
+## Accessing Player Views
+
+```typescript
+const game = new CroupierCore(config, { players: ["alice", "bob"] });
+
+// Alice sees her own hand but only Bob's card count
+const aliceView = game.getPlayerView("alice");
+
+// Bob sees his own hand but only Alice's card count
+const bobView = game.getPlayerView("bob");
+```
+
+## Utility Functions
+
+The core provides helpers for common masking patterns:
+
+### `maskArray(arr)`
+
+Replaces each element with `{ hidden: true }`. Useful for showing that cards exist without revealing their values:
+
+```typescript
+import { maskArray } from "@croupier/core";
+
+playerView(state, playerId) {
+  return {
+    players: Object.fromEntries(
+      Object.entries(state.players).map(([id, p]) => [
+        id,
+        {
+          hand: id === playerId ? p.hand : maskArray(p.hand),
+          board: p.board,
+        },
+      ])
+    ),
+  };
+}
+```
+
+### `countOnly(arr)`
+
+Returns the length of an array. Useful for hiding deck contents:
+
+```typescript
+import { countOnly } from "@croupier/core";
+
+playerView(state, playerId) {
+  return {
+    deckCount: countOnly(state.deck),  // 23 (not the actual cards)
+    myHand: state.players[playerId].hand,
+  };
+}
+```
+
+### `deepClone(obj)`
+
+Creates a deep copy of the state before masking, ensuring mutations in the view function don't affect the real state:
+
+```typescript
+import { deepClone } from "@croupier/core";
+
+playerView(state, playerId) {
+  const view = deepClone(state);
+  // Safe to mutate view without affecting real state
+  delete view.deck;
+  for (const [id, player] of Object.entries(view.players)) {
+    if (id !== playerId) {
+      player.hand = player.hand.map(() => ({ hidden: true }));
+    }
+  }
+  return view;
+}
+```
+
+## Real-World Examples
+
+### Texas Hold'em
+
+- Players see their own hole cards but not opponents'
+- Community cards are visible to all
+- Folded players' cards are hidden
+- Pot and bet amounts are public
+
+### Digital TCG
+
+- Players see their own hand
+- Opponent's hand is masked (hidden cards)
+- Both players' boards are visible
+- Deck is shown as a count only
+
+### Planning Poker
+
+- During voting: each player sees only their own vote
+- After reveal: all votes become visible to everyone

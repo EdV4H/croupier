@@ -1,0 +1,109 @@
+# Turn Orders API
+
+Built-in turn order strategies and the `custom()` factory.
+
+## Imports
+
+```typescript
+import {
+  ROUND_ROBIN,
+  ALTERNATING,
+  SIMULTANEOUS,
+  custom,
+} from "@croupier/core";
+```
+
+## ROUND_ROBIN
+
+Cycles through players in order. Returns `null` after one full cycle.
+
+```typescript
+const ROUND_ROBIN: TurnOrder
+```
+
+| Method | Behavior |
+|--------|----------|
+| `first(ctx)` | Returns `ctx.players[0]` |
+| `next(ctx)` | Returns the next player in the list, or `null` when all have acted |
+
+**Use for**: Card games, board games, any sequential-play game.
+
+## ALTERNATING
+
+Each player gets one action per turn, then play switches to the other player.
+
+```typescript
+const ALTERNATING: TurnOrder
+```
+
+| Method | Behavior |
+|--------|----------|
+| `first(ctx)` | Returns `ctx.players[0]` |
+| `next(ctx)` | Always returns `null` (ends the current player's turn immediately) |
+
+The phase machine handles player swapping on re-entry.
+
+**Use for**: TCGs, chess-like games, any game with full turns per player.
+
+## SIMULTANEOUS
+
+All players can act at the same time.
+
+```typescript
+const SIMULTANEOUS: TurnOrder
+```
+
+| Method | Behavior |
+|--------|----------|
+| `first(ctx)` | Returns all `ctx.players` |
+| `next(ctx)` | Returns all `ctx.players` (everyone stays active) |
+
+Phase transitions happen via the phase's `next()` function, typically when all players have completed their actions.
+
+**Use for**: Voting, simultaneous selection, real-time phases.
+
+## custom()
+
+Factory function for creating custom turn orders.
+
+```typescript
+function custom(order: TurnOrder): TurnOrder
+```
+
+**Example:**
+
+```typescript
+const skipInactivePlayers = custom({
+  first(ctx) {
+    const state = ctx.state as MyState;
+    return state.playerOrder.find(id => state.players[id].active)!;
+  },
+  next(ctx) {
+    const state = ctx.state as MyState;
+    if (isRoundComplete(state)) return null;
+    return findNextActivePlayer(state);
+  },
+});
+```
+
+## TurnOrder Interface
+
+```typescript
+interface TurnOrder {
+  first(ctx: TurnContext): PlayerId | PlayerId[];
+  next(ctx: TurnContext): PlayerId | PlayerId[] | null;
+}
+```
+
+## TurnContext
+
+```typescript
+interface TurnContext {
+  state: GameState;
+  players: PlayerId[];
+  phase: string;
+  stage?: string;
+  lastPlayer?: PlayerId;
+  actionCount: number;
+}
+```

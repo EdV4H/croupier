@@ -1,0 +1,68 @@
+# Planning Poker
+
+`@croupier/plugin-planning-poker` implements agile estimation with story point voting.
+
+## Installation
+
+```bash
+pnpm add @croupier/plugin-planning-poker
+```
+
+## Usage
+
+```typescript
+import { CroupierCore } from "@croupier/core";
+import { createPlanningPokerConfig } from "@croupier/plugin-planning-poker";
+
+const game = new CroupierCore(
+  createPlanningPokerConfig(),
+  { players: ["facilitator", "dev1", "dev2", "dev3"] }
+);
+```
+
+## Roles
+
+- **Facilitator**: The first player. Controls the flow (selecting tasks, starting votes, revealing cards).
+- **Voter**: All other players. Selects estimation cards during voting.
+
+## Phases
+
+| Phase | Description | Turn Order |
+|-------|-------------|------------|
+| `idle` | Waiting for a task to be selected | Facilitator only |
+| `discussion` | Team discusses the task | Facilitator only |
+| `voting` | All voters select cards simultaneously | SIMULTANEOUS |
+| `evaluation` | Cards revealed, discuss results | Facilitator only |
+| `consensus` | Estimate recorded, ready for next task | Facilitator only |
+
+## Actions
+
+### Facilitator Actions (unrestricted)
+
+| Action | Phase | Description |
+|--------|-------|-------------|
+| `selectTask` | idle | Choose a task to estimate. Payload: `{ id: string, title: string }` |
+| `startVoting` | discussion, evaluation | Open voting round |
+| `reveal` | voting | Reveal all votes |
+| `recordEstimate` | evaluation | Record final estimate. Payload: `{ estimate: string }` |
+| `resetForNextTask` | consensus | Reset for next task |
+
+### Voter Actions
+
+| Action | Phase | Description |
+|--------|-------|-------------|
+| `vote` | voting | Cast a vote. Payload: `{ card: string }` |
+
+## Deck
+
+Fibonacci-based estimation deck:
+
+```
+["0", "1", "2", "3", "5", "8", "13", "21", "?", "coffee"]
+```
+
+## State Masking
+
+- During **voting**: Each player sees only their own selected card
+- After **reveal**: All votes are visible to everyone
+- Facilitator can always see their own role status

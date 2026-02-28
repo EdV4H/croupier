@@ -1,0 +1,61 @@
+# Croupier
+
+A universal game engine framework for TypeScript.
+
+## What is Croupier?
+
+Croupier is a **framework for building turn-based and real-time multiplayer games** in TypeScript. It provides a declarative configuration-driven approach to defining game logic, with built-in support for:
+
+- **State machine** — Phase and stage management with automatic transitions
+- **Turn orders** — Round-robin, alternating, simultaneous, and custom turn strategies
+- **State masking** — Per-player information hiding (fog of war, hidden hands)
+- **Action validation** — Declarative rules for who can do what and when
+- **Interrupts** — Conditions that can immediately end the game
+- **Event system** — React to state changes, phase transitions, and game events
+
+## Design Philosophy
+
+Croupier follows a **plugin architecture**. The core engine (`@croupier/core`) provides the state machine, turn management, and action dispatch. Each game is a plugin that exports a `CroupierConfig` object describing:
+
+- How to **set up** initial state
+- What **actions** players can take
+- How the game flows through **phases** and **stages**
+- When the game **ends**
+- What each player can **see** (state masking)
+
+The engine is **pure logic** — no DOM, no I/O, no framework dependencies. It runs anywhere: servers, browsers, tests, or embedded in other applications.
+
+## Included Plugins
+
+| Plugin | Description | Turn Model |
+|--------|-------------|------------|
+| `@croupier/plugin-texas-holdem` | No-Limit Texas Hold'em poker | Sequential round-robin |
+| `@croupier/plugin-planning-poker` | Agile estimation with story points | Simultaneous (barrier sync) |
+| `@croupier/plugin-values-card` | Wevox Values Card game | Sequential round-robin |
+| `@croupier/plugin-digital-tcg` | Hearthstone-style trading card game | Alternating turns |
+
+## Quick Example
+
+```typescript
+import { CroupierCore } from "@croupier/core";
+import { createValuesCardConfig } from "@croupier/plugin-values-card";
+
+const game = new CroupierCore(
+  createValuesCardConfig(),
+  { players: ["alice", "bob", "charlie"] },
+);
+
+// Get masked state for a specific player
+const aliceView = game.getPlayerView("alice");
+
+// Dispatch an action
+const result = game.dispatch("alice", "drawFromDeck");
+if (!result.ok) {
+  console.error(result.error);
+}
+
+// Listen for events
+game.on("gameEnd", ({ result }) => {
+  console.log("Winner:", result.winner);
+});
+```

@@ -1,0 +1,99 @@
+# Phases & Stages
+
+Phases represent the major states of your game. Stages are optional sub-states within a phase.
+
+## Phases
+
+Define phases in your `CroupierConfig`:
+
+```typescript
+const config: CroupierConfig = {
+  // ...
+  initialPhase: "betting",
+  phases: {
+    betting: {
+      allowedActions: ["fold", "check", "call", "raise"],
+      turnOrder: ROUND_ROBIN,
+      next: (state) => isBettingComplete(state) ? "showdown" : null,
+    },
+    showdown: {
+      allowedActions: [],
+      onEnter: (state) => resolveWinner(state),
+      next: () => null, // terminal phase
+    },
+  },
+};
+```
+
+### Phase Lifecycle
+
+1. **`onEnter(state, ctx)`** — Called when entering the phase. Use for setup (deal cards, reset counters).
+2. **Turn order initialization** — `turnOrder.first()` determines who goes first.
+3. **Auto-advance check** — If `allowedActions` is empty, the phase can auto-advance via `next()`.
+4. **Player actions** — Players dispatch actions until the turn order completes or a transition triggers.
+5. **`next(state, ctx)`** — After each action (or turn order completion), checked for a phase transition. Return a phase name to transition, or `null` to stay.
+6. **`onExit(state, ctx)`** — Called when leaving the phase.
+
+### Auto-Advancing Phases
+
+Phases with no `allowedActions` (or an empty array) automatically advance. This is useful for setup phases:
+
+```typescript
+phases: {
+  turnStart: {
+    // No allowedActions — auto-advances after onEnter
+    onEnter: (state) => {
+      state.currentMana += 1;
+      drawCard(state);
+    },
+    next: () => "main",
+  },
+  main: {
+    allowedActions: ["playCard", "attack", "endTurn"],
+    // ...
+  },
+}
+```
+
+## Stages
+
+Stages add a sub-state within a phase. They're useful when a phase has distinct sub-steps (e.g., draw then discard).
+
+```typescript
+phases: {
+  play: {
+    stages: {
+      waitingForDraw: {
+        allowedActions: ["drawFromDeck", "drawFromDiscard"],
+        next: (state) => state.drewCard ? "waitingForDiscard" : null,
+      },
+      waitingForDiscard: {
+        allowedActions: ["discardCard"],
+        next: (state) => state.discarded ? "__end__" : null,
+      },
+    },
+    initialStage: "waitingForDraw",
+    next: (state) => isGameOver(state) ? null : "play", // loop
+  },
+}
+```
+
+### The `__end__` Sentinel
+
+When a stage's `next()` returns `"__end__"`, it signals that the stage sequence is complete. The engine then evaluates the parent phase's `next()` to determine the next phase.
+
+### Stage Lifecycle
+
+1. **`onEnter(state, ctx)`** — Called when entering the stage.
+2. **Turn order** — Uses the stage's `turnOrder` if defined, otherwise the phase's.
+3. **Actions** — Players dispatch actions allowed by the stage's `allowedActions`.
+4. **`next(state, ctx)`** — Checked after each action. Return a stage name, `"__end__"`, or `null`.
+5. **`onExit(state, ctx)`** — Called when leaving the stage.
+
+## Transition Priority
+
+When checking transitions:
+
+1. If in a stage, the **stage's `next()`** is checked first.
+2. If the stage returns `"__end__"`, the **phase's `next()`** is checked.
+3. If not in a stage, the **phase's `next()`** is checked directly.

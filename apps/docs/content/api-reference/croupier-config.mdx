@@ -1,0 +1,151 @@
+# CroupierConfig
+
+The main configuration interface that game plugins export. Describes everything about a game: setup, actions, phases, ending conditions, and more.
+
+## Interface
+
+```typescript
+interface CroupierConfig<S extends GameState = GameState> {
+  name: string;
+  setup: (ctx: SetupContext) => S;
+  actions: { [name: string]: ActionConfig<S> };
+  phases: { [name: string]: PhaseConfig<S> };
+  initialPhase?: string;
+  defaultTurnOrder?: TurnOrder;
+  endIf?: (state: S) => GameResult | null;
+  interrupts?: InterruptGuard<S>[];
+  view?: ViewConfig<S>;
+  roles?: { [name: string]: RoleConfig };
+}
+```
+
+## Properties
+
+### `name: string`
+
+Human-readable name for the game.
+
+### `setup(ctx: SetupContext): S`
+
+Initializes the game state. Called once when the `CroupierCore` instance is created.
+
+```typescript
+interface SetupContext {
+  numPlayers: number;
+  players: PlayerId[];
+  random: {
+    shuffle: <T>(arr: T[]) => T[];
+    integer: (min: number, max: number) => number;
+    pick: <T>(arr: T[]) => T;
+  };
+}
+```
+
+The `random` object provides seeded random functions for reproducible games.
+
+### `actions: { [name: string]: ActionConfig<S> }`
+
+Map of action name to action configuration.
+
+```typescript
+interface ActionConfig<S extends GameState = GameState> {
+  execute: (state: S, playerId: PlayerId, payload: unknown) => void;
+  validate?: (state: S, playerId: PlayerId, payload: unknown) => boolean | string;
+  endsTurn?: boolean;
+  unrestricted?: boolean;
+}
+```
+
+### `phases: { [name: string]: PhaseConfig<S> }`
+
+Map of phase name to phase configuration.
+
+```typescript
+interface PhaseConfig<S extends GameState = GameState> {
+  turnOrder?: TurnOrder;
+  allowedActions?: string[];
+  onEnter?: (state: S, ctx: PhaseContext) => void;
+  onExit?: (state: S, ctx: PhaseContext) => void;
+  next?: (state: S, ctx: PhaseContext) => string | null;
+  stages?: { [name: string]: StageConfig<S> };
+  initialStage?: string;
+  allowedRoles?: string[];
+}
+```
+
+### `initialPhase?: string`
+
+Name of the first phase. Defaults to the first key in the `phases` object.
+
+### `defaultTurnOrder?: TurnOrder`
+
+Default turn order used when a phase doesn't specify its own.
+
+### `endIf?(state: S): GameResult | null`
+
+Checked after every action. Return a `GameResult` to end the game normally, or `null` to continue.
+
+```typescript
+interface GameResult {
+  winner?: PlayerId | PlayerId[] | null;
+  draw?: boolean;
+  reason?: string;
+  [key: string]: unknown;
+}
+```
+
+### `interrupts?: InterruptGuard<S>[]`
+
+Array of conditions that can immediately end the game.
+
+```typescript
+interface InterruptGuard<S extends GameState = GameState> {
+  condition: (state: S) => GameResult | null;
+}
+```
+
+### `view?: ViewConfig<S>`
+
+Defines how state is masked for each player.
+
+```typescript
+interface ViewConfig<S extends GameState = GameState> {
+  playerView: (state: S, playerId: PlayerId) => unknown;
+}
+```
+
+### `roles?: { [name: string]: RoleConfig }`
+
+Optional role definitions for games with asymmetric player roles.
+
+```typescript
+interface RoleConfig {
+  count?: number;
+}
+```
+
+## Supporting Types
+
+### StageConfig
+
+```typescript
+interface StageConfig<S extends GameState = GameState> {
+  allowedActions?: string[];
+  turnOrder?: TurnOrder;
+  onEnter?: (state: S, ctx: PhaseContext) => void;
+  onExit?: (state: S, ctx: PhaseContext) => void;
+  next?: (state: S, ctx: PhaseContext) => string | "__end__" | null;
+}
+```
+
+### PhaseContext
+
+```typescript
+interface PhaseContext {
+  phase: string;
+  stage?: string;
+  currentPlayers: PlayerId | PlayerId[];
+  players: PlayerId[];
+  actionCount: number;
+}
+```

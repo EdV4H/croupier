@@ -1,0 +1,161 @@
+# CroupierCore
+
+The main engine class. Manages game state, dispatches actions, runs the phase machine, and emits events.
+
+## Constructor
+
+```typescript
+new CroupierCore(config: CroupierConfig, options: CroupierCoreOptions)
+```
+
+### CroupierCoreOptions
+
+```typescript
+interface CroupierCoreOptions {
+  players: PlayerId[];
+  seed?: number;
+}
+```
+
+- **`players`** — Array of player IDs participating in the game
+- **`seed`** — Optional seed for the random number generator (for reproducible games)
+
+### Example
+
+```typescript
+import { CroupierCore } from "@croupier/core";
+import { createValuesCardConfig } from "@croupier/plugin-values-card";
+
+const game = new CroupierCore(
+  createValuesCardConfig(),
+  { players: ["alice", "bob"], seed: 42 }
+);
+```
+
+## Methods
+
+### `dispatch(playerId, actionName, payload?)`
+
+Dispatches a player action. This is the primary way to interact with the game.
+
+```typescript
+dispatch(
+  playerId: PlayerId,
+  actionName: string,
+  payload?: unknown
+): DispatchResult
+```
+
+Returns:
+
+```typescript
+interface DispatchResult {
+  ok: boolean;
+  error?: string;
+}
+```
+
+**Example:**
+
+```typescript
+const result = game.dispatch("alice", "playCard", { cardId: "card_1" });
+if (!result.ok) {
+  console.error(result.error); // "Not your turn" | "Card not in hand" | etc.
+}
+```
+
+### `getState()`
+
+Returns the full, unmasked game state. **Use only on the server side** or in tests.
+
+```typescript
+getState(): GameState
+```
+
+### `getEngineState()`
+
+Returns the current engine state (phase, stage, current players, finished status).
+
+```typescript
+getEngineState(): EngineState
+```
+
+```typescript
+interface EngineState {
+  phase: string;
+  stage?: string;
+  currentPlayers: PlayerId | PlayerId[];
+  finished: boolean;
+  result?: GameResult;
+}
+```
+
+### `getPlayerView(playerId)`
+
+Returns the masked state for a specific player. Returns `undefined` if no `view.playerView` is configured.
+
+```typescript
+getPlayerView(playerId: PlayerId): unknown | undefined
+```
+
+### `getLog()`
+
+Returns the full action log.
+
+```typescript
+getLog(): ActionLogEntry[]
+```
+
+```typescript
+interface ActionLogEntry {
+  playerId: PlayerId;
+  action: string;
+  payload: unknown;
+  phase: string;
+  stage?: string;
+  timestamp: number;
+}
+```
+
+### `on(event, listener)`
+
+Subscribe to engine events.
+
+```typescript
+on<K extends keyof CroupierEvents>(
+  event: K,
+  listener: (data: CroupierEvents[K]) => void
+): void
+```
+
+## Events
+
+```typescript
+interface CroupierEvents<S extends GameState = GameState> {
+  stateChange: { state: S; engine: EngineState };
+  phaseChange: { from: string; to: string; stage?: string };
+  stageChange: { phase: string; from?: string; to?: string };
+  action: ActionLogEntry;
+  gameEnd: { result: GameResult; state: S };
+}
+```
+
+### `stateChange`
+
+Emitted after every successful dispatch. Provides the updated state and engine state.
+
+### `phaseChange`
+
+Emitted when the game transitions to a new phase.
+
+### `stageChange`
+
+Emitted when a stage changes within the current phase.
+
+### `action`
+
+Emitted after an action is executed and logged.
+
+### `gameEnd`
+
+Emitted when the game ends (via interrupt or endIf).

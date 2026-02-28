@@ -1,0 +1,83 @@
+# Texas Hold'em
+
+`@croupier/plugin-texas-holdem` implements No-Limit Texas Hold'em poker.
+
+## Installation
+
+```bash
+pnpm add @croupier/plugin-texas-holdem
+```
+
+## Usage
+
+```typescript
+import { CroupierCore } from "@croupier/core";
+import { createTexasHoldemConfig } from "@croupier/plugin-texas-holdem";
+
+const game = new CroupierCore(
+  createTexasHoldemConfig(),
+  { players: ["alice", "bob", "charlie"] }
+);
+```
+
+## Configuration
+
+`createTexasHoldemConfig()` accepts optional settings:
+
+- **Players**: 2-10 players
+- **Starting stack**: Default chip count per player
+- **Blinds**: Small blind / big blind amounts
+
+## Phases
+
+| Phase | Description |
+|-------|-------------|
+| `preflop` | Deal 2 hole cards, post blinds, betting round |
+| `flop` | Deal 3 community cards, betting round |
+| `turn` | Deal 1 community card, betting round |
+| `river` | Deal 1 community card, final betting round |
+| `showdown` | Evaluate hands, determine winner |
+
+## Actions
+
+| Action | Description |
+|--------|-------------|
+| `fold` | Forfeit the hand |
+| `check` | Pass without betting (when no bet to match) |
+| `call` | Match the current highest bet |
+| `raise` | Increase the bet. Payload: `{ amount: number }` |
+| `allIn` | Bet all remaining chips |
+
+## Turn Order
+
+Custom round-robin that:
+- Skips players who have folded or gone all-in
+- Returns `null` when all active players have matched the highest bet
+
+## Interrupts
+
+- **All fold**: If all players except one fold, the remaining player wins immediately
+
+## State Masking
+
+- Players see their own hole cards
+- Opponent hole cards are masked as `{ hidden: true }`
+- Community cards, pot, and bet amounts are visible to all
+- Deck is hidden (shown as count only)
+
+## Hand Evaluation
+
+The plugin includes a full hand evaluator supporting all standard poker hands:
+
+| Rank | Hand |
+|------|------|
+| 10 | Royal Flush |
+| 9 | Straight Flush |
+| 8 | Four of a Kind |
+| 7 | Full House |
+| 6 | Flush |
+| 5 | Straight |
+| 4 | Three of a Kind |
+| 3 | Two Pair |
+| 2 | One Pair |
+| 1 | High Card |

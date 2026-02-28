@@ -1,0 +1,109 @@
+# Actions
+
+Actions are the primary way players interact with the game. Each action has an `execute` function that mutates state, and optional validation and turn control flags.
+
+## Defining Actions
+
+```typescript
+const config: CroupierConfig = {
+  actions: {
+    playCard: {
+      execute(state, playerId, payload) {
+        const { cardId } = payload as { cardId: string };
+        const player = state.players[playerId];
+        const cardIdx = player.hand.findIndex(c => c.id === cardId);
+        const [card] = player.hand.splice(cardIdx, 1);
+        player.board.push({ card, hasAttacked: false });
+        player.currentMana -= card.cost;
+      },
+      validate(state, playerId, payload) {
+        const { cardId } = payload as { cardId: string };
+        const player = state.players[playerId];
+        const card = player.hand.find(c => c.id === cardId);
+        if (!card) return "Card not in hand";
+        if (card.cost > player.currentMana) return "Not enough mana";
+        return false; // valid
+      },
+    },
+  },
+};
+```
+
+## ActionConfig Interface
+
+```typescript
+interface ActionConfig<S extends GameState = GameState> {
+  execute: (state: S, playerId: PlayerId, payload: unknown) => void;
+  validate?: (state: S, playerId: PlayerId, payload: unknown) => boolean | string;
+  endsTurn?: boolean;
+  unrestricted?: boolean;
+}
+```
+
+### `execute(state, playerId, payload)`
+
+Mutates the game state. This is where game logic lives. The engine calls this after all validation passes.
+
+### `validate(state, playerId, payload)`
+
+Optional validation. Return:
+- `false` or `undefined` — action is valid
+- `true` or a `string` — action is invalid (string becomes the error message)
+
+### `endsTurn`
+
+When `true`, dispatching this action immediately ends the current player's turn and advances to the next player. Useful for "End Turn" buttons in TCGs.
+
+```typescript
+endTurn: {
+  execute(state) { /* cleanup */ },
+  endsTurn: true,
+}
+```
+
+### `unrestricted`
+
+When `true`, any player can dispatch this action regardless of whose turn it is. This is essential for:
+
+- **Facilitator actions** in Planning Poker (selectTask, startVoting, reveal)
+- **Admin commands**
+- **Reactions** that can happen at any time
+
+```typescript
+selectTask: {
+  execute(state, playerId, payload) {
+    state.currentTask = payload as Task;
+  },
+  unrestricted: true,
+}
+```
+
+## Allowed Actions
+
+Phases and stages can restrict which actions are available using `allowedActions`:
+
+```typescript
+phases: {
+  voting: {
+    allowedActions: ["vote"],  // Only "vote" is available in this phase
+  },
+  evaluation: {
+    allowedActions: ["recordEstimate", "startVoting"],
+  },
+}
+```
+
+If `allowedActions` is not defined, all actions are available. If it's an empty array `[]`, no player actions are allowed (useful for auto-advancing phases).
+
+## Validation Flow
+
+When `dispatch(playerId, actionName, payload)` is called:
+
+1. **Game not finished** — Rejects if the game has ended
+2. **Action exists** — Rejects if the action name isn't in the config
+3. **Allowed in current phase/stage** — Checks `allowedActions` if defined
+4. **Player's turn** — Checks `currentPlayers` (skipped for `unrestricted` actions)
+5. **Custom validation** — Calls `validate()` if defined
+6. **Execute** — Calls `execute()` to mutate state
+
+If any check fails, `dispatch()` returns `{ ok: false, error: "..." }`.

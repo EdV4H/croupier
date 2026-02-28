@@ -1,0 +1,55 @@
+# State Machine
+
+Croupier's core is a **two-level state machine** that manages game flow through phases and optional stages within those phases.
+
+## Overview
+
+Every game has a **current phase** and optionally a **current stage** within that phase. The engine manages transitions between these states based on declarative rules you define in your game configuration.
+
+```
+Game
+ └── Phase (e.g., "preflop", "flop", "showdown")
+      └── Stage (optional, e.g., "waitingForDraw", "waitingForDiscard")
+```
+
+## Dispatch Flow
+
+When a player dispatches an action, the engine follows this sequence:
+
+1. **Validate** — Is the action allowed? Is it this player's turn?
+2. **Execute** — Mutate the game state
+3. **Log** — Record the action in the action log
+4. **Interrupt check** — Does any interrupt condition match?
+5. **End check** — Does `endIf()` signal the game should end?
+6. **Turn progression** — Advance to the next player via the turn order
+7. **Transition check** — Should the phase or stage change?
+8. **Event emission** — Notify listeners of state changes
+
+## Two Levels Are Enough
+
+The architecture uses exactly two levels (phase + stage) because this covers all common game patterns:
+
+| Pattern | Example | How it maps |
+|---------|---------|-------------|
+| Linear flow | Poker betting rounds | Phase per round: preflop → flop → turn → river |
+| Draw-discard cycle | Values Card | Phase with stages: waitingForDraw → waitingForDiscard |
+| Turn phases | TCG turn structure | Auto-advancing phases: turnStart → main → turnEnd |
+| Concurrent voting | Planning Poker | Phase with simultaneous turn order |
+
+Deeper nesting would add complexity without practical benefit for typical game designs.
+
+## Engine State
+
+The engine exposes a read-only `EngineState` at any time:
+
+```typescript
+interface EngineState {
+  phase: string;
+  stage?: string;
+  currentPlayers: PlayerId | PlayerId[];
+  finished: boolean;
+  result?: GameResult;
+}
+```
+
+Access it with `game.getEngineState()`.

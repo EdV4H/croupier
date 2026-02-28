@@ -1,0 +1,232 @@
+# Create Your Own Game
+
+This guide walks you through creating a simple game plugin for Croupier: **Rock Paper Scissors**.
+
+## Step 1: Define Your State
+
+Start by defining the types for your game state:
+
+```typescript
+// types.ts
+import type { GameState, PlayerId } from "@croupier/core";
+
+export interface RPSState extends GameState {
+  choices: Record<PlayerId, "rock" | "paper" | "scissors" | null>;
+  scores: Record<PlayerId, number>;
+  round: number;
+  maxRounds: number;
+  playerOrder: PlayerId[];
+}
+```
+
+## Step 2: Create the Config
+
+Build your `CroupierConfig`:
+
+```typescript
+// index.ts
+import type { CroupierConfig } from "@croupier/core";
+import { SIMULTANEOUS } from "@croupier/core";
+import type { RPSState } from "./types";
+
+export function createRPSConfig(maxRounds = 3): CroupierConfig<RPSState> {
+  return {
+    name: "Rock Paper Scissors",
+
+    setup(ctx) {
+      const choices: Record<string, null> = {};
+      const scores: Record<string, number> = {};
+      for (const p of ctx.players) {
+        choices[p] = null;
+        scores[p] = 0;
+      }
+      return {
+        choices,
+        scores,
+        round: 1,
+        maxRounds,
+        playerOrder: [...ctx.players],
+      };
+    },
+
+    actions: {
+      choose: {
+        execute(state, playerId, payload) {
+          const { choice } = payload as { choice: "rock" | "paper" | "scissors" };
+          state.choices[playerId] = choice;
+        },
+        validate(state, playerId, payload) {
+          const { choice } = payload as { choice: string };
+          if (!["rock", "paper", "scissors"].includes(choice)) {
+            return "Invalid choice";
+          }
+          if (state.choices[playerId] !== null) {
+            return "Already chose";
+          }
+          return false;
+        },
+      },
+    },
+
+    phases: {
+      choosing: {
+        turnOrder: SIMULTANEOUS,
+        allowedActions: ["choose"],
+        next(state) {
+          // Transition when all players have chosen
+          const allChosen = Object.values(state.choices).every(c => c !== null);
+          return allChosen ? "resolve" : null;
+        },
+      },
+
+      resolve: {
+        // No allowedActions — auto-advances
+        onEnter(state) {
+          // Determine round winner
+          const [p1, p2] = state.playerOrder;
+          const c1 = state.choices[p1]!;
+          const c2 = state.choices[p2]!;
+
+          if (c1 !== c2) {
+            const p1Wins =
+              (c1 === "rock" && c2 === "scissors") ||
+              (c1 === "paper" && c2 === "rock") ||
+              (c1 === "scissors" && c2 === "paper");
+            state.scores[p1Wins ? p1 : p2] += 1;
+          }
+
+          // Reset for next round
+          state.round += 1;
+          for (const p of state.playerOrder) {
+            state.choices[p] = null;
+          }
+        },
+        next() {
+          return "choosing"; // loop back
+        },
+      },
+    },
+
+    initialPhase: "choosing",
+
+    endIf(state) {
+      if (state.round > state.maxRounds) {
+        const [p1, p2] = state.playerOrder;
+        if (state.scores[p1] > state.scores[p2]) {
+          return { winner: p1 };
+        }
+        if (state.scores[p2] > state.scores[p1]) {
+          return { winner: p2 };
+        }
+        return { draw: true, reason: "Tied!" };
+      }
+      return null;
+    },
+
+    view: {
+      playerView(state, playerId) {
+        return {
+          myChoice: state.choices[playerId],
+          opponentChosen: Object.entries(state.choices)
+            .filter(([id]) => id !== playerId)
+            .every(([, c]) => c !== null),
+          scores: { ...state.scores },
+          round: state.round,
+          maxRounds: state.maxRounds,
+        };
+      },
+    },
+  };
+}
+```
+
+## Step 3: Test It
+
+```typescript
+import { CroupierCore } from "@croupier/core";
+import { createRPSConfig } from "./index";
+
+const game = new CroupierCore(
+  createRPSConfig(3),
+  { players: ["alice", "bob"] }
+);
+
+// Both players choose simultaneously
+game.dispatch("alice", "choose", { choice: "rock" });
+game.dispatch("bob", "choose", { choice: "scissors" });
+
+// After both choose, the game auto-resolves and starts the next round
+const state = game.getState() as RPSState;
+console.log(state.scores); // { alice: 1, bob: 0 }
+console.log(state.round);  // 2
+
+// Check masked view
+const aliceView = game.getPlayerView("alice");
+// Alice can see her choice but not Bob's (during choosing phase)
+```
+
+## Key Patterns
+
+### Choosing a Turn Order
+
+| If your game has... | Use |
+|---------------------|-----|
+| Players taking turns one at a time | `ROUND_ROBIN` |
+| Two players alternating full turns | `ALTERNATING` |
+| All players acting at once | `SIMULTANEOUS` |
+| Complex skip/pass logic | `custom()` |
+
+### Using Stages
+
+Add stages when a phase has distinct sub-steps:
+
+```typescript
+phases: {
+  play: {
+    stages: {
+      buy: { allowedActions: ["buyCard"], next: (s) => s.bought ? "action" : null },
+      action: { allowedActions: ["playAction"], next: (s) => s.played ? "__end__" : null },
+    },
+    initialStage: "buy",
+  },
+}
+```
+
+### Adding Interrupts
+
+Use interrupts for win conditions that can happen at any time:
+
+```typescript
+interrupts: [
+  {
+    condition(state) {
+      if (state.scores.alice >= 10) return { winner: "alice" };
+      if (state.scores.bob >= 10) return { winner: "bob" };
+      return null;
+    },
+  },
+],
+```
+
+### State Masking Tips
+
+- Always show a player their own private information
+- Replace hidden information with `{ hidden: true }` or count-only
+- Use `deepClone()` if you need to mutate the view safely
+- Public information (boards, scores, pots) should be visible to all
+
+## Package Structure
+
+For a plugin package:
+
+```
+my-game-plugin/
+  package.json        # name: "@croupier/plugin-my-game"
+  tsconfig.json
+  tsup.config.ts
+  src/
+    index.ts          # createMyGameConfig() export
+    types.ts          # Game-specific types
+  tests/
+    my-game.test.ts   # Vitest tests
+```

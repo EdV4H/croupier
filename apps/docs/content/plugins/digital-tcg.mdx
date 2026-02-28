@@ -1,0 +1,104 @@
+# Digital TCG
+
+`@croupier/plugin-digital-tcg` implements a Hearthstone-style trading card game.
+
+## Installation
+
+```bash
+pnpm add @croupier/plugin-digital-tcg
+```
+
+## Usage
+
+```typescript
+import { CroupierCore } from "@croupier/core";
+import { createDigitalTCGConfig } from "@croupier/plugin-digital-tcg";
+
+const game = new CroupierCore(
+  createDigitalTCGConfig(),
+  { players: ["player1", "player2"] }
+);
+```
+
+## How It Works
+
+Two players battle with decks of creature cards. Each turn, a player gains mana, draws a card, plays creatures from their hand, and attacks the opponent. The first player to reduce their opponent's life to 0 wins.
+
+## Phases
+
+| Phase | Description | Auto-advance? |
+|-------|-------------|:---:|
+| `turnStart` | Increment mana, draw a card | Yes |
+| `main` | Play cards, attack, end turn | No |
+| `turnEnd` | Cleanup | Yes |
+
+`turnStart` and `turnEnd` have no `allowedActions` and auto-advance via `onEnter` + `next()`.
+
+## Actions
+
+| Action | Phase | Description |
+|--------|-------|-------------|
+| `playCard` | main | Play a creature from hand. Payload: `{ cardId: string }` |
+| `attack` | main | Attack with a creature. Payload: `{ attackerId: string, targetId: string \| "face" }` |
+| `endTurn` | main | End your turn (has `endsTurn: true`) |
+
+## Turn Order
+
+**ALTERNATING** — Each player gets a full turn (turnStart → main → turnEnd) before play passes to the opponent.
+
+## Game Mechanics
+
+### Mana
+
+- Players start with 1 max mana
+- Each turn, max mana increases by 1 (up to 10)
+- Current mana refills to max at turn start
+- Playing a card costs mana equal to the card's cost
+
+### Creatures
+
+Each creature card has:
+- **cost** — Mana cost to play
+- **attack** — Damage dealt when attacking
+- **health** — Hit points
+
+### Combat
+
+- Creatures can attack once per turn
+- Newly played creatures have **summoning sickness** (can't attack this turn)
+- Attacking a creature: both deal damage to each other; creatures with 0 health are removed
+- Attacking "face": damage goes directly to the opponent's life total
+
+### Life
+
+- Players start with 30 life
+- Reaching 0 life triggers an interrupt and loses the game
+
+## Interrupts
+
+- **Life reaches 0**: If any player's life drops to 0 or below, the other player wins immediately
+
+## State Masking
+
+- Players see their own hand
+- Opponent's hand is masked (hidden cards)
+- Both players' boards are fully visible
+- Deck contents are hidden (shown as count only)
+- Life totals are public
+
+## Starter Deck
+
+Each player starts with a 10-card deck:
+
+| Card | Cost | Attack | Health |
+|------|:----:|:------:|:------:|
+| Recruit | 1 | 1 | 1 |
+| Squire | 1 | 1 | 2 |
+| Archer | 2 | 2 | 1 |
+| Knight | 2 | 2 | 3 |
+| Footman | 3 | 3 | 2 |
+| Healer | 3 | 1 | 4 |
+| Captain | 4 | 4 | 3 |
+| Mage | 4 | 3 | 4 |
+| Champion | 5 | 5 | 4 |
+| Dragon | 7 | 7 | 7 |

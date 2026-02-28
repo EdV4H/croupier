@@ -1,0 +1,96 @@
+# Interrupts
+
+Interrupts are conditions that can immediately end the game, regardless of the current phase or turn order. They're checked after every action.
+
+## Defining Interrupts
+
+```typescript
+const config: CroupierConfig = {
+  interrupts: [
+    {
+      condition(state) {
+        // If any player's life reaches 0, they lose
+        for (const [id, player] of Object.entries(state.players)) {
+          if (player.life <= 0) {
+            const winner = Object.keys(state.players).find(p => p !== id);
+            return { winner, reason: `${id} was eliminated` };
+          }
+        }
+        return null; // no interrupt
+      },
+    },
+  ],
+};
+```
+
+## InterruptGuard Interface
+
+```typescript
+interface InterruptGuard<S extends GameState = GameState> {
+  condition: (state: S) => GameResult | null;
+}
+```
+
+- Return `null` to continue the game
+- Return a `GameResult` to immediately end the game
+
+## Interrupts vs endIf
+
+Croupier separates two game-ending mechanisms:
+
+### `interrupts[]` — Abnormal endings
+
+Checked after every action. Use for conditions that can happen at any point:
+
+- Player elimination (life reaches 0)
+- All opponents fold in poker
+- Timeout or forfeit conditions
+
+### `endIf()` — Normal endings
+
+Checked after every action. Use for the expected game conclusion:
+
+- All rounds completed
+- A player reaches the target score
+- The deck runs out
+
+```typescript
+const config: CroupierConfig = {
+  // Abnormal: someone dies mid-game
+  interrupts: [
+    {
+      condition(state) {
+        const dead = findDeadPlayer(state);
+        return dead ? { winner: getOpponent(dead), reason: "elimination" } : null;
+      },
+    },
+  ],
+  // Normal: all rounds completed
+  endIf(state) {
+    if (state.round > state.maxRounds) {
+      return { winner: getHighestScore(state) };
+    }
+    return null;
+  },
+};
+```
+
+## Check Order
+
+After each action, the engine checks in this order:
+
+1. **Interrupts** — checked first, in array order
+2. **endIf** — checked second
+
+If any interrupt returns a non-null result, the game ends immediately without checking further interrupts or `endIf`.
+
+## Events
+
+When the game ends (via interrupt or endIf), the engine emits a `gameEnd` event:
+
+```typescript
+game.on("gameEnd", ({ result, state }) => {
+  console.log("Game over:", result.reason);
+  console.log("Winner:", result.winner);
+});
+```

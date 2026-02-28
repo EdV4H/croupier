@@ -1,0 +1,91 @@
+# Getting Started
+
+## Installation
+
+Install the core package and any game plugins you need:
+
+```bash
+# Core engine
+pnpm add @croupier/core
+
+# Game plugins (pick what you need)
+pnpm add @croupier/plugin-texas-holdem
+pnpm add @croupier/plugin-planning-poker
+pnpm add @croupier/plugin-values-card
+pnpm add @croupier/plugin-digital-tcg
+```
+
+## Basic Usage
+
+### 1. Create a game instance
+
+```typescript
+import { CroupierCore } from "@croupier/core";
+import { createDigitalTCGConfig } from "@croupier/plugin-digital-tcg";
+
+const config = createDigitalTCGConfig();
+
+const game = new CroupierCore(config, {
+  players: ["player1", "player2"],
+});
+```
+
+### 2. Read game state
+
+```typescript
+// Full engine state (phase, current players, finished status)
+const engineState = game.getEngineState();
+console.log(engineState.phase);          // "main"
+console.log(engineState.currentPlayers); // "player1"
+console.log(engineState.finished);       // false
+
+// Masked state for a specific player (hides opponent's hand, deck, etc.)
+const view = game.getPlayerView("player1");
+```
+
+### 3. Dispatch actions
+
+```typescript
+const result = game.dispatch("player1", "playCard", { cardId: "card_1" });
+
+if (!result.ok) {
+  console.error("Invalid action:", result.error);
+}
+```
+
+### 4. Listen for events
+
+```typescript
+game.on("phaseChange", ({ from, to }) => {
+  console.log(`Phase: ${from} → ${to}`);
+});
+
+game.on("gameEnd", ({ result }) => {
+  if (result.winner) {
+    console.log(`Winner: ${result.winner}`);
+  }
+});
+```
+
+## Project Structure
+
+Croupier uses a monorepo structure:
+
+```
+packages/
+  core/                    # @croupier/core — Engine
+  plugin-texas-holdem/     # @croupier/plugin-texas-holdem
+  plugin-planning-poker/   # @croupier/plugin-planning-poker
+  plugin-values-card/      # @croupier/plugin-values-card
+  plugin-digital-tcg/      # @croupier/plugin-digital-tcg
+apps/
+  demo/                    # Demo app (Hono.js + React)
+  docs/                    # This documentation site
+```
+
+## Next Steps
+
+- Learn about the [State Machine](/docs/core-concepts/state-machine) that powers all games
+- Understand [Phases and Stages](/docs/core-concepts/phases-and-stages) for game flow
+- Explore the [API Reference](/docs/api-reference/croupier-config) for full type documentation
+- Follow the [Create Your Own Game](/docs/guides/create-your-own-game) guide

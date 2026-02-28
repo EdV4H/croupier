@@ -1,0 +1,65 @@
+# Values Card
+
+`@croupier/plugin-values-card` implements the Wevox Values Card game for team building.
+
+## Installation
+
+```bash
+pnpm add @croupier/plugin-values-card
+```
+
+## Usage
+
+```typescript
+import { CroupierCore } from "@croupier/core";
+import { createValuesCardConfig } from "@croupier/plugin-values-card";
+
+const game = new CroupierCore(
+  createValuesCardConfig(),
+  { players: ["alice", "bob", "charlie"] }
+);
+```
+
+## How It Works
+
+Players take turns drawing and discarding value cards. Each card represents a personal value (e.g., "Integrity", "Creativity", "Growth"). The goal is to build a hand of values that represent what matters most to you, sparking team discussion.
+
+## Phases & Stages
+
+The game has a single phase `play` with two alternating stages:
+
+| Stage | Description |
+|-------|-------------|
+| `waitingForDraw` | Current player draws a card from the deck or discard pool |
+| `waitingForDiscard` | Current player discards a card from their hand |
+
+The stages cycle: draw → discard → (next player) → draw → discard → ...
+
+## Actions
+
+| Action | Stage | Description |
+|--------|-------|-------------|
+| `drawFromDeck` | waitingForDraw | Draw the top card from the deck |
+| `drawFromDiscard` | waitingForDraw | Pick a card from the discard pool. Payload: `{ cardId: string }` |
+| `discardCard` | waitingForDiscard | Discard a card from hand. Payload: `{ cardId: string }` |
+
+## Turn Order
+
+Sequential round-robin. Each player completes a full draw-discard cycle before play passes to the next player.
+
+## Game End
+
+The game ends when the deck is empty and the current round completes.
+
+## State Masking
+
+- Players see their own hand
+- Opponent hands are hidden
+- The discard pool is visible (shows card and who discarded it)
+- Deck is shown as a count
+
+## Value Cards
+
+The default deck includes 25 value cards:
+
+Integrity, Creativity, Growth, Empathy, Courage, Respect, Fairness, Gratitude, Resilience, Collaboration, Curiosity, Authenticity, Kindness, Accountability, Optimism, Patience, Loyalty, Humility, Passion, Wisdom, Balance, Freedom, Trust, Compassion, Innovation
