@@ -146,7 +146,7 @@ app.get(
 // Start Server
 // ============================================================
 
-const port = Number(process.env.PORT) || 3000;
+const port = Number(process.env.PORT) || 9615;
 const server = serve({ fetch: app.fetch, port }, (info) => {
   console.log(`Croupier demo server running on http://localhost:${info.port}`);
 });
