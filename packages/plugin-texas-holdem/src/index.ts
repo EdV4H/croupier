@@ -91,6 +91,55 @@ function resetBettingRound(state: HoldemState): void {
   state.lastRaiserIndex = null;
 }
 
+/** Simple Fisher-Yates shuffle */
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/** Reset state for a new hand (next round) */
+function startNewHand(state: HoldemState): void {
+  // Move dealer button
+  state.dealerPosition =
+    (state.dealerPosition + 1) % state.playerOrder.length;
+
+  // Fresh deck
+  state.deck = shuffle(createDeck());
+  state.communityCards = [];
+  state.pot = 0;
+  state.currentHighestBet = 0;
+  state.lastRaiserIndex = null;
+
+  // Reset all players, deal new hole cards
+  for (const pid of state.playerOrder) {
+    const p = state.players[pid];
+    if (p.stack > 0) {
+      p.status = "active";
+    } else {
+      p.status = "folded"; // busted players sit out
+    }
+    p.holeCards = [];
+    p.currentBet = 0;
+    p.hasActed = false;
+  }
+
+  // Deal 2 hole cards to active players
+  for (const pid of state.playerOrder) {
+    if (state.players[pid].status === "active") {
+      state.players[pid].holeCards = [state.deck.shift()!, state.deck.shift()!];
+    }
+  }
+}
+
+/** Count players who still have chips */
+function playersWithChips(state: HoldemState): PlayerId[] {
+  return state.playerOrder.filter((pid) => state.players[pid].stack > 0);
+}
+
 /** Determine the winner and distribute pot */
 function resolveShowdown(state: HoldemState): {
   winners: PlayerId[];
@@ -356,8 +405,10 @@ export function createTexasHoldemConfig(
             (bbIdx + 1) % state.playerOrder.length;
         },
         next: (state) => {
-          if (isBettingRoundComplete(state)) return "flop";
-          return null;
+          if (!isBettingRoundComplete(state)) return null;
+          // Skip straight to showdown if only 1 player remains
+          if (getRemainingPlayers(state).length <= 1) return "showdown";
+          return "flop";
         },
       },
 
@@ -374,8 +425,9 @@ export function createTexasHoldemConfig(
           );
         },
         next: (state) => {
-          if (isBettingRoundComplete(state)) return "turn";
-          return null;
+          if (!isBettingRoundComplete(state)) return null;
+          if (getRemainingPlayers(state).length <= 1) return "showdown";
+          return "turn";
         },
       },
 
@@ -391,8 +443,9 @@ export function createTexasHoldemConfig(
           );
         },
         next: (state) => {
-          if (isBettingRoundComplete(state)) return "river";
-          return null;
+          if (!isBettingRoundComplete(state)) return null;
+          if (getRemainingPlayers(state).length <= 1) return "showdown";
+          return "river";
         },
       },
 
@@ -408,8 +461,9 @@ export function createTexasHoldemConfig(
           );
         },
         next: (state) => {
-          if (isBettingRoundComplete(state)) return "showdown";
-          return null;
+          if (!isBettingRoundComplete(state)) return null;
+          if (getRemainingPlayers(state).length <= 1) return "showdown";
+          return "showdown";
         },
       },
 
@@ -417,41 +471,33 @@ export function createTexasHoldemConfig(
         allowedActions: [],
         onEnter: (state) => {
           resolveShowdown(state);
+          // Prepare next hand (if game continues)
+          if (playersWithChips(state).length > 1) {
+            startNewHand(state);
+          }
         },
-        // No next — game ends via endIf
+        next: (state) => {
+          // If multiple players still have chips, start next hand
+          if (playersWithChips(state).length > 1) {
+            return "preFlop";
+          }
+          return null; // game ends via endIf
+        },
       },
     },
 
     initialPhase: "preFlop",
 
-    interrupts: [
-      {
-        condition: (state) => {
-          const remaining = getRemainingPlayers(state);
-          if (remaining.length === 1) {
-            // Last player standing wins
-            state.players[remaining[0]].stack += state.pot;
-            state.pot = 0;
-            return { winner: remaining[0], reason: "All others folded" };
-          }
-          return null;
-        },
-      },
-    ],
-
     endIf: (state) => {
-      // Check if we're in showdown and pot has been distributed
-      if (state.communityCards.length === 5 && state.pot === 0) {
-        // Find players with stack > 0
-        const winners = state.playerOrder.filter(
-          (pid) => state.players[pid].stack > 0,
-        );
-        if (winners.length > 0) {
-          return {
-            winners,
-            reason: "Showdown complete",
-          };
-        }
+      // Game ends when only 1 player has chips
+      const alive = playersWithChips(state);
+      if (alive.length <= 1 && state.pot === 0) {
+        return {
+          winner: alive[0] ?? state.playerOrder[0],
+          reason: alive.length === 1
+            ? `${alive[0]} wins — last player standing`
+            : "All players eliminated",
+        };
       }
       return null;
     },
