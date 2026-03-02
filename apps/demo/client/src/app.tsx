@@ -234,10 +234,14 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "0.7rem 1.2rem", cursor: "pointer", fontSize: "0.95rem",
     fontWeight: 600,
   },
-  gameContainer: { maxWidth: 960, margin: "0 auto" },
+  gameContainer: {
+    display: "flex", flexDirection: "column",
+    height: "100vh", overflow: "hidden",
+  },
   header: {
     display: "flex", alignItems: "center", gap: "1rem",
     padding: "0.8rem 1rem", borderBottom: "1px solid #1e293b",
+    flexShrink: 0,
   },
   backBtn: {
     background: "none", border: "1px solid #334155", borderRadius: 6,

@@ -1,4 +1,5 @@
-import type { GameStateData } from "../hooks/use-game-state.js";
+import { useRef, useEffect } from "react";
+import type { ActionLogEntry, GameStateData } from "../hooks/use-game-state.js";
 
 interface GameBoardProps {
   gameId: string;
@@ -19,71 +20,82 @@ export function GameBoard({
     : engineState.currentPlayers === playerId;
 
   return (
-    <div style={styles.container}>
-      {/* Status Bar */}
-      <div style={styles.statusBar}>
-        <div style={styles.statusLeft}>
-          <span style={styles.phase}>Phase: {engineState.phase}</span>
-          {engineState.stage && (
-            <span style={styles.stage}>Stage: {engineState.stage}</span>
-          )}
+    <div style={styles.layout}>
+      {/* Main content */}
+      <div style={styles.main}>
+        {/* Status Bar */}
+        <div style={styles.statusBar}>
+          <div style={styles.statusLeft}>
+            <span style={styles.phase}>Phase: {engineState.phase}</span>
+            {engineState.stage && (
+              <span style={styles.stage}>Stage: {engineState.stage}</span>
+            )}
+          </div>
+          <div style={styles.statusRight}>
+            <span style={{ ...styles.turnBadge, background: isMyTurn ? "#22c55e" : "#64748b" }}>
+              {engineState.finished
+                ? "Game Over"
+                : isMyTurn
+                  ? "Your Turn"
+                  : "Waiting..."}
+            </span>
+          </div>
         </div>
-        <div style={styles.statusRight}>
-          <span style={{ ...styles.turnBadge, background: isMyTurn ? "#22c55e" : "#64748b" }}>
-            {engineState.finished
-              ? "Game Over"
-              : isMyTurn
-                ? "Your Turn"
-                : "Waiting..."}
-          </span>
-        </div>
+
+        {/* Error */}
+        {lastError && (
+          <div style={styles.error}>{lastError}</div>
+        )}
+
+        {/* Game Result */}
+        {engineState.finished && engineState.result && (
+          <div style={styles.result}>
+            <h3>Game Over</h3>
+            {engineState.result.winner && (
+              <p>
+                Winner:{" "}
+                {Array.isArray(engineState.result.winner)
+                  ? engineState.result.winner.join(", ")
+                  : engineState.result.winner}
+              </p>
+            )}
+            {engineState.result.reason && <p>{engineState.result.reason}</p>}
+          </div>
+        )}
+
+        {/* Game-specific display */}
+        {gameId === "texas-holdem" && (
+          <HoldemDisplay pv={playerView} pid={playerId} engineState={engineState} />
+        )}
+
+        {/* Action Buttons */}
+        {!engineState.finished && isMyTurn && (
+          <div style={styles.actions}>
+            <ActionPanel
+              gameId={gameId}
+              playerView={playerView}
+              engineState={engineState}
+              dispatch={dispatch}
+              playerId={playerId}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Error */}
-      {lastError && (
-        <div style={styles.error}>{lastError}</div>
-      )}
-
-      {/* Game Result */}
-      {engineState.finished && engineState.result && (
-        <div style={styles.result}>
-          <h3>Game Over</h3>
-          {engineState.result.winner && (
-            <p>
-              Winner:{" "}
-              {Array.isArray(engineState.result.winner)
-                ? engineState.result.winner.join(", ")
-                : engineState.result.winner}
-            </p>
-          )}
-          {engineState.result.reason && <p>{engineState.result.reason}</p>}
+      {/* Right sidebar: Event Log + Raw State */}
+      <div style={styles.sidebar}>
+        <EventLog entries={gameState.actionLog ?? []} currentPlayerId={playerId} />
+        <div style={styles.stateView}>
+          <details>
+            <summary style={styles.detailsSummary}>
+              Raw Game State (Debug)
+            </summary>
+            <pre style={styles.pre}>
+              {JSON.stringify(playerView, null, 2)}
+            </pre>
+          </details>
         </div>
-      )}
-
-      {/* Player View Debug */}
-      <div style={styles.stateView}>
-        <details>
-          <summary style={styles.detailsSummary}>
-            Raw Game State (Debug)
-          </summary>
-          <pre style={styles.pre}>
-            {JSON.stringify(playerView, null, 2)}
-          </pre>
-        </details>
       </div>
-
-      {/* Action Buttons */}
-      {!engineState.finished && isMyTurn && (
-        <div style={styles.actions}>
-          <ActionPanel
-            gameId={gameId}
-            playerView={playerView}
-            engineState={engineState}
-            dispatch={dispatch}
-            playerId={playerId}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -396,8 +408,360 @@ function TCGActions({
   );
 }
 
+// ============================================================
+// Event Log
+// ============================================================
+
+function formatTime(ts: number): string {
+  const d = new Date(ts);
+  return d.toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function formatPayload(payload: unknown): string {
+  if (payload == null) return "";
+  if (typeof payload === "object") {
+    const entries = Object.entries(payload as Record<string, unknown>);
+    if (entries.length === 0) return "";
+    return entries.map(([k, v]) => `${k}: ${v}`).join(", ");
+  }
+  return String(payload);
+}
+
+function EventLog({ entries, currentPlayerId }: { entries: ActionLogEntry[]; currentPlayerId: string }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [entries.length]);
+
+  // Track phase transitions to insert separator labels
+  let lastPhase = "";
+  let lastStage = "";
+
+  const rows: React.ReactNode[] = [];
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    const phaseChanged = e.phase !== lastPhase;
+    const stageChanged = e.stage !== lastStage;
+
+    if (phaseChanged || stageChanged) {
+      rows.push(
+        <div key={`sep-${i}`} style={logStyles.phaseSep}>
+          {e.phase}{e.stage ? ` / ${e.stage}` : ""}
+        </div>,
+      );
+      lastPhase = e.phase;
+      lastStage = e.stage ?? "";
+    }
+
+    const isBot = e.playerId.startsWith("bot:");
+    const isMe = e.playerId === currentPlayerId;
+    const displayName = isBot ? e.playerId.slice(4) : e.playerId;
+    const payloadStr = formatPayload(e.payload);
+
+    rows.push(
+      <div key={i} style={{ ...logStyles.entry, background: isMe ? "#1e3a5f22" : undefined }}>
+        <span style={logStyles.time}>{formatTime(e.timestamp)}</span>
+        <span style={{
+          ...logStyles.player,
+          color: isMe ? "#60a5fa" : isBot ? "#f59e0b" : "#e2e8f0",
+        }}>
+          {displayName}
+          {isBot && <span style={logStyles.botTag}>Bot</span>}
+        </span>
+        <span style={logStyles.action}>{e.action}</span>
+        {payloadStr && <span style={logStyles.payload}>{payloadStr}</span>}
+      </div>,
+    );
+  }
+
+  return (
+    <div style={logStyles.container}>
+      <div style={logStyles.header}>
+        <span style={logStyles.headerTitle}>Event Log</span>
+        <span style={logStyles.headerCount}>{entries.length}</span>
+      </div>
+      <div ref={scrollRef} style={logStyles.scrollArea}>
+        {rows.length > 0 ? rows : (
+          <div style={logStyles.empty}>No actions yet</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const logStyles: Record<string, React.CSSProperties> = {
+  container: {
+    background: "#1e293b",
+    borderRadius: 8,
+    border: "1px solid #334155",
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column" as const,
+    flex: 1,
+    minHeight: 0,
+  },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "0.5rem 0.8rem",
+    borderBottom: "1px solid #334155",
+    flexShrink: 0,
+  },
+  headerTitle: {
+    color: "#94a3b8",
+    fontSize: "0.8rem",
+    fontWeight: 600,
+    textTransform: "uppercase" as const,
+    letterSpacing: 1,
+  },
+  headerCount: {
+    color: "#64748b",
+    fontSize: "0.7rem",
+    background: "#0f172a",
+    padding: "0.1rem 0.5rem",
+    borderRadius: 10,
+  },
+  scrollArea: {
+    flex: 1,
+    overflowY: "auto" as const,
+    padding: "0.3rem 0",
+    minHeight: 0,
+  },
+  entry: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.5rem",
+    padding: "0.25rem 0.8rem",
+    fontSize: "0.78rem",
+    lineHeight: 1.6,
+  },
+  time: {
+    color: "#475569",
+    fontFamily: "monospace",
+    fontSize: "0.7rem",
+    flexShrink: 0,
+  },
+  player: {
+    fontWeight: 600,
+    flexShrink: 0,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "0.25rem",
+  },
+  botTag: {
+    color: "#f59e0b",
+    fontSize: "0.6rem",
+    fontWeight: 600,
+    background: "#422006",
+    padding: "0 0.25rem",
+    borderRadius: 3,
+  },
+  action: {
+    color: "#22c55e",
+    fontFamily: "monospace",
+    fontWeight: 500,
+  },
+  payload: {
+    color: "#64748b",
+    fontFamily: "monospace",
+    fontSize: "0.7rem",
+  },
+  phaseSep: {
+    color: "#8b5cf6",
+    fontSize: "0.7rem",
+    fontWeight: 600,
+    padding: "0.3rem 0.8rem",
+    background: "#0f172a",
+    borderTop: "1px solid #1e1b4b",
+    borderBottom: "1px solid #1e1b4b",
+    textTransform: "uppercase" as const,
+    letterSpacing: 0.5,
+  },
+  empty: {
+    color: "#475569",
+    fontSize: "0.8rem",
+    padding: "1rem",
+    textAlign: "center" as const,
+  },
+};
+
+// ============================================================
+// Texas Hold'em Display
+// ============================================================
+
+const SUIT_SYMBOLS: Record<string, string> = {
+  hearts: "\u2665",
+  diamonds: "\u2666",
+  clubs: "\u2663",
+  spades: "\u2660",
+};
+
+const SUIT_COLORS: Record<string, string> = {
+  hearts: "#ef4444",
+  diamonds: "#ef4444",
+  clubs: "#f1f5f9",
+  spades: "#f1f5f9",
+};
+
+function CardDisplay({ card, faceDown }: { card: any; faceDown?: boolean }) {
+  if (faceDown || card?.hidden) {
+    return (
+      <div style={holdemStyles.cardBack}>
+        <span style={{ fontSize: "1.2rem" }}>?</span>
+      </div>
+    );
+  }
+  const suit = SUIT_SYMBOLS[card.suit] ?? card.suit;
+  const color = SUIT_COLORS[card.suit] ?? "#f1f5f9";
+  return (
+    <div style={holdemStyles.card}>
+      <span style={{ color, fontWeight: 700, fontSize: "1rem" }}>{card.rank}</span>
+      <span style={{ color, fontSize: "0.9rem" }}>{suit}</span>
+    </div>
+  );
+}
+
+function HoldemDisplay({
+  pv,
+  pid,
+  engineState,
+}: {
+  pv: any;
+  pid: string;
+  engineState: GameStateData["engineState"];
+}) {
+  const me = pv.players?.[pid];
+  const holeCards = me?.holeCards ?? [];
+  const communityCards = pv.communityCards ?? [];
+  const playerOrder: string[] = pv.playerOrder ?? [];
+
+  return (
+    <div style={holdemStyles.container}>
+      {/* Pot & Community Cards */}
+      <div style={holdemStyles.tableCenter}>
+        <div style={holdemStyles.pot}>
+          Pot: <strong>{pv.pot}</strong>
+        </div>
+        {communityCards.length > 0 && (
+          <div style={holdemStyles.communityCards}>
+            {communityCards.map((c: any, i: number) => (
+              <CardDisplay key={i} card={c} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* My Hand */}
+      <div style={holdemStyles.myHand}>
+        <div style={holdemStyles.sectionLabel}>Your Hand</div>
+        <div style={holdemStyles.cardRow}>
+          {holeCards.map((c: any, i: number) => (
+            <CardDisplay key={i} card={c} />
+          ))}
+        </div>
+        {me && (
+          <div style={holdemStyles.myInfo}>
+            Stack: <strong>{me.stack}</strong> | Bet: <strong>{me.currentBet}</strong>
+          </div>
+        )}
+      </div>
+
+      {/* Other Players */}
+      <div style={holdemStyles.playersRow}>
+        {playerOrder
+          .filter((p: string) => p !== pid)
+          .map((p: string) => {
+            const other = pv.players?.[p];
+            if (!other) return null;
+            const isBot = p.startsWith("bot:");
+            const displayName = isBot ? p.slice(4) : p;
+            return (
+              <div key={p} style={holdemStyles.otherPlayer}>
+                <div style={holdemStyles.otherName}>
+                  {displayName}
+                  {isBot && <span style={holdemStyles.botBadge}>Bot</span>}
+                </div>
+                <div style={holdemStyles.cardRow}>
+                  {(other.holeCards ?? []).map((c: any, i: number) => (
+                    <CardDisplay key={i} card={c} faceDown={c?.hidden} />
+                  ))}
+                </div>
+                <div style={holdemStyles.otherInfo}>
+                  <span>{other.status}</span>
+                  <span>Stack: {other.stack}</span>
+                  <span>Bet: {other.currentBet}</span>
+                </div>
+              </div>
+            );
+          })}
+      </div>
+    </div>
+  );
+}
+
+const holdemStyles: Record<string, React.CSSProperties> = {
+  container: {
+    display: "flex", flexDirection: "column", gap: "1rem",
+    background: "#1e293b", borderRadius: 12, padding: "1.2rem",
+    border: "1px solid #334155",
+  },
+  tableCenter: {
+    display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem",
+    background: "#0f4d2e", borderRadius: 12, padding: "1.5rem",
+    border: "2px solid #166534",
+  },
+  pot: { color: "#fbbf24", fontSize: "1rem" },
+  communityCards: { display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" },
+  myHand: {
+    display: "flex", flexDirection: "column", alignItems: "center", gap: "0.4rem",
+    background: "#0f172a", borderRadius: 8, padding: "1rem",
+    border: "1px solid #3b82f6",
+  },
+  sectionLabel: { color: "#60a5fa", fontSize: "0.8rem", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1 },
+  cardRow: { display: "flex", gap: "0.4rem" },
+  myInfo: { color: "#94a3b8", fontSize: "0.8rem", marginTop: "0.3rem" },
+  playersRow: { display: "flex", gap: "0.8rem", flexWrap: "wrap", justifyContent: "center" },
+  otherPlayer: {
+    display: "flex", flexDirection: "column", alignItems: "center", gap: "0.3rem",
+    background: "#0f172a", borderRadius: 8, padding: "0.8rem",
+    border: "1px solid #334155", minWidth: 100,
+  },
+  otherName: { color: "#cbd5e1", fontSize: "0.8rem", fontWeight: 600, display: "flex", gap: "0.3rem", alignItems: "center" },
+  botBadge: {
+    color: "#f59e0b", fontSize: "0.65rem", fontWeight: 600,
+    background: "#422006", padding: "0.1rem 0.3rem", borderRadius: 4,
+  },
+  otherInfo: { display: "flex", gap: "0.5rem", color: "#64748b", fontSize: "0.7rem" },
+  card: {
+    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+    width: 48, height: 68, background: "#1a1a2e", borderRadius: 6,
+    border: "1px solid #475569", gap: 0,
+  },
+  cardBack: {
+    display: "flex", alignItems: "center", justifyContent: "center",
+    width: 48, height: 68, background: "#1e3a5f", borderRadius: 6,
+    border: "1px solid #3b82f6", color: "#60a5fa",
+  },
+};
+
 const styles: Record<string, React.CSSProperties> = {
-  container: { display: "flex", flexDirection: "column", gap: "1rem", padding: "1rem" },
+  layout: {
+    display: "flex", gap: "1rem", padding: "1rem",
+    flex: 1, minHeight: 0, overflow: "hidden",
+  },
+  main: {
+    display: "flex", flexDirection: "column", gap: "1rem",
+    flex: 1, minWidth: 0, overflowY: "auto",
+  },
+  sidebar: {
+    width: 300, flexShrink: 0,
+    display: "flex", flexDirection: "column",
+    gap: "0.5rem", overflow: "hidden",
+  },
   statusBar: {
     display: "flex", justifyContent: "space-between", alignItems: "center",
     background: "#1e293b", borderRadius: 8, padding: "0.8rem 1rem",
@@ -419,7 +783,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#14532d", color: "#86efac", padding: "1rem",
     borderRadius: 8, textAlign: "center",
   },
-  stateView: { background: "#1e293b", borderRadius: 8, padding: "0.8rem", border: "1px solid #334155" },
+  stateView: { background: "#1e293b", borderRadius: 8, padding: "0.8rem", border: "1px solid #334155", flexShrink: 0, overflow: "auto" },
   detailsSummary: { cursor: "pointer", color: "#64748b", fontSize: "0.8rem" },
   pre: { fontSize: "0.75rem", color: "#94a3b8", overflow: "auto", maxHeight: 300, marginTop: "0.5rem" },
   actions: {
