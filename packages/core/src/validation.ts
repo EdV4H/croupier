@@ -1,5 +1,6 @@
 import type {
   CroupierConfig,
+  CroupierContext,
   EngineState,
   GameState,
   PlayerId,
@@ -12,10 +13,11 @@ import type {
 export function validateAction<S extends GameState>(
   config: CroupierConfig<S>,
   engineState: EngineState,
-  state: S,
+  game: S,
   playerId: PlayerId,
   actionName: string,
   payload: unknown,
+  ctx: CroupierContext<S>,
 ): string | null {
   // 1. Game must not be finished
   if (engineState.finished) {
@@ -66,7 +68,7 @@ export function validateAction<S extends GameState>(
 
   // 6. Check action-specific validation
   if (actionConfig.validate) {
-    const result = actionConfig.validate(state, playerId, payload);
+    const result = actionConfig.validate(game, playerId, payload, ctx);
     if (result === false) {
       return `Action "${actionName}" validation failed`;
     }

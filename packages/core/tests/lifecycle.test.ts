@@ -18,8 +18,8 @@ function multiPhaseConfig(): CroupierConfig<PhaseState> {
     setup: () => ({ phaseLog: [], value: 0 }),
     actions: {
       act: {
-        execute: (state, playerId) => {
-          state.value++;
+        execute: (game, playerId) => {
+          game.value++;
         },
       },
     },
@@ -27,30 +27,34 @@ function multiPhaseConfig(): CroupierConfig<PhaseState> {
       phase1: {
         allowedActions: ["act"],
         turnOrder: ROUND_ROBIN,
-        onEnter: (state) => {
-          state.phaseLog.push("enter:phase1");
+        onEnter: (game) => {
+          game.phaseLog.push("enter:phase1");
         },
-        onExit: (state) => {
-          state.phaseLog.push("exit:phase1");
+        onExit: (game) => {
+          game.phaseLog.push("exit:phase1");
         },
-        next: (state) => (state.value >= 2 ? "phase2" : null),
+        transitions: [
+          { target: "phase2", guard: (ctx) => ctx.game.value >= 2 },
+        ],
       },
       phase2: {
         allowedActions: ["act"],
         turnOrder: ROUND_ROBIN,
-        onEnter: (state) => {
-          state.phaseLog.push("enter:phase2");
+        onEnter: (game) => {
+          game.phaseLog.push("enter:phase2");
         },
-        onExit: (state) => {
-          state.phaseLog.push("exit:phase2");
+        onExit: (game) => {
+          game.phaseLog.push("exit:phase2");
         },
-        next: (state) => (state.value >= 4 ? "phase3" : null),
+        transitions: [
+          { target: "phase3", guard: (ctx) => ctx.game.value >= 4 },
+        ],
       },
       phase3: {
         allowedActions: ["act"],
         turnOrder: ROUND_ROBIN,
-        onEnter: (state) => {
-          state.phaseLog.push("enter:phase3");
+        onEnter: (game) => {
+          game.phaseLog.push("enter:phase3");
         },
       },
     },
@@ -114,15 +118,15 @@ function stageConfig(): CroupierConfig<StageState> {
     setup: () => ({ log: [], drawn: false, discarded: false }),
     actions: {
       draw: {
-        execute: (state) => {
-          state.drawn = true;
-          state.log.push("draw");
+        execute: (game) => {
+          game.drawn = true;
+          game.log.push("draw");
         },
       },
       discard: {
-        execute: (state) => {
-          state.discarded = true;
-          state.log.push("discard");
+        execute: (game) => {
+          game.discarded = true;
+          game.log.push("discard");
         },
       },
     },
@@ -132,31 +136,40 @@ function stageConfig(): CroupierConfig<StageState> {
         stages: {
           waitingForDraw: {
             allowedActions: ["draw"],
-            onEnter: (state) => {
-              state.log.push("enter:waitingForDraw");
+            onEnter: (game) => {
+              game.log.push("enter:waitingForDraw");
             },
-            onExit: (state) => {
-              state.log.push("exit:waitingForDraw");
+            onExit: (game) => {
+              game.log.push("exit:waitingForDraw");
             },
-            next: (state) => (state.drawn ? "waitingForDiscard" : null),
+            always: [
+              { target: "waitingForDiscard", guard: (ctx) => ctx.game.drawn },
+            ],
           },
           waitingForDiscard: {
             allowedActions: ["discard"],
-            onEnter: (state) => {
-              state.log.push("enter:waitingForDiscard");
+            onEnter: (game) => {
+              game.log.push("enter:waitingForDiscard");
             },
-            onExit: (state) => {
-              state.log.push("exit:waitingForDiscard");
+            onExit: (game) => {
+              game.log.push("exit:waitingForDiscard");
             },
-            next: (state) => (state.discarded ? "__end__" : null),
+            always: [
+              { target: "__done__", guard: (ctx) => ctx.game.discarded },
+            ],
           },
         },
         initialStage: "waitingForDraw",
-        next: (state) => {
+        transitions: [
+          {
+            target: "playerTurn",
+            guard: () => true, // always loop back
+          },
+        ],
+        onEnter: (game) => {
           // Reset for next turn
-          state.drawn = false;
-          state.discarded = false;
-          return "playerTurn";
+          game.drawn = false;
+          game.discarded = false;
         },
       },
     },
@@ -185,7 +198,7 @@ describe("Stage Lifecycle", () => {
     expect(log).toContain("enter:waitingForDiscard");
   });
 
-  it('__end__ exits stages and triggers phase next()', () => {
+  it('"__done__" exits stages and triggers phase transitions', () => {
     const engine = new CroupierCore(stageConfig(), ["P1"]);
     engine.dispatch("P1", "draw");
     engine.dispatch("P1", "discard");

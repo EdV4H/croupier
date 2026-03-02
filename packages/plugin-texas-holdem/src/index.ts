@@ -197,24 +197,24 @@ export function createTexasHoldemConfig(
     startingStack = 100,
   } = options;
 
-  const holdemTurnOrder = custom({
+  // Pure turn order: reads currentPlayerIndex from ctx.game, no mutation
+  const holdemTurnOrder = custom<HoldemState>({
     first: (ctx) => {
-      const state = ctx.state as HoldemState;
-      const activePlayers = getActivePlayers(state);
-      if (activePlayers.length === 0) return state.playerOrder[0];
-      return state.playerOrder[state.currentPlayerIndex];
+      const activePlayers = getActivePlayers(ctx.game);
+      if (activePlayers.length === 0) return ctx.game.playerOrder[0];
+      return ctx.game.playerOrder[ctx.game.currentPlayerIndex];
     },
     next: (ctx) => {
-      const state = ctx.state as HoldemState;
-      if (isBettingRoundComplete(state)) return null;
+      if (isBettingRoundComplete(ctx.game)) return null;
       // Find next active player after the one who just acted
       const lastIdx = ctx.lastPlayer
-        ? state.playerOrder.indexOf(ctx.lastPlayer)
-        : state.currentPlayerIndex;
-      const nextIdx = nextActivePlayerIndex(state, lastIdx);
+        ? ctx.game.playerOrder.indexOf(ctx.lastPlayer)
+        : ctx.game.currentPlayerIndex;
+      const nextIdx = nextActivePlayerIndex(ctx.game, lastIdx);
       if (nextIdx === -1) return null;
-      state.currentPlayerIndex = nextIdx;
-      return state.playerOrder[nextIdx];
+      // Update currentPlayerIndex in game state (via action execute)
+      ctx.game.currentPlayerIndex = nextIdx;
+      return ctx.game.playerOrder[nextIdx];
     },
   });
 
@@ -258,70 +258,70 @@ export function createTexasHoldemConfig(
 
     actions: {
       fold: {
-        execute: (state, playerId) => {
-          state.players[playerId].status = "folded";
-          state.players[playerId].hasActed = true;
+        execute: (game, playerId) => {
+          game.players[playerId].status = "folded";
+          game.players[playerId].hasActed = true;
         },
-        validate: (state, playerId) => {
-          if (state.players[playerId].status !== "active")
+        validate: (game, playerId) => {
+          if (game.players[playerId].status !== "active")
             return "Cannot fold — not active";
           return true;
         },
       },
 
       check: {
-        execute: (state, playerId) => {
-          state.players[playerId].hasActed = true;
+        execute: (game, playerId) => {
+          game.players[playerId].hasActed = true;
         },
-        validate: (state, playerId) => {
-          if (state.players[playerId].status !== "active")
+        validate: (game, playerId) => {
+          if (game.players[playerId].status !== "active")
             return "Cannot check — not active";
-          if (state.players[playerId].currentBet < state.currentHighestBet)
+          if (game.players[playerId].currentBet < game.currentHighestBet)
             return "Cannot check — must call or raise";
           return true;
         },
       },
 
       call: {
-        execute: (state, playerId) => {
-          const player = state.players[playerId];
-          const diff = state.currentHighestBet - player.currentBet;
+        execute: (game, playerId) => {
+          const player = game.players[playerId];
+          const diff = game.currentHighestBet - player.currentBet;
           const amount = Math.min(diff, player.stack);
           player.stack -= amount;
           player.currentBet += amount;
-          state.pot += amount;
+          game.pot += amount;
           player.hasActed = true;
 
           if (player.stack === 0) {
             player.status = "allIn";
           }
         },
-        validate: (state, playerId) => {
-          if (state.players[playerId].status !== "active")
+        validate: (game, playerId) => {
+          if (game.players[playerId].status !== "active")
             return "Cannot call — not active";
-          if (state.players[playerId].currentBet >= state.currentHighestBet)
+          if (game.players[playerId].currentBet >= game.currentHighestBet)
             return "Nothing to call";
           return true;
         },
       },
 
       raise: {
-        execute: (state, playerId, payload) => {
+        execute: (game, playerId, payload) => {
           const { amount } = payload as { amount: number };
-          const player = state.players[playerId];
+          const player = game.players[playerId];
           const totalBet = amount;
           const diff = totalBet - player.currentBet;
           player.stack -= diff;
-          state.pot += diff;
+          game.pot += diff;
           player.currentBet = totalBet;
-          state.currentHighestBet = totalBet;
+          game.currentHighestBet = totalBet;
           player.hasActed = true;
-          state.lastRaiserIndex = state.playerOrder.indexOf(playerId);
+          game.lastRaiserIndex = game.playerOrder.indexOf(playerId);
 
           // Reset hasActed for other active players
-          for (const pid of state.playerOrder) {
-            if (pid !== playerId && state.players[pid].status === "active") {
-              state.players[pid].hasActed = false;
+          for (const pid of game.playerOrder) {
+            if (pid !== playerId && game.players[pid].status === "active") {
+              game.players[pid].hasActed = false;
             }
           }
 
@@ -329,47 +329,47 @@ export function createTexasHoldemConfig(
             player.status = "allIn";
           }
         },
-        validate: (state, playerId, payload) => {
-          if (state.players[playerId].status !== "active")
+        validate: (game, playerId, payload) => {
+          if (game.players[playerId].status !== "active")
             return "Cannot raise — not active";
           const { amount } = payload as { amount: number };
-          if (amount <= state.currentHighestBet)
+          if (amount <= game.currentHighestBet)
             return "Raise must be higher than current bet";
-          const diff = amount - state.players[playerId].currentBet;
-          if (diff > state.players[playerId].stack)
+          const diff = amount - game.players[playerId].currentBet;
+          if (diff > game.players[playerId].stack)
             return "Not enough chips";
           return true;
         },
       },
 
       allIn: {
-        execute: (state, playerId) => {
-          const player = state.players[playerId];
+        execute: (game, playerId) => {
+          const player = game.players[playerId];
           const amount = player.stack;
-          state.pot += amount;
+          game.pot += amount;
           player.currentBet += amount;
           player.stack = 0;
           player.status = "allIn";
           player.hasActed = true;
 
-          if (player.currentBet > state.currentHighestBet) {
-            state.currentHighestBet = player.currentBet;
-            state.lastRaiserIndex = state.playerOrder.indexOf(playerId);
+          if (player.currentBet > game.currentHighestBet) {
+            game.currentHighestBet = player.currentBet;
+            game.lastRaiserIndex = game.playerOrder.indexOf(playerId);
             // Reset hasActed for other active players
-            for (const pid of state.playerOrder) {
+            for (const pid of game.playerOrder) {
               if (
                 pid !== playerId &&
-                state.players[pid].status === "active"
+                game.players[pid].status === "active"
               ) {
-                state.players[pid].hasActed = false;
+                game.players[pid].hasActed = false;
               }
             }
           }
         },
-        validate: (state, playerId) => {
-          if (state.players[playerId].status !== "active")
+        validate: (game, playerId) => {
+          if (game.players[playerId].status !== "active")
             return "Cannot go all-in — not active";
-          if (state.players[playerId].stack <= 0) return "No chips to bet";
+          if (game.players[playerId].stack <= 0) return "No chips to bet";
           return true;
         },
       },
@@ -379,128 +379,146 @@ export function createTexasHoldemConfig(
       preFlop: {
         allowedActions: ["fold", "check", "call", "raise", "allIn"],
         turnOrder: holdemTurnOrder,
-        onEnter: (state) => {
+        onEnter: (game) => {
           // Post blinds
           const sbIdx =
-            (state.dealerPosition + 1) % state.playerOrder.length;
+            (game.dealerPosition + 1) % game.playerOrder.length;
           const bbIdx =
-            (state.dealerPosition + 2) % state.playerOrder.length;
+            (game.dealerPosition + 2) % game.playerOrder.length;
 
-          const sbPlayer = state.players[state.playerOrder[sbIdx]];
+          const sbPlayer = game.players[game.playerOrder[sbIdx]];
           const sbAmount = Math.min(smallBlind, sbPlayer.stack);
           sbPlayer.stack -= sbAmount;
           sbPlayer.currentBet = sbAmount;
-          state.pot += sbAmount;
+          game.pot += sbAmount;
 
-          const bbPlayer = state.players[state.playerOrder[bbIdx]];
+          const bbPlayer = game.players[game.playerOrder[bbIdx]];
           const bbAmount = Math.min(bigBlind, bbPlayer.stack);
           bbPlayer.stack -= bbAmount;
           bbPlayer.currentBet = bbAmount;
-          state.pot += bbAmount;
+          game.pot += bbAmount;
 
-          state.currentHighestBet = bbAmount;
+          game.currentHighestBet = bbAmount;
 
           // First to act is after BB
-          state.currentPlayerIndex =
-            (bbIdx + 1) % state.playerOrder.length;
+          game.currentPlayerIndex =
+            (bbIdx + 1) % game.playerOrder.length;
         },
-        next: (state) => {
-          if (!isBettingRoundComplete(state)) return null;
-          // Skip straight to showdown if only 1 player remains
-          if (getRemainingPlayers(state).length <= 1) return "showdown";
-          return "flop";
-        },
+        transitions: [
+          {
+            target: "showdown",
+            guard: (ctx) => isBettingRoundComplete(ctx.game) && getRemainingPlayers(ctx.game).length <= 1,
+          },
+          {
+            target: "flop",
+            guard: (ctx) => isBettingRoundComplete(ctx.game),
+          },
+        ],
       },
 
       flop: {
         allowedActions: ["fold", "check", "call", "raise", "allIn"],
         turnOrder: holdemTurnOrder,
-        onEnter: (state) => {
-          dealCommunityCards(state, 3);
-          resetBettingRound(state);
+        onEnter: (game) => {
+          dealCommunityCards(game, 3);
+          resetBettingRound(game);
           // First to act is after dealer
-          state.currentPlayerIndex = nextActivePlayerIndex(
-            state,
-            state.dealerPosition,
+          game.currentPlayerIndex = nextActivePlayerIndex(
+            game,
+            game.dealerPosition,
           );
         },
-        next: (state) => {
-          if (!isBettingRoundComplete(state)) return null;
-          if (getRemainingPlayers(state).length <= 1) return "showdown";
-          return "turn";
-        },
+        transitions: [
+          {
+            target: "showdown",
+            guard: (ctx) => isBettingRoundComplete(ctx.game) && getRemainingPlayers(ctx.game).length <= 1,
+          },
+          {
+            target: "turn",
+            guard: (ctx) => isBettingRoundComplete(ctx.game),
+          },
+        ],
       },
 
       turn: {
         allowedActions: ["fold", "check", "call", "raise", "allIn"],
         turnOrder: holdemTurnOrder,
-        onEnter: (state) => {
-          dealCommunityCards(state, 1);
-          resetBettingRound(state);
-          state.currentPlayerIndex = nextActivePlayerIndex(
-            state,
-            state.dealerPosition,
+        onEnter: (game) => {
+          dealCommunityCards(game, 1);
+          resetBettingRound(game);
+          game.currentPlayerIndex = nextActivePlayerIndex(
+            game,
+            game.dealerPosition,
           );
         },
-        next: (state) => {
-          if (!isBettingRoundComplete(state)) return null;
-          if (getRemainingPlayers(state).length <= 1) return "showdown";
-          return "river";
-        },
+        transitions: [
+          {
+            target: "showdown",
+            guard: (ctx) => isBettingRoundComplete(ctx.game) && getRemainingPlayers(ctx.game).length <= 1,
+          },
+          {
+            target: "river",
+            guard: (ctx) => isBettingRoundComplete(ctx.game),
+          },
+        ],
       },
 
       river: {
         allowedActions: ["fold", "check", "call", "raise", "allIn"],
         turnOrder: holdemTurnOrder,
-        onEnter: (state) => {
-          dealCommunityCards(state, 1);
-          resetBettingRound(state);
-          state.currentPlayerIndex = nextActivePlayerIndex(
-            state,
-            state.dealerPosition,
+        onEnter: (game) => {
+          dealCommunityCards(game, 1);
+          resetBettingRound(game);
+          game.currentPlayerIndex = nextActivePlayerIndex(
+            game,
+            game.dealerPosition,
           );
         },
-        next: (state) => {
-          if (!isBettingRoundComplete(state)) return null;
-          if (getRemainingPlayers(state).length <= 1) return "showdown";
-          return "showdown";
-        },
+        transitions: [
+          {
+            target: "showdown",
+            guard: (ctx) => isBettingRoundComplete(ctx.game),
+          },
+        ],
       },
 
       showdown: {
         allowedActions: [],
-        onEnter: (state) => {
-          resolveShowdown(state);
+        onEnter: (game) => {
+          resolveShowdown(game);
           // Prepare next hand (if game continues)
-          if (playersWithChips(state).length > 1) {
-            startNewHand(state);
+          if (playersWithChips(game).length > 1) {
+            startNewHand(game);
           }
         },
-        next: (state) => {
-          // If multiple players still have chips, start next hand
-          if (playersWithChips(state).length > 1) {
-            return "preFlop";
-          }
-          return null; // game ends via endIf
-        },
+        always: [
+          {
+            target: "preFlop",
+            guard: (ctx) => playersWithChips(ctx.game).length > 1,
+          },
+        ],
       },
     },
 
     initialPhase: "preFlop",
 
-    endIf: (state) => {
-      // Game ends when only 1 player has chips
-      const alive = playersWithChips(state);
-      if (alive.length <= 1 && state.pot === 0) {
-        return {
-          winner: alive[0] ?? state.playerOrder[0],
-          reason: alive.length === 1
-            ? `${alive[0]} wins — last player standing`
-            : "All players eliminated",
-        };
-      }
-      return null;
-    },
+    endConditions: [
+      {
+        guard: (ctx) => {
+          const alive = playersWithChips(ctx.game);
+          return alive.length <= 1 && ctx.game.pot === 0;
+        },
+        result: (ctx) => {
+          const alive = playersWithChips(ctx.game);
+          return {
+            winner: alive[0] ?? ctx.game.playerOrder[0],
+            reason: alive.length === 1
+              ? `${alive[0]} wins — last player standing`
+              : "All players eliminated",
+          };
+        },
+      },
+    ],
 
     view: {
       playerView: (state, playerId) => {

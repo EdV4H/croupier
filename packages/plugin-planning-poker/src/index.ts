@@ -66,19 +66,19 @@ export function createPlanningPokerConfig(
 
     actions: {
       selectTask: {
-        execute: (state, _playerId, payload) => {
+        execute: (game, _playerId, payload) => {
           const task = payload as Task;
-          state.currentTask = task;
-          state.revealedCards = null;
-          state.finalEstimate = null;
-          state.roundNumber = 0;
+          game.currentTask = task;
+          game.revealedCards = null;
+          game.finalEstimate = null;
+          game.roundNumber = 0;
           // Reset all selections
-          for (const p of Object.values(state.players)) {
+          for (const p of Object.values(game.players)) {
             p.selectedCard = null;
           }
         },
-        validate: (state, playerId) => {
-          if (state.players[playerId].role !== "facilitator")
+        validate: (game, playerId) => {
+          if (game.players[playerId].role !== "facilitator")
             return "Only facilitator can select tasks";
           return true;
         },
@@ -86,60 +86,60 @@ export function createPlanningPokerConfig(
       },
 
       startVoting: {
-        execute: (state) => {
-          state.revealedCards = null;
-          state.roundNumber++;
-          for (const p of Object.values(state.players)) {
+        execute: (game) => {
+          game.revealedCards = null;
+          game.roundNumber++;
+          for (const p of Object.values(game.players)) {
             p.selectedCard = null;
           }
         },
-        validate: (state, playerId) => {
-          if (state.players[playerId].role !== "facilitator")
+        validate: (game, playerId) => {
+          if (game.players[playerId].role !== "facilitator")
             return "Only facilitator can start voting";
-          if (!state.currentTask) return "No task selected";
+          if (!game.currentTask) return "No task selected";
           return true;
         },
         unrestricted: true,
       },
 
       vote: {
-        execute: (state, playerId, payload) => {
+        execute: (game, playerId, payload) => {
           const { card } = payload as { card: string };
-          state.players[playerId].selectedCard = card;
+          game.players[playerId].selectedCard = card;
         },
-        validate: (state, playerId, payload) => {
-          if (state.players[playerId].role !== "voter")
+        validate: (game, playerId, payload) => {
+          if (game.players[playerId].role !== "voter")
             return "Facilitators cannot vote";
           const { card } = payload as { card: string };
-          if (!state.deck.includes(card)) return "Invalid card value";
+          if (!game.deck.includes(card)) return "Invalid card value";
           return true;
         },
       },
 
       reveal: {
-        execute: (state) => {
+        execute: (game) => {
           const revealed: Record<PlayerId, string> = {};
-          for (const [pid, pState] of Object.entries(state.players)) {
+          for (const [pid, pState] of Object.entries(game.players)) {
             if (pState.role === "voter" && pState.selectedCard !== null) {
               revealed[pid] = pState.selectedCard;
             }
           }
-          state.revealedCards = revealed;
+          game.revealedCards = revealed;
 
           // Record history
-          if (state.currentTask) {
-            state.roundHistory.push({
-              taskId: state.currentTask.id,
-              round: state.roundNumber,
+          if (game.currentTask) {
+            game.roundHistory.push({
+              taskId: game.currentTask.id,
+              round: game.roundNumber,
               votes: { ...revealed },
             });
           }
         },
-        validate: (state, playerId) => {
-          if (state.players[playerId].role !== "facilitator")
+        validate: (game, playerId) => {
+          if (game.players[playerId].role !== "facilitator")
             return "Only facilitator can reveal cards";
           // Check all voters have voted
-          const voters = Object.entries(state.players).filter(
+          const voters = Object.entries(game.players).filter(
             ([, p]) => p.role === "voter",
           );
           const allVoted = voters.every(([, p]) => p.selectedCard !== null);
@@ -150,31 +150,31 @@ export function createPlanningPokerConfig(
       },
 
       recordEstimate: {
-        execute: (state, _playerId, payload) => {
+        execute: (game, _playerId, payload) => {
           const { estimate } = payload as { estimate: string };
-          state.finalEstimate = estimate;
+          game.finalEstimate = estimate;
         },
-        validate: (state, playerId) => {
-          if (state.players[playerId].role !== "facilitator")
+        validate: (game, playerId) => {
+          if (game.players[playerId].role !== "facilitator")
             return "Only facilitator can record estimates";
-          if (!state.revealedCards) return "Cards have not been revealed";
+          if (!game.revealedCards) return "Cards have not been revealed";
           return true;
         },
         unrestricted: true,
       },
 
       resetForNextTask: {
-        execute: (state) => {
-          state.currentTask = null;
-          state.revealedCards = null;
-          state.finalEstimate = null;
-          state.roundNumber = 0;
-          for (const p of Object.values(state.players)) {
+        execute: (game) => {
+          game.currentTask = null;
+          game.revealedCards = null;
+          game.finalEstimate = null;
+          game.roundNumber = 0;
+          for (const p of Object.values(game.players)) {
             p.selectedCard = null;
           }
         },
-        validate: (state, playerId) => {
-          if (state.players[playerId].role !== "facilitator")
+        validate: (game, playerId) => {
+          if (game.players[playerId].role !== "facilitator")
             return "Only facilitator can reset";
           return true;
         },
@@ -185,30 +185,41 @@ export function createPlanningPokerConfig(
     phases: {
       idle: {
         allowedActions: ["selectTask"],
-        next: (state) => (state.currentTask ? "discussion" : null),
+        always: [
+          { target: "discussion", guard: (ctx) => ctx.game.currentTask !== null },
+        ],
       },
       discussion: {
         allowedActions: ["startVoting"],
-        next: (state) =>
-          state.roundNumber > 0 && !state.revealedCards ? "voting" : null,
+        always: [
+          {
+            target: "voting",
+            guard: (ctx) => ctx.game.roundNumber > 0 && !ctx.game.revealedCards,
+          },
+        ],
       },
       voting: {
         allowedActions: ["vote", "reveal"],
         turnOrder: SIMULTANEOUS,
-        next: (state) => (state.revealedCards ? "evaluation" : null),
+        always: [
+          { target: "evaluation", guard: (ctx) => ctx.game.revealedCards !== null },
+        ],
       },
       evaluation: {
         allowedActions: ["recordEstimate", "startVoting"],
-        next: (state) => {
-          if (state.finalEstimate) return "consensus";
-          // If startVoting was triggered, go back to voting
-          if (state.roundNumber > 0 && !state.revealedCards) return "voting";
-          return null;
-        },
+        always: [
+          { target: "consensus", guard: (ctx) => ctx.game.finalEstimate !== null },
+          {
+            target: "voting",
+            guard: (ctx) => ctx.game.roundNumber > 0 && !ctx.game.revealedCards,
+          },
+        ],
       },
       consensus: {
         allowedActions: ["resetForNextTask"],
-        next: (state) => (!state.currentTask ? "idle" : null),
+        always: [
+          { target: "idle", guard: (ctx) => ctx.game.currentTask === null },
+        ],
       },
     },
 

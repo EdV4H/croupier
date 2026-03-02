@@ -17,13 +17,13 @@ function interruptConfig(): CroupierConfig<LifeState> {
     },
     actions: {
       attack: {
-        execute: (state, playerId, payload) => {
+        execute: (game, playerId, payload) => {
           const target = payload as string;
-          state.lives[target]--;
+          game.lives[target]--;
         },
-        validate: (state, _pid, payload) => {
+        validate: (game, _pid, payload) => {
           const target = payload as string;
-          if (!state.lives[target]) return "Invalid target";
+          if (!game.lives[target]) return "Invalid target";
           return true;
         },
       },
@@ -34,23 +34,30 @@ function interruptConfig(): CroupierConfig<LifeState> {
         turnOrder: ROUND_ROBIN,
       },
     },
-    interrupts: [
+    endConditions: [
       {
-        condition: (state) => {
-          for (const [pid, life] of Object.entries(state.lives)) {
+        guard: (ctx) => {
+          for (const [_pid, life] of Object.entries(ctx.game.lives)) {
+            if (life <= 0) return true;
+          }
+          return false;
+        },
+        result: (ctx) => {
+          for (const [pid, life] of Object.entries(ctx.game.lives)) {
             if (life <= 0) {
-              const winner = Object.keys(state.lives).find((p) => p !== pid);
+              const winner = Object.keys(ctx.game.lives).find((p) => p !== pid);
               return { winner, reason: `${pid} defeated` };
             }
           }
-          return null;
+          return { reason: "Unknown" };
         },
+        priority: 0, // interrupt-like, checked first
       },
     ],
   };
 }
 
-describe("Interrupts", () => {
+describe("End Conditions (interrupts)", () => {
   it("does not trigger when condition is not met", () => {
     const engine = new CroupierCore(interruptConfig(), ["P1", "P2"]);
     engine.dispatch("P1", "attack", "P2");
@@ -63,12 +70,12 @@ describe("Interrupts", () => {
     engine.dispatch("P2", "attack", "P1"); // P1: 2
     engine.dispatch("P1", "attack", "P2"); // P2: 1
     engine.dispatch("P2", "attack", "P1"); // P1: 1
-    engine.dispatch("P1", "attack", "P2"); // P2: 0 → interrupt!
+    engine.dispatch("P1", "attack", "P2"); // P2: 0 → end condition!
     expect(engine.getEngineState().finished).toBe(true);
     expect(engine.getEngineState().result?.winner).toBe("P1");
   });
 
-  it("emits gameEnd event on interrupt", () => {
+  it("emits gameEnd event on end condition", () => {
     const engine = new CroupierCore(interruptConfig(), ["P1", "P2"]);
     const listener = vi.fn();
     engine.on("gameEnd", listener);
@@ -80,7 +87,7 @@ describe("Interrupts", () => {
     expect(listener).toHaveBeenCalledOnce();
   });
 
-  it("prevents further actions after interrupt", () => {
+  it("prevents further actions after end condition", () => {
     const engine = new CroupierCore(interruptConfig(), ["P1", "P2"]);
     engine.dispatch("P1", "attack", "P2");
     engine.dispatch("P2", "attack", "P1");
@@ -93,13 +100,13 @@ describe("Interrupts", () => {
   });
 });
 
-describe("endIf", () => {
-  it("ends game when endIf returns a result", () => {
+describe("endConditions (endIf-like)", () => {
+  it("ends game when endCondition returns a result", () => {
     const config: CroupierConfig<{ score: number }> = {
       name: "score-game",
       setup: () => ({ score: 0 }),
       actions: {
-        score: { execute: (state) => { state.score += 10; } },
+        score: { execute: (game) => { game.score += 10; } },
       },
       phases: {
         main: {
@@ -107,8 +114,12 @@ describe("endIf", () => {
           turnOrder: ROUND_ROBIN,
         },
       },
-      endIf: (state) =>
-        state.score >= 20 ? { winner: "P1", reason: "Score limit" } : null,
+      endConditions: [
+        {
+          guard: (ctx) => ctx.game.score >= 20,
+          result: () => ({ winner: "P1", reason: "Score limit" }),
+        },
+      ],
     };
     const engine = new CroupierCore(config, ["P1", "P2"]);
     engine.dispatch("P1", "score");

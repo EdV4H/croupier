@@ -20,9 +20,9 @@ function counterConfig(
     setup: () => ({ count: 0, lastActor: null }),
     actions: {
       increment: {
-        execute: (state, playerId) => {
-          state.count++;
-          state.lastActor = playerId;
+        execute: (game, playerId) => {
+          game.count++;
+          game.lastActor = playerId;
         },
       },
     },
@@ -96,8 +96,12 @@ describe("CroupierCore", () => {
 
     it("rejects action when game is finished", () => {
       const config = counterConfig({
-        endIf: (state) =>
-          state.count >= 1 ? { winner: state.lastActor } : null,
+        endConditions: [
+          {
+            guard: (ctx) => ctx.game.count >= 1,
+            result: (ctx) => ({ winner: ctx.game.lastActor }),
+          },
+        ],
       });
       const engine = new CroupierCore(config, ["P1", "P2"]);
       engine.dispatch("P1", "increment");
@@ -127,8 +131,8 @@ describe("CroupierCore", () => {
     it("rejects action not in allowedActions", () => {
       const config = counterConfig({
         actions: {
-          increment: { execute: (s) => { s.count++; } },
-          decrement: { execute: (s) => { s.count--; } },
+          increment: { execute: (g) => { g.count++; } },
+          decrement: { execute: (g) => { g.count--; } },
         },
         phases: {
           main: {
@@ -147,10 +151,10 @@ describe("CroupierCore", () => {
       const config = counterConfig({
         actions: {
           increment: {
-            execute: (state) => {
-              state.count++;
+            execute: (game) => {
+              game.count++;
             },
-            validate: (_state, _pid, payload) => {
+            validate: (_game, _pid, payload) => {
               if (payload === "bad") return "bad payload";
               return true;
             },
@@ -168,10 +172,10 @@ describe("CroupierCore", () => {
     it("allows unrestricted action from any player", () => {
       const config = counterConfig({
         actions: {
-          increment: { execute: (s) => { s.count++; } },
+          increment: { execute: (g) => { g.count++; } },
           reset: {
-            execute: (state) => {
-              state.count = 0;
+            execute: (game) => {
+              game.count = 0;
             },
             unrestricted: true,
           },
@@ -210,8 +214,12 @@ describe("CroupierCore", () => {
 
     it("emits gameEnd event", () => {
       const config = counterConfig({
-        endIf: (state) =>
-          state.count >= 1 ? { winner: state.lastActor } : null,
+        endConditions: [
+          {
+            guard: (ctx) => ctx.game.count >= 1,
+            result: (ctx) => ({ winner: ctx.game.lastActor }),
+          },
+        ],
       });
       const engine = new CroupierCore(config, ["P1", "P2"]);
       const listener = vi.fn();
