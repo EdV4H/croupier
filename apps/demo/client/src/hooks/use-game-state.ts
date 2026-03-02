@@ -43,6 +43,13 @@ export function useGameState(
   } | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
+  // Reset game state when roomId changes (e.g., leaving a game)
+  useEffect(() => {
+    setGameState(null);
+    setLastError(null);
+    setLastActionResult(null);
+  }, [roomId]);
+
   useEffect(() => {
     if (!roomId || !playerId) return;
 
