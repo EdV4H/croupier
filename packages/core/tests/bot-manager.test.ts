@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { CroupierCore } from "../src/croupier-core.js";
+import { CroupierCore } from "../src/xstate-engine.js";
 import { BotManager } from "../src/bot-manager.js";
 import {
   isBotPlayer,

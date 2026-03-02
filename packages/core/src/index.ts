@@ -1,6 +1,6 @@
 // Public API
-export { CroupierCore } from "./croupier-core.js";
-export type { CroupierCoreOptions } from "./croupier-core.js";
+export { CroupierCore } from "./xstate-engine.js";
+export type { CroupierCoreOptions } from "./xstate-engine.js";
 
 // Types
 export type {

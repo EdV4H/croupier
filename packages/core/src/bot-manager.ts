@@ -1,4 +1,4 @@
-import type { CroupierCore } from "./croupier-core.js";
+import type { CroupierCore } from "./xstate-engine.js";
 import type {
   BotDecision,
   BotManagerOptions,

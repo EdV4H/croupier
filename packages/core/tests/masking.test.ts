@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CroupierCore } from "../src/croupier-core.js";
+import { CroupierCore } from "../src/xstate-engine.js";
 import { ROUND_ROBIN } from "../src/turn-orders.js";
 import { countOnly, maskArray } from "../src/util/clone.js";
 import type { CroupierConfig, GameState } from "../src/types.js";
