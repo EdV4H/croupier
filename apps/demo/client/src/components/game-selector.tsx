@@ -94,7 +94,32 @@ export function GameSelector({ playerId, onJoinRoom }: GameSelectorProps) {
         ))}
       </div>
 
-      {rooms.length > 0 && (
+      {rooms.filter((r) => r.started && r.players.includes(playerId)).length > 0 && (
+        <>
+          <h2 style={styles.sectionTitle}>Active Games</h2>
+          <div style={styles.roomList}>
+            {rooms
+              .filter((r) => r.started && r.players.includes(playerId))
+              .map((room) => (
+                <div key={room.id} style={styles.roomCard}>
+                  <span style={styles.roomInfo}>
+                    {games.find((g) => g.id === room.gameId)?.name ?? room.gameId}
+                    {" — "}
+                    {room.players.length} player(s)
+                  </span>
+                  <button
+                    style={styles.rejoinButton}
+                    onClick={() => onJoinRoom(room.id, room.gameId)}
+                  >
+                    Rejoin
+                  </button>
+                </div>
+              ))}
+          </div>
+        </>
+      )}
+
+      {rooms.filter((r) => !r.started).length > 0 && (
         <>
           <h2 style={styles.sectionTitle}>Open Rooms</h2>
           <div style={styles.roomList}>
@@ -167,5 +192,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   roomInfo: { fontSize: "0.9rem", color: "#cbd5e1" },
   badge: { fontSize: "0.75rem", color: "#22c55e", fontWeight: 600 },
+  rejoinButton: {
+    background: "#22c55e", color: "#fff", border: "none", borderRadius: 6,
+    padding: "0.4rem 0.8rem", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600,
+  },
   botName: { color: "#f59e0b", fontStyle: "italic" },
 };
