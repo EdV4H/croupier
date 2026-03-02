@@ -46,6 +46,7 @@ export class RoomManager {
     if (!room?.engine) return;
 
     const engineState = this.gameManager.getEngineState(roomId);
+    const actionLog = this.gameManager.getActionLog(roomId);
 
     for (const ws of clients) {
       const conn = this.connections.get(ws);
@@ -62,6 +63,7 @@ export class RoomManager {
             data: {
               playerView,
               engineState,
+              actionLog,
               playerId: conn.playerId,
             },
           }),
@@ -132,12 +134,14 @@ export class RoomManager {
             conn.playerId,
           );
           const engineState = this.gameManager.getEngineState(conn.roomId);
+          const actionLog = this.gameManager.getActionLog(conn.roomId);
           ws.send(
             JSON.stringify({
               type: "gameState",
               data: {
                 playerView,
                 engineState,
+                actionLog,
                 playerId: conn.playerId,
               },
             }),
