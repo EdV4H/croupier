@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
 import type { ActionLogEntry, GameStateData } from "../hooks/use-game-state.js";
+import { GenericDisplay } from "./generic-display.js";
 
 interface GameBoardProps {
   gameId: string;
@@ -63,10 +64,8 @@ export function GameBoard({
           </div>
         )}
 
-        {/* Game-specific display */}
-        {gameId === "texas-holdem" && (
-          <HoldemDisplay pv={playerView} pid={playerId} engineState={engineState} />
-        )}
+        {/* Game state display */}
+        <GenericDisplay playerView={playerView} playerId={playerId} engineState={engineState} />
 
         {/* Action Buttons */}
         {!engineState.finished && isMyTurn && (
@@ -589,164 +588,6 @@ const logStyles: Record<string, React.CSSProperties> = {
   },
 };
 
-// ============================================================
-// Texas Hold'em Display
-// ============================================================
-
-const SUIT_SYMBOLS: Record<string, string> = {
-  hearts: "\u2665",
-  diamonds: "\u2666",
-  clubs: "\u2663",
-  spades: "\u2660",
-};
-
-const SUIT_COLORS: Record<string, string> = {
-  hearts: "#ef4444",
-  diamonds: "#ef4444",
-  clubs: "#f1f5f9",
-  spades: "#f1f5f9",
-};
-
-function CardDisplay({ card, faceDown }: { card: any; faceDown?: boolean }) {
-  if (faceDown || card?.hidden) {
-    return (
-      <div style={holdemStyles.cardBack}>
-        <span style={{ fontSize: "1.2rem" }}>?</span>
-      </div>
-    );
-  }
-  const suit = SUIT_SYMBOLS[card.suit] ?? card.suit;
-  const color = SUIT_COLORS[card.suit] ?? "#f1f5f9";
-  return (
-    <div style={holdemStyles.card}>
-      <span style={{ color, fontWeight: 700, fontSize: "1rem" }}>{card.rank}</span>
-      <span style={{ color, fontSize: "0.9rem" }}>{suit}</span>
-    </div>
-  );
-}
-
-function HoldemDisplay({
-  pv,
-  pid,
-  engineState,
-}: {
-  pv: any;
-  pid: string;
-  engineState: GameStateData["engineState"];
-}) {
-  const me = pv.players?.[pid];
-  const holeCards = me?.holeCards ?? [];
-  const communityCards = pv.communityCards ?? [];
-  const playerOrder: string[] = pv.playerOrder ?? [];
-
-  return (
-    <div style={holdemStyles.container}>
-      {/* Pot & Community Cards */}
-      <div style={holdemStyles.tableCenter}>
-        <div style={holdemStyles.pot}>
-          Pot: <strong>{pv.pot}</strong>
-        </div>
-        {communityCards.length > 0 && (
-          <div style={holdemStyles.communityCards}>
-            {communityCards.map((c: any, i: number) => (
-              <CardDisplay key={i} card={c} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* My Hand */}
-      <div style={holdemStyles.myHand}>
-        <div style={holdemStyles.sectionLabel}>Your Hand</div>
-        <div style={holdemStyles.cardRow}>
-          {holeCards.map((c: any, i: number) => (
-            <CardDisplay key={i} card={c} />
-          ))}
-        </div>
-        {me && (
-          <div style={holdemStyles.myInfo}>
-            Stack: <strong>{me.stack}</strong> | Bet: <strong>{me.currentBet}</strong>
-          </div>
-        )}
-      </div>
-
-      {/* Other Players */}
-      <div style={holdemStyles.playersRow}>
-        {playerOrder
-          .filter((p: string) => p !== pid)
-          .map((p: string) => {
-            const other = pv.players?.[p];
-            if (!other) return null;
-            const isBot = p.startsWith("bot:");
-            const displayName = isBot ? p.slice(4) : p;
-            return (
-              <div key={p} style={holdemStyles.otherPlayer}>
-                <div style={holdemStyles.otherName}>
-                  {displayName}
-                  {isBot && <span style={holdemStyles.botBadge}>Bot</span>}
-                </div>
-                <div style={holdemStyles.cardRow}>
-                  {(other.holeCards ?? []).map((c: any, i: number) => (
-                    <CardDisplay key={i} card={c} faceDown={c?.hidden} />
-                  ))}
-                </div>
-                <div style={holdemStyles.otherInfo}>
-                  <span>{other.status}</span>
-                  <span>Stack: {other.stack}</span>
-                  <span>Bet: {other.currentBet}</span>
-                </div>
-              </div>
-            );
-          })}
-      </div>
-    </div>
-  );
-}
-
-const holdemStyles: Record<string, React.CSSProperties> = {
-  container: {
-    display: "flex", flexDirection: "column", gap: "1rem",
-    background: "#1e293b", borderRadius: 12, padding: "1.2rem",
-    border: "1px solid #334155",
-  },
-  tableCenter: {
-    display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem",
-    background: "#0f4d2e", borderRadius: 12, padding: "1.5rem",
-    border: "2px solid #166534",
-  },
-  pot: { color: "#fbbf24", fontSize: "1rem" },
-  communityCards: { display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center" },
-  myHand: {
-    display: "flex", flexDirection: "column", alignItems: "center", gap: "0.4rem",
-    background: "#0f172a", borderRadius: 8, padding: "1rem",
-    border: "1px solid #3b82f6",
-  },
-  sectionLabel: { color: "#60a5fa", fontSize: "0.8rem", fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: 1 },
-  cardRow: { display: "flex", gap: "0.4rem" },
-  myInfo: { color: "#94a3b8", fontSize: "0.8rem", marginTop: "0.3rem" },
-  playersRow: { display: "flex", gap: "0.8rem", flexWrap: "wrap", justifyContent: "center" },
-  otherPlayer: {
-    display: "flex", flexDirection: "column", alignItems: "center", gap: "0.3rem",
-    background: "#0f172a", borderRadius: 8, padding: "0.8rem",
-    border: "1px solid #334155", minWidth: 100,
-  },
-  otherName: { color: "#cbd5e1", fontSize: "0.8rem", fontWeight: 600, display: "flex", gap: "0.3rem", alignItems: "center" },
-  botBadge: {
-    color: "#f59e0b", fontSize: "0.65rem", fontWeight: 600,
-    background: "#422006", padding: "0.1rem 0.3rem", borderRadius: 4,
-  },
-  otherInfo: { display: "flex", gap: "0.5rem", color: "#64748b", fontSize: "0.7rem" },
-  card: {
-    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-    width: 48, height: 68, background: "#1a1a2e", borderRadius: 6,
-    border: "1px solid #475569", gap: 0,
-  },
-  cardBack: {
-    display: "flex", alignItems: "center", justifyContent: "center",
-    width: 48, height: 68, background: "#1e3a5f", borderRadius: 6,
-    border: "1px solid #3b82f6", color: "#60a5fa",
-  },
-};
 
 const styles: Record<string, React.CSSProperties> = {
   layout: {
