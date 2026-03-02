@@ -422,13 +422,18 @@ export class CroupierCore<S extends GameState = GameState> {
       phase.allowedActions && phase.allowedActions.length > 0;
     const hasStages = phase.stages && Object.keys(phase.stages).length > 0;
 
-    if (!hasAllowedActions && !hasStages && phase.next) {
-      const nextPhase = phase.next(this.state, this.createPhaseContext());
-      if (nextPhase !== null) {
-        if (phase.onExit) {
-          phase.onExit(this.state, this.createPhaseContext());
+    if (!hasAllowedActions && !hasStages) {
+      // No actions possible — check endIf first (e.g., showdown resolves in onEnter)
+      if (this.checkEndIf()) return;
+
+      if (phase.next) {
+        const nextPhase = phase.next(this.state, this.createPhaseContext());
+        if (nextPhase !== null) {
+          if (phase.onExit) {
+            phase.onExit(this.state, this.createPhaseContext());
+          }
+          this.enterPhase(nextPhase);
         }
-        this.enterPhase(nextPhase);
       }
     }
   }

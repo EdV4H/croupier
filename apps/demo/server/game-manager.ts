@@ -185,6 +185,12 @@ export class GameManager {
     return room.engine.getEngineState();
   }
 
+  getActionLog(roomId: string) {
+    const room = this.rooms.get(roomId);
+    if (!room?.engine) return [];
+    return room.engine.getLog();
+  }
+
   getRoom(roomId: string): Room | undefined {
     return this.rooms.get(roomId);
   }

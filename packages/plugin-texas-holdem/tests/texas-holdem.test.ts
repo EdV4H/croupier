@@ -131,20 +131,22 @@ describe("Texas Hold'em", () => {
       engine.dispatch("P3", "check");
       engine.dispatch("P1", "check");
 
-      // Should be at showdown or game over
+      // After showdown, game continues to next hand (preFlop)
       const es = engine.getEngineState();
-      expect(es.phase === "showdown" || es.finished).toBe(true);
+      expect(es.phase).toBe("preFlop");
+      expect(es.finished).toBe(false);
     });
   });
 
-  describe("all fold interrupt", () => {
-    it("ends game when all but one fold", () => {
+  describe("all fold", () => {
+    it("awards pot and starts next hand when all but one fold", () => {
       const engine = createGame();
       engine.dispatch("P1", "fold");
       engine.dispatch("P2", "fold");
-      // P3 wins by default
-      expect(engine.getEngineState().finished).toBe(true);
-      expect(engine.getEngineState().result?.winner).toBe("P3");
+      // P3 wins the hand, but game continues (all players still have chips)
+      const es = engine.getEngineState();
+      expect(es.finished).toBe(false);
+      expect(es.phase).toBe("preFlop"); // new hand started
     });
 
     it("awards pot to last remaining player", () => {
@@ -152,8 +154,11 @@ describe("Texas Hold'em", () => {
       engine.dispatch("P1", "fold");
       engine.dispatch("P2", "fold");
       const state = engine.getState() as HoldemState;
-      expect(state.pot).toBe(0); // Pot was awarded
-      expect(state.players.P3.stack).toBe(101); // 98 + 3 pot
+      // Pot was awarded to P3, then new hand started with new blinds
+      // P3 had 98 (after BB) + 3 (pot) = 101, then new hand blinds posted
+      // Dealer moved from 0 to 1, so SB=P3(idx2), BB=P1(idx0)
+      // P3 posts SB: 101 - 1 = 100
+      expect(state.players.P3.stack).toBe(100);
     });
   });
 

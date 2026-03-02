@@ -5,14 +5,14 @@ export default defineConfig({
   plugins: [react()],
   root: "client",
   server: {
-    port: 5173,
+    port: 9614,
     proxy: {
       "/api": {
-        target: "http://localhost:3000",
+        target: "http://localhost:9615",
         changeOrigin: true,
       },
       "/ws": {
-        target: "ws://localhost:3000",
+        target: "ws://localhost:9615",
         ws: true,
       },
     },

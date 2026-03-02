@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+export interface ActionLogEntry {
+  playerId: string;
+  action: string;
+  payload?: unknown;
+  phase: string;
+  stage?: string;
+  timestamp: number;
+}
+
 export interface GameStateData {
   playerView: any;
   engineState: {
@@ -9,6 +18,7 @@ export interface GameStateData {
     finished: boolean;
     result?: any;
   };
+  actionLog: ActionLogEntry[];
   playerId: string;
 }
 
