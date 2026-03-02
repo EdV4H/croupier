@@ -1,20 +1,19 @@
 import { EventEmitter } from "./events.js";
+import { resolveTurnOrder } from "./machine-builder.js";
 import type {
   ActionLogEntry,
   CroupierConfig,
+  CroupierContext,
   CroupierEvents,
   DispatchResult,
   EngineState,
+  GameEndCondition,
   GameResult,
   GameState,
   PhaseConfig,
-  PhaseContext,
   PlayerId,
   StageConfig,
-  TurnContext,
-  TurnOrder,
 } from "./types.js";
-import { ROUND_ROBIN } from "./turn-orders.js";
 import { deepClone } from "./util/clone.js";
 import { createRandom } from "./util/random.js";
 import { validateAction, validateConfig } from "./validation.js";
@@ -25,12 +24,12 @@ export interface CroupierCoreOptions {
 
 export class CroupierCore<S extends GameState = GameState> {
   private config: CroupierConfig<S>;
-  private state: S;
-  private engineState: EngineState;
+  private ctx: CroupierContext<S>;
   private emitter = new EventEmitter();
-  private actionLog: ActionLogEntry[] = [];
-  private phaseActionCount = 0;
-  private players: PlayerId[];
+  private phase: string;
+  private stage: string | undefined;
+  private endConditions: GameEndCondition<S>[];
+  private finished = false;
 
   constructor(
     config: CroupierConfig<S>,
@@ -39,26 +38,36 @@ export class CroupierCore<S extends GameState = GameState> {
   ) {
     validateConfig(config);
     this.config = config;
-    this.players = players;
 
     // Setup initial state
     const random = createRandom(options?.seed);
-    this.state = config.setup({
+    const game = config.setup({
       numPlayers: players.length,
       players,
       random,
     });
 
-    // Initialize engine state
-    const initialPhase =
-      config.initialPhase ?? Object.keys(config.phases)[0];
-    this.engineState = {
-      phase: initialPhase,
+    // Initialize CroupierContext
+    this.ctx = {
+      game,
+      players,
       currentPlayers: [],
-      finished: false,
+      lastPlayer: null,
+      actionCount: 0,
+      result: null,
+      log: [],
     };
 
+    // Sort end conditions by priority
+    this.endConditions = [...(config.endConditions ?? [])].sort(
+      (a, b) => (a.priority ?? 100) - (b.priority ?? 100),
+    );
+
     // Enter the initial phase
+    const initialPhase =
+      config.initialPhase ?? Object.keys(config.phases)[0];
+    this.phase = initialPhase;
+    this.stage = undefined;
     this.enterPhase(initialPhase);
   }
 
@@ -75,11 +84,12 @@ export class CroupierCore<S extends GameState = GameState> {
     // 1-4. Validate
     const error = validateAction(
       this.config,
-      this.engineState,
-      this.state,
+      this.getEngineState(),
+      this.ctx.game,
       playerId,
       actionName,
       payload,
+      this.ctx,
     );
     if (error) {
       return { ok: false, error };
@@ -88,32 +98,31 @@ export class CroupierCore<S extends GameState = GameState> {
     const actionConfig = this.config.actions[actionName];
 
     // 5. Execute
-    actionConfig.execute(this.state, playerId, payload);
+    const result = actionConfig.execute(this.ctx.game, playerId, payload, this.ctx);
+    if (result && typeof result === "object") {
+      Object.assign(this.ctx.game, result);
+    }
 
     // 6. Log
     const logEntry: ActionLogEntry = {
       playerId,
       action: actionName,
       payload,
-      phase: this.engineState.phase,
-      stage: this.engineState.stage,
+      phase: this.phase,
+      stage: this.stage,
       timestamp: Date.now(),
     };
-    this.actionLog.push(logEntry);
-    this.phaseActionCount++;
+    this.ctx.log.push(logEntry);
+    this.ctx.actionCount++;
+    this.ctx.lastPlayer = playerId;
     this.emitter.emit("action", logEntry);
 
-    // 7. Interrupt check
-    if (this.checkInterrupts()) {
+    // 7. End condition check (replaces interrupts + endIf)
+    if (this.checkEndConditions()) {
       return { ok: true };
     }
 
-    // 8. End-if check
-    if (this.checkEndIf()) {
-      return { ok: true };
-    }
-
-    // 9. Turn progression
+    // 8. Turn progression
     if (actionConfig.endsTurn || !actionConfig.unrestricted) {
       this.advanceTurn(playerId);
     } else {
@@ -121,7 +130,7 @@ export class CroupierCore<S extends GameState = GameState> {
       this.checkCurrentTransitions();
     }
 
-    // 10. Emit state change
+    // 9. Emit state change
     this.emitStateChange();
 
     return { ok: true };
@@ -129,20 +138,29 @@ export class CroupierCore<S extends GameState = GameState> {
 
   /** Get a deep clone of the current game state */
   getState(): S {
-    return deepClone(this.state);
+    return deepClone(this.ctx.game);
   }
 
   /** Get the engine state (phase, stage, currentPlayers, etc.) */
   getEngineState(): EngineState {
-    return { ...this.engineState };
+    return {
+      phase: this.phase,
+      stage: this.stage,
+      currentPlayers:
+        this.ctx.currentPlayers.length === 1
+          ? this.ctx.currentPlayers[0]
+          : this.ctx.currentPlayers,
+      finished: this.finished,
+      result: this.ctx.result ?? undefined,
+    };
   }
 
   /** Get the player-specific masked view of the state */
   getPlayerView(playerId: PlayerId): unknown {
     if (this.config.view) {
-      return this.config.view.playerView(deepClone(this.state), playerId);
+      return this.config.view.playerView(deepClone(this.ctx.game), playerId);
     }
-    return deepClone(this.state);
+    return deepClone(this.ctx.game);
   }
 
   /** Get the game configuration */
@@ -152,7 +170,7 @@ export class CroupierCore<S extends GameState = GameState> {
 
   /** Get the action log */
   getLog(): ActionLogEntry[] {
-    return [...this.actionLog];
+    return [...this.ctx.log];
   }
 
   /** Subscribe to events */
@@ -173,14 +191,14 @@ export class CroupierCore<S extends GameState = GameState> {
       throw new Error(`Phase "${phaseName}" not found`);
     }
 
-    const previousPhase = this.engineState.phase;
-    this.engineState.phase = phaseName;
-    this.engineState.stage = undefined;
-    this.phaseActionCount = 0;
+    const previousPhase = this.phase;
+    this.phase = phaseName;
+    this.stage = undefined;
+    this.ctx.actionCount = 0;
 
     // Run onEnter
     if (phase.onEnter) {
-      phase.onEnter(this.state, this.createPhaseContext());
+      phase.onEnter(this.ctx.game, this.ctx);
     }
 
     // Check if phase has stages
@@ -213,23 +231,23 @@ export class CroupierCore<S extends GameState = GameState> {
     const stage = phase.stages?.[stageName];
     if (!stage) {
       throw new Error(
-        `Stage "${stageName}" not found in phase "${this.engineState.phase}"`,
+        `Stage "${stageName}" not found in phase "${this.phase}"`,
       );
     }
 
-    const previousStage = this.engineState.stage;
-    this.engineState.stage = stageName;
+    const previousStage = this.stage;
+    this.stage = stageName;
 
     // Run onEnter
     if (stage.onEnter) {
-      stage.onEnter(this.state, this.createPhaseContext());
+      stage.onEnter(this.ctx.game, this.ctx);
     }
 
     // Initialize turn order from stage or phase
     this.initializeTurnOrder(phase, stage);
 
     this.emitter.emit("stageChange", {
-      phase: this.engineState.phase,
+      phase: this.phase,
       from: previousStage,
       to: stageName,
     });
@@ -242,23 +260,10 @@ export class CroupierCore<S extends GameState = GameState> {
     phase: PhaseConfig<S>,
     stage?: StageConfig<S>,
   ): void {
-    const turnOrder = this.resolveTurnOrder(phase, stage);
-    const ctx = this.createTurnContext();
-    const first = turnOrder.first(ctx);
-    this.engineState.currentPlayers = first;
+    const turnOrder = resolveTurnOrder(this.config, phase, stage);
+    const first = turnOrder.first(this.ctx);
+    this.ctx.currentPlayers = Array.isArray(first) ? first : [first];
     this.emitStateChange();
-  }
-
-  private resolveTurnOrder(
-    phase: PhaseConfig<S>,
-    stage?: StageConfig<S>,
-  ): TurnOrder {
-    return (
-      stage?.turnOrder ??
-      phase.turnOrder ??
-      this.config.defaultTurnOrder ??
-      ROUND_ROBIN
-    );
   }
 
   // ====================
@@ -266,51 +271,66 @@ export class CroupierCore<S extends GameState = GameState> {
   // ====================
 
   private advanceTurn(lastPlayer: PlayerId): void {
-    const phase = this.config.phases[this.engineState.phase];
+    const phase = this.config.phases[this.phase];
     if (!phase) return;
 
-    const stage = this.engineState.stage
-      ? phase.stages?.[this.engineState.stage]
+    const stage = this.stage
+      ? phase.stages?.[this.stage]
       : undefined;
 
-    // Check stage transition first
-    if (stage?.next) {
-      const nextStage = stage.next(this.state, this.createPhaseContext());
-      if (nextStage === "__end__") {
-        // Exit stage, check phase next
-        if (stage.onExit) {
-          stage.onExit(this.state, this.createPhaseContext());
+    // Check stage always-transitions first
+    if (stage?.always) {
+      for (const t of stage.always) {
+        if (t.guard(this.ctx)) {
+          if (t.target === "__done__") {
+            // Exit stage, check phase transitions
+            if (stage.onExit) {
+              stage.onExit(this.ctx.game, this.ctx);
+            }
+            this.stage = undefined;
+            this.checkPhaseTransition(phase);
+            return;
+          }
+          // Transition to next stage
+          if (stage.onExit) {
+            stage.onExit(this.ctx.game, this.ctx);
+          }
+          this.enterStage(phase, t.target);
+          return;
         }
-        this.engineState.stage = undefined;
-        this.checkPhaseTransition(phase);
-        return;
-      }
-      if (nextStage !== null) {
-        // Transition to next stage
-        if (stage.onExit) {
-          stage.onExit(this.state, this.createPhaseContext());
-        }
-        this.enterStage(phase, nextStage);
-        return;
-      }
-    }
-
-    // Check if phase should transition (no stages or stage didn't transition)
-    if (!stage && phase.next) {
-      const nextPhase = phase.next(this.state, this.createPhaseContext());
-      if (nextPhase !== null) {
-        if (phase.onExit) {
-          phase.onExit(this.state, this.createPhaseContext());
-        }
-        this.enterPhase(nextPhase);
-        return;
       }
     }
 
-    // Normal turn progression
-    const turnOrder = this.resolveTurnOrder(phase, stage);
-    const ctx = this.createTurnContext(lastPlayer);
-    const next = turnOrder.next(ctx);
+    // Check phase always-transitions (for phases without stages)
+    if (!stage && phase.always) {
+      for (const t of phase.always) {
+        if (t.guard(this.ctx)) {
+          if (phase.onExit) {
+            phase.onExit(this.ctx.game, this.ctx);
+          }
+          this.enterPhase(t.target);
+          return;
+        }
+      }
+    }
+
+    // Check phase transitions (for turn-order completion)
+    if (!stage && phase.transitions) {
+      for (const t of phase.transitions) {
+        if (t.guard(this.ctx)) {
+          if (phase.onExit) {
+            phase.onExit(this.ctx.game, this.ctx);
+          }
+          this.enterPhase(t.target);
+          return;
+        }
+      }
+    }
+
+    // Normal turn progression via turn order
+    const turnOrder = resolveTurnOrder(this.config, phase, stage);
+    this.ctx.lastPlayer = lastPlayer;
+    const next = turnOrder.next(this.ctx);
 
     if (next === null) {
       // Turn order complete — check transitions
@@ -320,7 +340,7 @@ export class CroupierCore<S extends GameState = GameState> {
         this.checkPhaseTransition(phase);
       }
     } else {
-      this.engineState.currentPlayers = next;
+      this.ctx.currentPlayers = Array.isArray(next) ? next : [next];
     }
   }
 
@@ -329,42 +349,56 @@ export class CroupierCore<S extends GameState = GameState> {
    * Used after unrestricted actions that don't end turn.
    */
   private checkCurrentTransitions(): void {
-    if (this.engineState.finished) return;
+    if (this.finished) return;
 
-    const phase = this.config.phases[this.engineState.phase];
+    const phase = this.config.phases[this.phase];
     if (!phase) return;
 
-    const stage = this.engineState.stage
-      ? phase.stages?.[this.engineState.stage]
+    const stage = this.stage
+      ? phase.stages?.[this.stage]
       : undefined;
 
-    if (stage?.next) {
-      const nextStage = stage.next(this.state, this.createPhaseContext());
-      if (nextStage === "__end__") {
-        if (stage.onExit) {
-          stage.onExit(this.state, this.createPhaseContext());
+    if (stage?.always) {
+      for (const t of stage.always) {
+        if (t.guard(this.ctx)) {
+          if (t.target === "__done__") {
+            if (stage.onExit) {
+              stage.onExit(this.ctx.game, this.ctx);
+            }
+            this.stage = undefined;
+            this.checkPhaseTransition(phase);
+            return;
+          }
+          if (stage.onExit) {
+            stage.onExit(this.ctx.game, this.ctx);
+          }
+          this.enterStage(phase, t.target);
+          return;
         }
-        this.engineState.stage = undefined;
-        this.checkPhaseTransition(phase);
-        return;
-      }
-      if (nextStage !== null) {
-        if (stage.onExit) {
-          stage.onExit(this.state, this.createPhaseContext());
-        }
-        this.enterStage(phase, nextStage);
-        return;
       }
     }
 
-    if (!stage && phase.next) {
-      const nextPhase = phase.next(this.state, this.createPhaseContext());
-      if (nextPhase !== null) {
-        if (phase.onExit) {
-          phase.onExit(this.state, this.createPhaseContext());
+    if (!stage && phase.always) {
+      for (const t of phase.always) {
+        if (t.guard(this.ctx)) {
+          if (phase.onExit) {
+            phase.onExit(this.ctx.game, this.ctx);
+          }
+          this.enterPhase(t.target);
+          return;
         }
-        this.enterPhase(nextPhase);
-        return;
+      }
+    }
+
+    if (!stage && phase.transitions) {
+      for (const t of phase.transitions) {
+        if (t.guard(this.ctx)) {
+          if (phase.onExit) {
+            phase.onExit(this.ctx.game, this.ctx);
+          }
+          this.enterPhase(t.target);
+          return;
+        }
       }
     }
   }
@@ -373,22 +407,23 @@ export class CroupierCore<S extends GameState = GameState> {
     phase: PhaseConfig<S>,
     stage: StageConfig<S>,
   ): void {
-    if (stage.next) {
-      const nextStage = stage.next(this.state, this.createPhaseContext());
-      if (nextStage === "__end__") {
-        if (stage.onExit) {
-          stage.onExit(this.state, this.createPhaseContext());
+    if (stage.always) {
+      for (const t of stage.always) {
+        if (t.guard(this.ctx)) {
+          if (t.target === "__done__") {
+            if (stage.onExit) {
+              stage.onExit(this.ctx.game, this.ctx);
+            }
+            this.stage = undefined;
+            this.checkPhaseTransition(phase);
+            return;
+          }
+          if (stage.onExit) {
+            stage.onExit(this.ctx.game, this.ctx);
+          }
+          this.enterStage(phase, t.target);
+          return;
         }
-        this.engineState.stage = undefined;
-        this.checkPhaseTransition(phase);
-        return;
-      }
-      if (nextStage !== null) {
-        if (stage.onExit) {
-          stage.onExit(this.state, this.createPhaseContext());
-        }
-        this.enterStage(phase, nextStage);
-        return;
       }
     }
     // If no transition, restart turn order
@@ -396,16 +431,32 @@ export class CroupierCore<S extends GameState = GameState> {
   }
 
   private checkPhaseTransition(phase: PhaseConfig<S>): void {
-    if (phase.next) {
-      const nextPhase = phase.next(this.state, this.createPhaseContext());
-      if (nextPhase !== null) {
-        if (phase.onExit) {
-          phase.onExit(this.state, this.createPhaseContext());
+    // Check transitions (on stage-done / turn-order completion)
+    if (phase.transitions) {
+      for (const t of phase.transitions) {
+        if (t.guard(this.ctx)) {
+          if (phase.onExit) {
+            phase.onExit(this.ctx.game, this.ctx);
+          }
+          this.enterPhase(t.target);
+          return;
         }
-        this.enterPhase(nextPhase);
-        return;
       }
     }
+
+    // Check always transitions
+    if (phase.always) {
+      for (const t of phase.always) {
+        if (t.guard(this.ctx)) {
+          if (phase.onExit) {
+            phase.onExit(this.ctx.game, this.ctx);
+          }
+          this.enterPhase(t.target);
+          return;
+        }
+      }
+    }
+
     // If no transition, restart turn order at phase level
     this.initializeTurnOrder(phase);
   }
@@ -416,23 +467,38 @@ export class CroupierCore<S extends GameState = GameState> {
 
   /** Check if a phase should auto-advance (no allowedActions = auto phase) */
   private checkAutoAdvance(phase: PhaseConfig<S>): void {
-    if (this.engineState.finished) return;
+    if (this.finished) return;
 
     const hasAllowedActions =
       phase.allowedActions && phase.allowedActions.length > 0;
     const hasStages = phase.stages && Object.keys(phase.stages).length > 0;
 
     if (!hasAllowedActions && !hasStages) {
-      // No actions possible — check endIf first (e.g., showdown resolves in onEnter)
-      if (this.checkEndIf()) return;
+      // No actions possible — check endConditions first (e.g., showdown resolves in onEnter)
+      if (this.checkEndConditions()) return;
 
-      if (phase.next) {
-        const nextPhase = phase.next(this.state, this.createPhaseContext());
-        if (nextPhase !== null) {
-          if (phase.onExit) {
-            phase.onExit(this.state, this.createPhaseContext());
+      // Check transitions
+      if (phase.transitions) {
+        for (const t of phase.transitions) {
+          if (t.guard(this.ctx)) {
+            if (phase.onExit) {
+              phase.onExit(this.ctx.game, this.ctx);
+            }
+            this.enterPhase(t.target);
+            return;
           }
-          this.enterPhase(nextPhase);
+        }
+      }
+
+      if (phase.always) {
+        for (const t of phase.always) {
+          if (t.guard(this.ctx)) {
+            if (phase.onExit) {
+              phase.onExit(this.ctx.game, this.ctx);
+            }
+            this.enterPhase(t.target);
+            return;
+          }
         }
       }
     }
@@ -443,38 +509,40 @@ export class CroupierCore<S extends GameState = GameState> {
     phase: PhaseConfig<S>,
     stage: StageConfig<S>,
   ): void {
-    if (this.engineState.finished) return;
+    if (this.finished) return;
 
     const hasAllowedActions =
       stage.allowedActions && stage.allowedActions.length > 0;
 
-    if (!hasAllowedActions && stage.next) {
-      const nextStage = stage.next(this.state, this.createPhaseContext());
-      if (nextStage === "__end__") {
-        if (stage.onExit) {
-          stage.onExit(this.state, this.createPhaseContext());
+    if (!hasAllowedActions && stage.always) {
+      for (const t of stage.always) {
+        if (t.guard(this.ctx)) {
+          if (t.target === "__done__") {
+            if (stage.onExit) {
+              stage.onExit(this.ctx.game, this.ctx);
+            }
+            this.stage = undefined;
+            this.checkPhaseTransition(phase);
+            return;
+          }
+          if (stage.onExit) {
+            stage.onExit(this.ctx.game, this.ctx);
+          }
+          this.enterStage(phase, t.target);
+          return;
         }
-        this.engineState.stage = undefined;
-        this.checkPhaseTransition(phase);
-      } else if (nextStage !== null) {
-        if (stage.onExit) {
-          stage.onExit(this.state, this.createPhaseContext());
-        }
-        this.enterStage(phase, nextStage);
       }
     }
   }
 
   // ====================
-  // Interrupts & End
+  // End Conditions
   // ====================
 
-  private checkInterrupts(): boolean {
-    if (!this.config.interrupts) return false;
-
-    for (const guard of this.config.interrupts) {
-      const result = guard.condition(this.state);
-      if (result) {
+  private checkEndConditions(): boolean {
+    for (const ec of this.endConditions) {
+      if (ec.guard(this.ctx)) {
+        const result = ec.result(this.ctx);
         this.endGame(result);
         return true;
       }
@@ -482,24 +550,13 @@ export class CroupierCore<S extends GameState = GameState> {
     return false;
   }
 
-  private checkEndIf(): boolean {
-    if (!this.config.endIf) return false;
-
-    const result = this.config.endIf(this.state);
-    if (result) {
-      this.endGame(result);
-      return true;
-    }
-    return false;
-  }
-
   private endGame(result: GameResult): void {
-    this.engineState.finished = true;
-    this.engineState.result = result;
+    this.finished = true;
+    this.ctx.result = result;
 
     this.emitter.emit("gameEnd", {
       result,
-      state: deepClone(this.state),
+      state: deepClone(this.ctx.game),
     });
     this.emitStateChange();
   }
@@ -508,31 +565,10 @@ export class CroupierCore<S extends GameState = GameState> {
   // Context Helpers
   // ====================
 
-  private createTurnContext(lastPlayer?: PlayerId): TurnContext {
-    return {
-      state: this.state,
-      players: this.players,
-      phase: this.engineState.phase,
-      stage: this.engineState.stage,
-      lastPlayer,
-      actionCount: this.phaseActionCount,
-    };
-  }
-
-  private createPhaseContext(): PhaseContext {
-    return {
-      phase: this.engineState.phase,
-      stage: this.engineState.stage,
-      currentPlayers: this.engineState.currentPlayers,
-      players: this.players,
-      actionCount: this.phaseActionCount,
-    };
-  }
-
   private emitStateChange(): void {
     this.emitter.emit("stateChange", {
-      state: deepClone(this.state) as any,
-      engine: { ...this.engineState },
+      state: deepClone(this.ctx.game) as any,
+      engine: this.getEngineState(),
     });
   }
 }
