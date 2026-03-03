@@ -4,9 +4,11 @@ import {
   type CroupierConfig,
   type EngineState,
   type PlayerId,
+  type PhaseGraph,
   BOT_NAMES,
   createBotId,
   isBotPlayer,
+  extractPhaseGraph,
 } from "@croupier/core";
 import { createTexasHoldemConfig } from "@croupier/plugin-texas-holdem";
 import { createPlanningPokerConfig } from "@croupier/plugin-planning-poker";
@@ -207,6 +209,12 @@ export class GameManager {
 
   listRooms(): Room[] {
     return [...this.rooms.values()];
+  }
+
+  getPhaseGraph(gameId: string): PhaseGraph {
+    // Create a temporary config with dummy players to extract the topology
+    const config = createGameConfig(gameId, ["__dummy1__", "__dummy2__"]);
+    return extractPhaseGraph(config);
   }
 
   deleteRoom(roomId: string): void {

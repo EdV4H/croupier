@@ -12,15 +12,17 @@
   },
   "dependencies": {
     "@croupier/core": "workspace:*",
-    "@croupier/plugin-texas-holdem": "workspace:*",
-    "@croupier/plugin-planning-poker": "workspace:*",
-    "@croupier/plugin-values-card": "workspace:*",
     "@croupier/plugin-digital-tcg": "workspace:*",
+    "@croupier/plugin-planning-poker": "workspace:*",
+    "@croupier/plugin-texas-holdem": "workspace:*",
+    "@croupier/plugin-values-card": "workspace:*",
     "@hono/node-server": "^1.13.0",
     "@hono/node-ws": "^1.1.0",
+    "@statelyai/inspect": "^0.4.0",
     "hono": "^4.7.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "xstate": "^5.28.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",

@@ -1,5 +1,7 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
+import type { PhaseGraph } from "@croupier/core";
 import type { ActionLogEntry, GameStateData } from "../hooks/use-game-state.js";
+import { useInspector } from "../hooks/use-inspector.js";
 import { GenericDisplay } from "./generic-display.js";
 
 interface GameBoardProps {
@@ -20,6 +22,21 @@ export function GameBoard({
     ? engineState.currentPlayers.includes(playerId)
     : engineState.currentPlayers === playerId;
 
+  // State Machine Inspector
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [phaseGraph, setPhaseGraph] = useState<PhaseGraph | null>(null);
+
+  // Fetch phase graph once per gameId
+  useEffect(() => {
+    fetch(`/api/games/${gameId}/phase-graph`)
+      .then((r) => r.json())
+      .then((data) => setPhaseGraph(data))
+      .catch(() => setPhaseGraph(null));
+  }, [gameId]);
+
+  // Connect inspector — opens Stately Inspector in a popup window
+  useInspector(phaseGraph, engineState, inspectorOpen);
+
   return (
     <div style={styles.layout}>
       {/* Main content */}
@@ -33,6 +50,15 @@ export function GameBoard({
             )}
           </div>
           <div style={styles.statusRight}>
+            <button
+              style={{
+                ...styles.inspectorBtn,
+                background: inspectorOpen ? "#6366f1" : "#334155",
+              }}
+              onClick={() => setInspectorOpen((v) => !v)}
+            >
+              {inspectorOpen ? "Inspector ON" : "State Machine"}
+            </button>
             <span style={{ ...styles.turnBadge, background: isMyTurn ? "#22c55e" : "#64748b" }}>
               {engineState.finished
                 ? "Game Over"
@@ -609,7 +635,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #334155",
   },
   statusLeft: { display: "flex", gap: "1rem" },
-  statusRight: {},
+  statusRight: { display: "flex", alignItems: "center", gap: "0.5rem" },
   phase: { fontSize: "0.85rem", color: "#94a3b8" },
   stage: { fontSize: "0.85rem", color: "#64748b" },
   turnBadge: {
@@ -636,5 +662,10 @@ const styles: Record<string, React.CSSProperties> = {
   actionBtn: {
     background: "#3b82f6", color: "#fff", border: "none", borderRadius: 6,
     padding: "0.5rem 0.8rem", cursor: "pointer", fontSize: "0.8rem", fontWeight: 500,
+  },
+  inspectorBtn: {
+    color: "#e2e8f0", border: "none", borderRadius: 6,
+    padding: "0.3rem 0.7rem", cursor: "pointer", fontSize: "0.75rem",
+    fontWeight: 600, marginRight: "0.5rem",
   },
 };
