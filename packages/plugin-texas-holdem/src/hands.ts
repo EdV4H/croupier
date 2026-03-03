@@ -1,5 +1,10 @@
 import type { Card, HandEvaluation, HandRank, Rank } from "./types.js";
 
+/** Convert card rank to evaluation rank (Ace=1 → 14 for comparison) */
+function toEvalRank(rank: Rank): number {
+  return rank === 1 ? 14 : rank;
+}
+
 const HAND_RANK_VALUES: Record<HandRank, number> = {
   "royal-flush": 10,
   "straight-flush": 9,
@@ -23,16 +28,17 @@ function combinations(cards: Card[], k: number): Card[][] {
   return [...withFirst, ...withoutFirst];
 }
 
-/** Sort cards by rank descending */
+/** Sort cards by rank descending (using evaluation rank) */
 function sortByRank(cards: Card[]): Card[] {
-  return [...cards].sort((a, b) => b.rank - a.rank);
+  return [...cards].sort((a, b) => toEvalRank(b.rank) - toEvalRank(a.rank));
 }
 
-/** Count occurrences of each rank */
-function rankCounts(cards: Card[]): Map<Rank, number> {
-  const counts = new Map<Rank, number>();
+/** Count occurrences of each rank (keyed by evaluation rank) */
+function rankCounts(cards: Card[]): Map<number, number> {
+  const counts = new Map<number, number>();
   for (const card of cards) {
-    counts.set(card.rank, (counts.get(card.rank) ?? 0) + 1);
+    const evalRank = toEvalRank(card.rank);
+    counts.set(evalRank, (counts.get(evalRank) ?? 0) + 1);
   }
   return counts;
 }
@@ -42,10 +48,10 @@ function isFlush(cards: Card[]): boolean {
   return cards.every((c) => c.suit === cards[0].suit);
 }
 
-/** Check if cards form a straight, return highest rank or null */
-function straightHighCard(cards: Card[]): Rank | null {
-  const ranks = sortByRank(cards).map((c) => c.rank);
-  const unique = [...new Set(ranks)];
+/** Check if cards form a straight, return highest eval rank or null */
+function straightHighCard(cards: Card[]): number | null {
+  const evalRanks = sortByRank(cards).map((c) => toEvalRank(c.rank));
+  const unique = [...new Set(evalRanks)];
   if (unique.length !== 5) return null;
 
   // Normal straight check
@@ -59,7 +65,7 @@ function straightHighCard(cards: Card[]): Rank | null {
     unique[3] === 3 &&
     unique[4] === 2
   ) {
-    return 5 as Rank; // 5-high straight
+    return 5; // 5-high straight
   }
 
   return null;
@@ -125,7 +131,7 @@ function evaluate5(cards: Card[]): HandEvaluation {
       rank: "flush",
       rankValue: HAND_RANK_VALUES.flush,
       cards: sorted,
-      kickers: sorted.map((c) => c.rank),
+      kickers: sorted.map((c) => toEvalRank(c.rank)),
     };
   }
 
@@ -187,7 +193,7 @@ function evaluate5(cards: Card[]): HandEvaluation {
     rank: "high-card",
     rankValue: HAND_RANK_VALUES["high-card"],
     cards: sorted,
-    kickers: sorted.map((c) => c.rank),
+    kickers: sorted.map((c) => toEvalRank(c.rank)),
   };
 }
 
@@ -230,7 +236,7 @@ export function compareHands(a: HandEvaluation, b: HandEvaluation): number {
 /** Create a standard 52-card deck */
 export function createDeck(): Card[] {
   const suits: Card["suit"][] = ["hearts", "diamonds", "clubs", "spades"];
-  const ranks: Card["rank"][] = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+  const ranks: Card["rank"][] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
   const deck: Card[] = [];
   for (const suit of suits) {
     for (const rank of ranks) {
