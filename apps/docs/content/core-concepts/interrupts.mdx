@@ -1,92 +1,100 @@
-# Interrupts
+# End Conditions
 
-Interrupts are conditions that can immediately end the game, regardless of the current phase or turn order. They're checked after every action.
+End conditions define when and how a game ends. They're checked after every action, allowing the game to end at any point.
 
-## Defining Interrupts
+## Defining End Conditions
 
 ```typescript
-const config: CroupierConfig = {
-  interrupts: [
+const config: CroupierConfig<MyState> = {
+  endConditions: [
     {
-      condition(state) {
-        // If any player's life reaches 0, they lose
-        for (const [id, player] of Object.entries(state.players)) {
-          if (player.life <= 0) {
-            const winner = Object.keys(state.players).find(p => p !== id);
-            return { winner, reason: `${id} was eliminated` };
-          }
-        }
-        return null; // no interrupt
+      // Urgent: player eliminated
+      guard: (ctx) => {
+        return Object.values(ctx.game.players).some(p => p.life <= 0);
       },
+      result: (ctx) => {
+        const winner = Object.entries(ctx.game.players)
+          .find(([, p]) => p.life > 0)?.[0];
+        return { winner, reason: "elimination" };
+      },
+      priority: 0, // Checked first
+    },
+    {
+      // Normal: all rounds completed
+      guard: (ctx) => ctx.game.round > ctx.game.maxRounds,
+      result: (ctx) => {
+        const [p1, p2] = ctx.players;
+        if (ctx.game.scores[p1] > ctx.game.scores[p2]) return { winner: p1 };
+        if (ctx.game.scores[p2] > ctx.game.scores[p1]) return { winner: p2 };
+        return { draw: true, reason: "Tied!" };
+      },
+      // priority defaults to 100
     },
   ],
 };
 ```
 
-## InterruptGuard Interface
+## GameEndCondition Interface
 
 ```typescript
-interface InterruptGuard<S extends GameState = GameState> {
-  condition: (state: S) => GameResult | null;
+interface GameEndCondition<S extends GameState = GameState> {
+  guard: (ctx: CroupierContext<S>) => boolean;
+  result: (ctx: CroupierContext<S>) => GameResult;
+  priority?: number; // Lower = checked first. Default: 100.
 }
 ```
 
-- Return `null` to continue the game
-- Return a `GameResult` to immediately end the game
+- **`guard`** — Returns `true` if this end condition is triggered
+- **`result`** — Returns the `GameResult` describing the outcome
+- **`priority`** — Controls check order. Lower numbers are checked first. Default is `100`.
 
-## Interrupts vs endIf
+## Priority System
 
-Croupier separates two game-ending mechanisms:
+End conditions are sorted by priority before checking. Use this to ensure urgent conditions (player elimination, forfeit) are checked before normal endings (all rounds completed).
 
-### `interrupts[]` — Abnormal endings
-
-Checked after every action. Use for conditions that can happen at any point:
-
-- Player elimination (life reaches 0)
-- All opponents fold in poker
-- Timeout or forfeit conditions
-
-### `endIf()` — Normal endings
-
-Checked after every action. Use for the expected game conclusion:
-
-- All rounds completed
-- A player reaches the target score
-- The deck runs out
+| Priority | Use for |
+|----------|---------|
+| `0` | Interrupts — player elimination, timeout, forfeit |
+| `50` | Mid-priority — special win conditions |
+| `100` (default) | Normal endings — rounds completed, target score reached |
 
 ```typescript
-const config: CroupierConfig = {
-  // Abnormal: someone dies mid-game
-  interrupts: [
-    {
-      condition(state) {
-        const dead = findDeadPlayer(state);
-        return dead ? { winner: getOpponent(dead), reason: "elimination" } : null;
-      },
-    },
-  ],
-  // Normal: all rounds completed
-  endIf(state) {
-    if (state.round > state.maxRounds) {
-      return { winner: getHighestScore(state) };
-    }
-    return null;
-  },
-};
+endConditions: [
+  // Priority 0: checked first
+  { guard: (ctx) => someoneEliminated(ctx), result: ..., priority: 0 },
+  // Priority 100 (default): checked second
+  { guard: (ctx) => allRoundsComplete(ctx), result: ... },
+],
+```
+
+## CroupierContext
+
+End condition guards receive the full `CroupierContext`:
+
+```typescript
+interface CroupierContext<S extends GameState = GameState> {
+  game: S;                      // Game state
+  players: PlayerId[];          // All players
+  currentPlayers: PlayerId[];   // Whose turn it is
+  lastPlayer: PlayerId | null;  // Last player to act
+  actionCount: number;          // Actions in current phase
+  result: GameResult | null;    // null while game is active
+  log: ActionLogEntry[];        // Action history
+}
 ```
 
 ## Check Order
 
-After each action, the engine checks in this order:
+After each action, the engine:
 
-1. **Interrupts** — checked first, in array order
-2. **endIf** — checked second
-
-If any interrupt returns a non-null result, the game ends immediately without checking further interrupts or `endIf`.
+1. Sorts `endConditions[]` by priority (lower first)
+2. Evaluates each `guard()` in order
+3. The first guard that returns `true` ends the game with its `result()`
+4. If no guard matches, the game continues
 
 ## Events
 
-When the game ends (via interrupt or endIf), the engine emits a `gameEnd` event:
+When the game ends, the engine emits a `gameEnd` event:
 
 ```typescript
 game.on("gameEnd", ({ result, state }) => {

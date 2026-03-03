@@ -5,9 +5,9 @@ Turn orders define **who can act and when**. The engine uses a strategy pattern 
 ## The TurnOrder Interface
 
 ```typescript
-interface TurnOrder {
-  first(ctx: TurnContext): PlayerId | PlayerId[];
-  next(ctx: TurnContext): PlayerId | PlayerId[] | null;
+interface TurnOrder<S extends GameState = GameState> {
+  first(ctx: CroupierContext<S>): PlayerId | PlayerId[];
+  next(ctx: CroupierContext<S>): PlayerId | PlayerId[] | null;
 }
 ```
 
@@ -15,6 +15,8 @@ interface TurnOrder {
 - **`next(ctx)`** — Called after each action. Returns the next player, or `null` to signal the turn order is complete.
 
 Returning an **array** of player IDs means multiple players can act simultaneously.
+
+Both methods receive the full `CroupierContext`, giving access to `ctx.game` (game state), `ctx.players` (all player IDs), `ctx.lastPlayer` (who just acted), and `ctx.actionCount`.
 
 ## Built-in Turn Orders
 
@@ -64,12 +66,14 @@ phases: {
     turnOrder: SIMULTANEOUS,
     allowedActions: ["vote"],
     // All players can vote simultaneously
-    next: (state) => allVoted(state) ? "evaluation" : null,
+    always: [
+      { target: "evaluation", guard: (ctx) => allVoted(ctx.game) },
+    ],
   }
 }
 ```
 
-Both `first()` and `next()` return all players. Transition happens when a condition in `next()` is met.
+Both `first()` and `next()` return all players. Transition happens when an `always[]` guard matches.
 
 ## Custom Turn Orders
 
@@ -80,32 +84,15 @@ import { custom } from "@croupier/core";
 
 const pokerTurnOrder = custom({
   first(ctx) {
-    const state = ctx.state as HoldemState;
-    return state.playerOrder[state.currentPlayerIndex];
+    return ctx.game.playerOrder[ctx.game.currentPlayerIndex];
   },
   next(ctx) {
-    const state = ctx.state as HoldemState;
     // Skip folded/all-in players
-    if (isBettingRoundComplete(state)) return null;
-    const nextIdx = findNextActivePlayer(state);
-    return nextIdx === -1 ? null : state.playerOrder[nextIdx];
+    if (isBettingRoundComplete(ctx.game)) return null;
+    const nextIdx = findNextActivePlayer(ctx.game);
+    return nextIdx === -1 ? null : ctx.game.playerOrder[nextIdx];
   },
 });
-```
-
-## TurnContext
-
-Both `first()` and `next()` receive a `TurnContext`:
-
-```typescript
-interface TurnContext {
-  state: GameState;       // Current game state
-  players: PlayerId[];    // All player IDs
-  phase: string;          // Current phase name
-  stage?: string;         // Current stage name (if any)
-  lastPlayer?: PlayerId;  // Who just acted (undefined at entry)
-  actionCount: number;    // Actions in current phase/stage
-}
 ```
 
 ## Choosing a Turn Order

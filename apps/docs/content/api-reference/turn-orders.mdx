@@ -58,7 +58,7 @@ const SIMULTANEOUS: TurnOrder
 | `first(ctx)` | Returns all `ctx.players` |
 | `next(ctx)` | Returns all `ctx.players` (everyone stays active) |
 
-Phase transitions happen via the phase's `next()` function, typically when all players have completed their actions.
+Phase transitions happen via `always[]` guards, typically when all players have completed their actions.
 
 **Use for**: Voting, simultaneous selection, real-time phases.
 
@@ -75,13 +75,11 @@ function custom(order: TurnOrder): TurnOrder
 ```typescript
 const skipInactivePlayers = custom({
   first(ctx) {
-    const state = ctx.state as MyState;
-    return state.playerOrder.find(id => state.players[id].active)!;
+    return ctx.game.playerOrder.find(id => ctx.game.players[id].active)!;
   },
   next(ctx) {
-    const state = ctx.state as MyState;
-    if (isRoundComplete(state)) return null;
-    return findNextActivePlayer(state);
+    if (isRoundComplete(ctx.game)) return null;
+    return findNextActivePlayer(ctx.game);
   },
 });
 ```
@@ -89,21 +87,26 @@ const skipInactivePlayers = custom({
 ## TurnOrder Interface
 
 ```typescript
-interface TurnOrder {
-  first(ctx: TurnContext): PlayerId | PlayerId[];
-  next(ctx: TurnContext): PlayerId | PlayerId[] | null;
+interface TurnOrder<S extends GameState = GameState> {
+  first(ctx: CroupierContext<S>): PlayerId | PlayerId[];
+  next(ctx: CroupierContext<S>): PlayerId | PlayerId[] | null;
 }
 ```
 
-## TurnContext
+## CroupierContext
+
+Turn orders receive the full `CroupierContext` — the same unified context used by actions, guards, and lifecycle callbacks:
 
 ```typescript
-interface TurnContext {
-  state: GameState;
-  players: PlayerId[];
-  phase: string;
-  stage?: string;
-  lastPlayer?: PlayerId;
-  actionCount: number;
+interface CroupierContext<S extends GameState = GameState> {
+  game: S;                      // The game state
+  players: PlayerId[];          // All player IDs
+  currentPlayers: PlayerId[];   // Player(s) whose turn it is
+  lastPlayer: PlayerId | null;  // Who acted last
+  actionCount: number;          // Actions taken in current phase
+  result: GameResult | null;    // Game result (null while playing)
+  log: ActionLogEntry[];        // Complete action history
 }
 ```
+
+Access game state via `ctx.game`, player list via `ctx.players`, and the last player via `ctx.lastPlayer`.
