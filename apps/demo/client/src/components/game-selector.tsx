@@ -24,6 +24,7 @@ export function GameSelector({ playerId, onJoinRoom }: GameSelectorProps) {
   const [games, setGames] = useState<GameInfo[]>([]);
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [botCounts, setBotCounts] = useState<Record<string, number>>({});
 
   const fetchData = useCallback(async () => {
     try {
@@ -47,10 +48,11 @@ export function GameSelector({ playerId, onJoinRoom }: GameSelectorProps) {
   }, [fetchData]);
 
   const createRoom = async (gameId: string) => {
+    const botCount = botCounts[gameId] ?? 0;
     const res = await fetch("/api/rooms", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gameId, playerId }),
+      body: JSON.stringify({ gameId, playerId, botCount }),
     });
     const data = await res.json();
     if (data.id) {
@@ -84,6 +86,34 @@ export function GameSelector({ playerId, onJoinRoom }: GameSelectorProps) {
             <p style={styles.gamePlayers}>
               {game.minPlayers}–{game.maxPlayers} players
             </p>
+            <div style={styles.botStepper}>
+              <span style={styles.botLabel}>Bots:</span>
+              <button
+                style={styles.stepperBtn}
+                onClick={() =>
+                  setBotCounts((prev) => ({
+                    ...prev,
+                    [game.id]: Math.max(0, (prev[game.id] ?? 0) - 1),
+                  }))
+                }
+                disabled={(botCounts[game.id] ?? 0) <= 0}
+              >
+                -
+              </button>
+              <span style={styles.stepperValue}>{botCounts[game.id] ?? 0}</span>
+              <button
+                style={styles.stepperBtn}
+                onClick={() =>
+                  setBotCounts((prev) => ({
+                    ...prev,
+                    [game.id]: Math.min(game.maxPlayers - 1, (prev[game.id] ?? 0) + 1),
+                  }))
+                }
+                disabled={(botCounts[game.id] ?? 0) >= game.maxPlayers - 1}
+              >
+                +
+              </button>
+            </div>
             <button
               style={styles.button}
               onClick={() => createRoom(game.id)}
@@ -197,4 +227,17 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "0.4rem 0.8rem", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600,
   },
   botName: { color: "#f59e0b", fontStyle: "italic" },
+  botStepper: {
+    display: "flex", alignItems: "center", gap: "0.5rem",
+  },
+  botLabel: { fontSize: "0.85rem", color: "#94a3b8" },
+  stepperBtn: {
+    width: 28, height: 28, borderRadius: 6,
+    background: "#334155", color: "#f1f5f9", border: "1px solid #475569",
+    cursor: "pointer", fontSize: "1rem", lineHeight: 1,
+    display: "flex", alignItems: "center", justifyContent: "center",
+  },
+  stepperValue: {
+    minWidth: 20, textAlign: "center", fontSize: "0.9rem", color: "#f1f5f9", fontWeight: 600,
+  },
 };
