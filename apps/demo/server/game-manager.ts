@@ -88,7 +88,7 @@ export class GameManager {
   /** Callback invoked when a bot acts, so the server can broadcast state updates */
   onBotAction: ((roomId: string) => void) | null = null;
 
-  createRoom(gameId: string, creatorId: PlayerId): Room {
+  createRoom(gameId: string, creatorId: PlayerId, botCount?: number): Room {
     const game = AVAILABLE_GAMES.find((g) => g.id === gameId);
     if (!game) throw new Error(`Unknown game: ${gameId}`);
 
@@ -102,6 +102,16 @@ export class GameManager {
       started: false,
       createdAt: Date.now(),
     };
+
+    // Add requested bots
+    if (botCount && botCount > 0) {
+      const maxBots = Math.min(botCount, game.maxPlayers - 1, BOT_NAMES.length);
+      for (let i = 0; i < maxBots; i++) {
+        const botId = createBotId(BOT_NAMES[i]);
+        room.players.push(botId);
+      }
+    }
+
     this.rooms.set(id, room);
     return room;
   }
