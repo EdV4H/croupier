@@ -5,20 +5,20 @@ Actions are the primary way players interact with the game. Each action has an `
 ## Defining Actions
 
 ```typescript
-const config: CroupierConfig = {
+const config: CroupierConfig<MyState> = {
   actions: {
     playCard: {
-      execute(state, playerId, payload) {
+      execute(game, playerId, payload, ctx) {
         const { cardId } = payload as { cardId: string };
-        const player = state.players[playerId];
+        const player = game.players[playerId];
         const cardIdx = player.hand.findIndex(c => c.id === cardId);
         const [card] = player.hand.splice(cardIdx, 1);
         player.board.push({ card, hasAttacked: false });
         player.currentMana -= card.cost;
       },
-      validate(state, playerId, payload) {
+      validate(game, playerId, payload, ctx) {
         const { cardId } = payload as { cardId: string };
-        const player = state.players[playerId];
+        const player = game.players[playerId];
         const card = player.hand.find(c => c.id === cardId);
         if (!card) return "Card not in hand";
         if (card.cost > player.currentMana) return "Not enough mana";
@@ -33,18 +33,20 @@ const config: CroupierConfig = {
 
 ```typescript
 interface ActionConfig<S extends GameState = GameState> {
-  execute: (state: S, playerId: PlayerId, payload: unknown) => void;
-  validate?: (state: S, playerId: PlayerId, payload: unknown) => boolean | string;
+  execute: (game: S, playerId: PlayerId, payload: unknown, ctx: CroupierContext<S>) => Partial<S> | void;
+  validate?: (game: S, playerId: PlayerId, payload: unknown, ctx: CroupierContext<S>) => boolean | string;
   endsTurn?: boolean;
   unrestricted?: boolean;
 }
 ```
 
-### `execute(state, playerId, payload)`
+### `execute(game, playerId, payload, ctx)`
 
 Mutates the game state. This is where game logic lives. The engine calls this after all validation passes.
 
-### `validate(state, playerId, payload)`
+The 4th parameter `ctx` is the `CroupierContext`, which gives you access to the full engine state: player list, current players, action count, and action log.
+
+### `validate(game, playerId, payload, ctx)`
 
 Optional validation. Return:
 - `false` or `undefined` — action is valid
@@ -56,7 +58,7 @@ When `true`, dispatching this action immediately ends the current player's turn 
 
 ```typescript
 endTurn: {
-  execute(state) { /* cleanup */ },
+  execute(game) { /* cleanup */ },
   endsTurn: true,
 }
 ```
@@ -71,8 +73,8 @@ When `true`, any player can dispatch this action regardless of whose turn it is.
 
 ```typescript
 selectTask: {
-  execute(state, playerId, payload) {
-    state.currentTask = payload as Task;
+  execute(game, playerId, payload) {
+    game.currentTask = payload as Task;
   },
   unrestricted: true,
 }

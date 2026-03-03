@@ -47,5 +47,9 @@ export {
 export { countOnly, deepClone, maskArray } from "./util/clone.js";
 export { createRandom, SeededRandom } from "./util/random.js";
 
+// Phase Graph
+export { extractPhaseGraph } from "./phase-graph.js";
+export type { PhaseGraph, PhaseGraphNode } from "./phase-graph.js";
+
 // Events
 export { EventEmitter } from "./events.js";

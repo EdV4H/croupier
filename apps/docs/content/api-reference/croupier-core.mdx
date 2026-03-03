@@ -5,19 +5,21 @@ The main engine class. Manages game state, dispatches actions, runs the phase ma
 ## Constructor
 
 ```typescript
-new CroupierCore(config: CroupierConfig, options: CroupierCoreOptions)
+new CroupierCore(config: CroupierConfig, players: PlayerId[], options?: CroupierCoreOptions)
 ```
+
+- **`config`** — The game configuration (plugin export)
+- **`players`** — Array of player IDs participating in the game
+- **`options`** — Optional settings
 
 ### CroupierCoreOptions
 
 ```typescript
 interface CroupierCoreOptions {
-  players: PlayerId[];
   seed?: number;
 }
 ```
 
-- **`players`** — Array of player IDs participating in the game
 - **`seed`** — Optional seed for the random number generator (for reproducible games)
 
 ### Example
@@ -28,7 +30,8 @@ import { createValuesCardConfig } from "@croupier/plugin-values-card";
 
 const game = new CroupierCore(
   createValuesCardConfig(),
-  { players: ["alice", "bob"], seed: 42 }
+  ["alice", "bob"],
+  { seed: 42 },
 );
 ```
 
@@ -158,4 +161,22 @@ Emitted after an action is executed and logged.
 
 ### `gameEnd`
 
-Emitted when the game ends (via interrupt or endIf).
+Emitted when the game ends (via end conditions).
+
+## Bot Support
+
+Use `BotManager` to run automated players:
+
+```typescript
+import { CroupierCore, BotManager, createBotId } from "@croupier/core";
+
+const botIds = ["bot:Alice", "bot:Bob"];
+const game = new CroupierCore(config, ["player1", ...botIds]);
+
+const botManager = new BotManager(game, botIds, { delayMs: 1000 });
+botManager.start();
+// Bots will automatically take actions based on config.bot strategy
+
+// Stop when done
+botManager.stop();
+```

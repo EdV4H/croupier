@@ -28,6 +28,17 @@ app.get("/api/games", (c) => {
   return c.json(AVAILABLE_GAMES);
 });
 
+/** Get phase graph for a game type */
+app.get("/api/games/:gameId/phase-graph", (c) => {
+  const gameId = c.req.param("gameId");
+  try {
+    const graph = gameManager.getPhaseGraph(gameId);
+    return c.json(graph);
+  } catch (e: any) {
+    return c.json({ error: e.message }, 400);
+  }
+});
+
 /** List rooms */
 app.get("/api/rooms", (c) => {
   const rooms = gameManager.listRooms().map((r) => ({

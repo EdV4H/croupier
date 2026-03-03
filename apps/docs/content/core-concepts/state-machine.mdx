@@ -4,7 +4,7 @@ Croupier's core is a **two-level state machine** that manages game flow through 
 
 ## Overview
 
-Every game has a **current phase** and optionally a **current stage** within that phase. The engine manages transitions between these states based on declarative rules you define in your game configuration.
+Every game has a **current phase** and optionally a **current stage** within that phase. The engine manages transitions between these states based on guard-based transitions you define in your game configuration.
 
 ```
 Game
@@ -19,11 +19,28 @@ When a player dispatches an action, the engine follows this sequence:
 1. **Validate** — Is the action allowed? Is it this player's turn?
 2. **Execute** — Mutate the game state
 3. **Log** — Record the action in the action log
-4. **Interrupt check** — Does any interrupt condition match?
-5. **End check** — Does `endIf()` signal the game should end?
-6. **Turn progression** — Advance to the next player via the turn order
-7. **Transition check** — Should the phase or stage change?
-8. **Event emission** — Notify listeners of state changes
+4. **End condition check** — Do any `endConditions[]` guards match?
+5. **Turn progression** — Advance to the next player via the turn order
+6. **Transition check** — Should the phase or stage change? (evaluate `always[]` and `transitions[]`)
+7. **Event emission** — Notify listeners of state changes
+
+## Guard-Based Transitions
+
+All transitions use a `GuardedTransition` — a target and a guard function:
+
+```typescript
+interface GuardedTransition<S> {
+  target: string;
+  guard: (ctx: CroupierContext<S>) => boolean;
+}
+```
+
+Phases define transitions in two arrays:
+- **`always[]`** — Checked after every state change (auto-advance)
+- **`transitions[]`** — Checked when the turn order completes
+
+Stages define transitions in:
+- **`always[]`** — Checked after every action. Target `"__done__"` exits the stage.
 
 ## Two Levels Are Enough
 
