@@ -25,7 +25,7 @@ Build your `CroupierConfig`:
 
 ```typescript
 // index.ts
-import type { CroupierConfig } from "@croupier/core";
+import type { CroupierConfig, CroupierContext } from "@croupier/core";
 import { SIMULTANEOUS } from "@croupier/core";
 import type { RPSState } from "./types";
 
@@ -51,16 +51,16 @@ export function createRPSConfig(maxRounds = 3): CroupierConfig<RPSState> {
 
     actions: {
       choose: {
-        execute(state, playerId, payload) {
+        execute(game, playerId, payload) {
           const { choice } = payload as { choice: "rock" | "paper" | "scissors" };
-          state.choices[playerId] = choice;
+          game.choices[playerId] = choice;
         },
-        validate(state, playerId, payload) {
+        validate(game, playerId, payload) {
           const { choice } = payload as { choice: string };
           if (!["rock", "paper", "scissors"].includes(choice)) {
             return "Invalid choice";
           }
-          if (state.choices[playerId] !== null) {
+          if (game.choices[playerId] !== null) {
             return "Already chose";
           }
           return false;
@@ -72,56 +72,60 @@ export function createRPSConfig(maxRounds = 3): CroupierConfig<RPSState> {
       choosing: {
         turnOrder: SIMULTANEOUS,
         allowedActions: ["choose"],
-        next(state) {
-          // Transition when all players have chosen
-          const allChosen = Object.values(state.choices).every(c => c !== null);
-          return allChosen ? "resolve" : null;
-        },
+        // Transition when all players have chosen
+        always: [
+          {
+            target: "resolve",
+            guard: (ctx) => Object.values(ctx.game.choices).every(c => c !== null),
+          },
+        ],
       },
 
       resolve: {
-        // No allowedActions — auto-advances
-        onEnter(state) {
+        // No allowedActions — auto-advances after onEnter
+        onEnter(game) {
           // Determine round winner
-          const [p1, p2] = state.playerOrder;
-          const c1 = state.choices[p1]!;
-          const c2 = state.choices[p2]!;
+          const [p1, p2] = game.playerOrder;
+          const c1 = game.choices[p1]!;
+          const c2 = game.choices[p2]!;
 
           if (c1 !== c2) {
             const p1Wins =
               (c1 === "rock" && c2 === "scissors") ||
               (c1 === "paper" && c2 === "rock") ||
               (c1 === "scissors" && c2 === "paper");
-            state.scores[p1Wins ? p1 : p2] += 1;
+            game.scores[p1Wins ? p1 : p2] += 1;
           }
 
           // Reset for next round
-          state.round += 1;
-          for (const p of state.playerOrder) {
-            state.choices[p] = null;
+          game.round += 1;
+          for (const p of game.playerOrder) {
+            game.choices[p] = null;
           }
         },
-        next() {
-          return "choosing"; // loop back
-        },
+        always: [
+          { target: "choosing", guard: () => true }, // loop back
+        ],
       },
     },
 
     initialPhase: "choosing",
 
-    endIf(state) {
-      if (state.round > state.maxRounds) {
-        const [p1, p2] = state.playerOrder;
-        if (state.scores[p1] > state.scores[p2]) {
-          return { winner: p1 };
-        }
-        if (state.scores[p2] > state.scores[p1]) {
-          return { winner: p2 };
-        }
-        return { draw: true, reason: "Tied!" };
-      }
-      return null;
-    },
+    endConditions: [
+      {
+        guard: (ctx) => ctx.game.round > ctx.game.maxRounds,
+        result: (ctx) => {
+          const [p1, p2] = ctx.game.playerOrder;
+          if (ctx.game.scores[p1] > ctx.game.scores[p2]) {
+            return { winner: p1 };
+          }
+          if (ctx.game.scores[p2] > ctx.game.scores[p1]) {
+            return { winner: p2 };
+          }
+          return { draw: true, reason: "Tied!" };
+        },
+      },
+    ],
 
     view: {
       playerView(state, playerId) {
@@ -148,7 +152,7 @@ import { createRPSConfig } from "./index";
 
 const game = new CroupierCore(
   createRPSConfig(3),
-  { players: ["alice", "bob"] }
+  ["alice", "bob"],
 );
 
 // Both players choose simultaneously
@@ -184,26 +188,37 @@ Add stages when a phase has distinct sub-steps:
 phases: {
   play: {
     stages: {
-      buy: { allowedActions: ["buyCard"], next: (s) => s.bought ? "action" : null },
-      action: { allowedActions: ["playAction"], next: (s) => s.played ? "__end__" : null },
+      buy: {
+        allowedActions: ["buyCard"],
+        always: [
+          { target: "action", guard: (ctx) => ctx.game.bought },
+        ],
+      },
+      action: {
+        allowedActions: ["playAction"],
+        always: [
+          { target: "__done__", guard: (ctx) => ctx.game.played },
+        ],
+      },
     },
     initialStage: "buy",
   },
 }
 ```
 
-### Adding Interrupts
+### Adding End Conditions
 
-Use interrupts for win conditions that can happen at any time:
+Use `endConditions` for win/loss conditions:
 
 ```typescript
-interrupts: [
+endConditions: [
   {
-    condition(state) {
-      if (state.scores.alice >= 10) return { winner: "alice" };
-      if (state.scores.bob >= 10) return { winner: "bob" };
-      return null;
-    },
+    // Urgent: player eliminated (checked first)
+    guard: (ctx) => ctx.game.scores.alice >= 10 || ctx.game.scores.bob >= 10,
+    result: (ctx) => ({
+      winner: ctx.game.scores.alice >= 10 ? "alice" : "bob",
+    }),
+    priority: 0,
   },
 ],
 ```

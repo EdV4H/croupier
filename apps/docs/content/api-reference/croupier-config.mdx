@@ -11,11 +11,11 @@ interface CroupierConfig<S extends GameState = GameState> {
   actions: { [name: string]: ActionConfig<S> };
   phases: { [name: string]: PhaseConfig<S> };
   initialPhase?: string;
-  defaultTurnOrder?: TurnOrder;
-  endIf?: (state: S) => GameResult | null;
-  interrupts?: InterruptGuard<S>[];
+  defaultTurnOrder?: TurnOrder<S>;
+  endConditions?: GameEndCondition<S>[];
   view?: ViewConfig<S>;
   roles?: { [name: string]: RoleConfig };
+  bot?: BotStrategy<S>;
 }
 ```
 
@@ -49,59 +49,62 @@ Map of action name to action configuration.
 
 ```typescript
 interface ActionConfig<S extends GameState = GameState> {
-  execute: (state: S, playerId: PlayerId, payload: unknown) => void;
-  validate?: (state: S, playerId: PlayerId, payload: unknown) => boolean | string;
+  execute: (game: S, playerId: PlayerId, payload: unknown, ctx: CroupierContext<S>) => Partial<S> | void;
+  validate?: (game: S, playerId: PlayerId, payload: unknown, ctx: CroupierContext<S>) => boolean | string;
   endsTurn?: boolean;
   unrestricted?: boolean;
 }
 ```
 
+- **`execute`** — Mutates the game state. The 4th parameter `ctx` provides the unified engine context (players, current turn, action count, etc.).
+- **`validate`** — Optional. Return `false`/`undefined` if valid, `true` or an error string if invalid.
+- **`endsTurn`** — When `true`, dispatching this action immediately ends the current player's turn.
+- **`unrestricted`** — When `true`, any player can dispatch this action regardless of whose turn it is.
+
 ### `phases: { [name: string]: PhaseConfig<S> }`
 
-Map of phase name to phase configuration.
-
-```typescript
-interface PhaseConfig<S extends GameState = GameState> {
-  turnOrder?: TurnOrder;
-  allowedActions?: string[];
-  onEnter?: (state: S, ctx: PhaseContext) => void;
-  onExit?: (state: S, ctx: PhaseContext) => void;
-  next?: (state: S, ctx: PhaseContext) => string | null;
-  stages?: { [name: string]: StageConfig<S> };
-  initialStage?: string;
-  allowedRoles?: string[];
-}
-```
+Map of phase name to phase configuration. See [PhaseConfig](#phaseconfig) below.
 
 ### `initialPhase?: string`
 
 Name of the first phase. Defaults to the first key in the `phases` object.
 
-### `defaultTurnOrder?: TurnOrder`
+### `defaultTurnOrder?: TurnOrder<S>`
 
 Default turn order used when a phase doesn't specify its own.
 
-### `endIf?(state: S): GameResult | null`
+### `endConditions?: GameEndCondition<S>[]`
 
-Checked after every action. Return a `GameResult` to end the game normally, or `null` to continue.
+Unified game-ending conditions. Checked after every action, sorted by priority (lower priority number = checked first).
 
 ```typescript
-interface GameResult {
-  winner?: PlayerId | PlayerId[] | null;
-  draw?: boolean;
-  reason?: string;
-  [key: string]: unknown;
+interface GameEndCondition<S extends GameState = GameState> {
+  guard: (ctx: CroupierContext<S>) => boolean;
+  result: (ctx: CroupierContext<S>) => GameResult;
+  priority?: number; // Default: 100. Use 0 for interrupt-like conditions.
 }
 ```
 
-### `interrupts?: InterruptGuard<S>[]`
-
-Array of conditions that can immediately end the game.
+This replaces the old `interrupts[]` + `endIf()` pattern with a single unified array. Use `priority: 0` for urgent conditions (player elimination) and higher values for normal endings (all rounds complete).
 
 ```typescript
-interface InterruptGuard<S extends GameState = GameState> {
-  condition: (state: S) => GameResult | null;
-}
+endConditions: [
+  {
+    // Urgent: player eliminated (priority 0)
+    guard: (ctx) => Object.values(ctx.game.players).some(p => p.life <= 0),
+    result: (ctx) => {
+      const winner = Object.entries(ctx.game.players)
+        .find(([, p]) => p.life > 0)?.[0];
+      return { winner, reason: "elimination" };
+    },
+    priority: 0,
+  },
+  {
+    // Normal: all rounds complete (default priority 100)
+    guard: (ctx) => ctx.game.round > ctx.game.maxRounds,
+    result: (ctx) => ({ winner: getHighestScore(ctx.game) }),
+  },
+],
 ```
 
 ### `view?: ViewConfig<S>`
@@ -124,28 +127,106 @@ interface RoleConfig {
 }
 ```
 
+### `bot?: BotStrategy<S>`
+
+Bot strategy for automated players. See [BotStrategy](#botstrategy) below.
+
 ## Supporting Types
+
+### CroupierContext
+
+The unified engine context passed to guards, actions, turn orders, and lifecycle callbacks. This is the single source of truth for all engine state.
+
+```typescript
+interface CroupierContext<S extends GameState = GameState> {
+  game: S;                      // The game state (plugin-specific)
+  players: PlayerId[];          // All player IDs
+  currentPlayers: PlayerId[];   // Player(s) whose turn it is
+  lastPlayer: PlayerId | null;  // Who acted last
+  actionCount: number;          // Actions taken in current phase
+  result: GameResult | null;    // Game result (set when game ends)
+  log: ActionLogEntry[];        // Complete action history
+}
+```
+
+### PhaseConfig
+
+```typescript
+interface PhaseConfig<S extends GameState = GameState> {
+  turnOrder?: TurnOrder<S>;
+  allowedActions?: string[];
+  onEnter?: (game: S, ctx: CroupierContext<S>) => void;
+  onExit?: (game: S, ctx: CroupierContext<S>) => void;
+  transitions?: GuardedTransition<S>[];
+  always?: GuardedTransition<S>[];
+  stages?: { [name: string]: StageConfig<S> };
+  initialStage?: string;
+  allowedRoles?: string[];
+}
+```
+
+- **`transitions`** — Guard-based transitions evaluated when the turn order completes or a stage finishes.
+- **`always`** — Guard-based transitions evaluated after every state change (useful for auto-advancing phases).
+- **`onEnter / onExit`** — Lifecycle callbacks. Receive the game state and `CroupierContext`.
 
 ### StageConfig
 
 ```typescript
 interface StageConfig<S extends GameState = GameState> {
   allowedActions?: string[];
-  turnOrder?: TurnOrder;
-  onEnter?: (state: S, ctx: PhaseContext) => void;
-  onExit?: (state: S, ctx: PhaseContext) => void;
-  next?: (state: S, ctx: PhaseContext) => string | "__end__" | null;
+  turnOrder?: TurnOrder<S>;
+  onEnter?: (game: S, ctx: CroupierContext<S>) => void;
+  onExit?: (game: S, ctx: CroupierContext<S>) => void;
+  always?: GuardedTransition<S>[];
 }
 ```
 
-### PhaseContext
+Stages use `always[]` for transitions. The target can be another stage name or `"__done__"` to signal stage completion (returning control to the parent phase's transition logic).
+
+### GuardedTransition
 
 ```typescript
-interface PhaseContext {
-  phase: string;
-  stage?: string;
-  currentPlayers: PlayerId | PlayerId[];
-  players: PlayerId[];
-  actionCount: number;
+interface GuardedTransition<S extends GameState = GameState> {
+  target: string;
+  guard: (ctx: CroupierContext<S>) => boolean;
 }
 ```
+
+Transitions are evaluated in array order. The first transition whose `guard` returns `true` is taken.
+
+### GameResult
+
+```typescript
+interface GameResult {
+  winner?: PlayerId | PlayerId[] | null;
+  draw?: boolean;
+  reason?: string;
+  [key: string]: unknown;
+}
+```
+
+### BotStrategy
+
+```typescript
+interface BotStrategy<S extends GameState = GameState> {
+  decide(
+    playerId: PlayerId,
+    playerView: unknown,
+    engineState: EngineState,
+  ): BotDecision | null | Promise<BotDecision | null>;
+
+  fallback?(
+    playerId: PlayerId,
+    playerView: unknown,
+    engineState: EngineState,
+  ): BotDecision | null;
+}
+
+interface BotDecision {
+  action: string;
+  payload?: unknown;
+}
+```
+
+- **`decide`** — Returns the action to take. Can be async (e.g., for LLM-based bots). Return `null` to skip.
+- **`fallback`** — Called when `decide()` times out or throws. Optional.
