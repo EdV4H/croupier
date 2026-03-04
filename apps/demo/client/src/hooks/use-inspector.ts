@@ -26,27 +26,35 @@ export function useInspector(
   useEffect(() => {
     if (!enabled || !phaseGraph) return;
 
-    const machine = buildShadowMachine(phaseGraph);
+    let actor: AnyActorRef | null = null;
+    let inspector: ReturnType<typeof createBrowserInspector> | null = null;
 
-    const inspector = createBrowserInspector({
-      autoStart: true,
-    });
-    inspectorRef.current = inspector;
+    try {
+      const machine = buildShadowMachine(phaseGraph);
 
-    const actor = createActor(machine as AnyStateMachine, {
-      inspect: inspector.inspect,
-    });
-    actor.start();
-    actorRef.current = actor;
+      inspector = createBrowserInspector({
+        autoStart: true,
+      });
+      inspectorRef.current = inspector;
 
-    // Reset tracked state
-    prevPhaseRef.current = null;
-    prevStageRef.current = undefined;
+      actor = createActor(machine as AnyStateMachine, {
+        inspect: inspector.inspect,
+      });
+      actor.start();
+      actorRef.current = actor;
+
+      // Reset tracked state
+      prevPhaseRef.current = null;
+      prevStageRef.current = undefined;
+    } catch {
+      // Inspector popup may be blocked — continue without inspector
+      console.warn("Failed to initialize State Machine Inspector");
+    }
 
     return () => {
-      actor.stop();
+      try { actor?.stop(); } catch { /* ignore */ }
       actorRef.current = null;
-      inspector.stop();
+      try { inspector?.stop(); } catch { /* ignore */ }
       inspectorRef.current = null;
     };
   }, [phaseGraph, enabled]);
@@ -56,22 +64,26 @@ export function useInspector(
     const actor = actorRef.current;
     if (!actor || !engineState) return;
 
-    if (engineState.finished) {
-      actor.send({ type: "GAME_END" });
-      return;
-    }
+    try {
+      if (engineState.finished) {
+        actor.send({ type: "GAME_END" });
+        return;
+      }
 
-    // Sync phase changes
-    if (engineState.phase !== prevPhaseRef.current) {
-      actor.send({ type: "GOTO_PHASE", phase: engineState.phase });
-      prevPhaseRef.current = engineState.phase;
-      prevStageRef.current = undefined;
-    }
+      // Sync phase changes
+      if (engineState.phase !== prevPhaseRef.current) {
+        actor.send({ type: "GOTO_PHASE", phase: engineState.phase });
+        prevPhaseRef.current = engineState.phase;
+        prevStageRef.current = undefined;
+      }
 
-    // Sync stage changes
-    if (engineState.stage && engineState.stage !== prevStageRef.current) {
-      actor.send({ type: "GOTO_STAGE", stage: engineState.stage });
-      prevStageRef.current = engineState.stage;
+      // Sync stage changes
+      if (engineState.stage && engineState.stage !== prevStageRef.current) {
+        actor.send({ type: "GOTO_STAGE", stage: engineState.stage });
+        prevStageRef.current = engineState.stage;
+      }
+    } catch {
+      // Inspector popup may be blocked or closed — ignore to avoid breaking the game UI
     }
   }, [engineState]);
 }
