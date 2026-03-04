@@ -13,6 +13,7 @@ interface RoomInfo {
   gameId: string;
   players: string[];
   started: boolean;
+  creatorId: string;
 }
 
 interface GameSelectorProps {
@@ -67,6 +68,13 @@ export function GameSelector({ playerId, onJoinRoom }: GameSelectorProps) {
       body: JSON.stringify({ playerId }),
     });
     onJoinRoom(roomId, gameId);
+  };
+
+  const deleteRoom = async (roomId: string) => {
+    await fetch(`/api/rooms/${roomId}?playerId=${encodeURIComponent(playerId)}`, {
+      method: "DELETE",
+    });
+    fetchData();
   };
 
   if (loading) return <div style={styles.loading}>Loading...</div>;
@@ -137,12 +145,22 @@ export function GameSelector({ playerId, onJoinRoom }: GameSelectorProps) {
                     {" — "}
                     {room.players.length} player(s)
                   </span>
-                  <button
-                    style={styles.rejoinButton}
-                    onClick={() => onJoinRoom(room.id, room.gameId)}
-                  >
-                    Rejoin
-                  </button>
+                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                    <button
+                      style={styles.rejoinButton}
+                      onClick={() => onJoinRoom(room.id, room.gameId)}
+                    >
+                      Rejoin
+                    </button>
+                    {room.creatorId === playerId && (
+                      <button
+                        style={styles.deleteButton}
+                        onClick={() => deleteRoom(room.id)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
           </div>
@@ -172,16 +190,26 @@ export function GameSelector({ playerId, onJoinRoom }: GameSelectorProps) {
                       </span>
                     ))}
                   </span>
-                  {!room.players.includes(playerId) ? (
-                    <button
-                      style={styles.buttonSmall}
-                      onClick={() => joinRoom(room.id, room.gameId)}
-                    >
-                      Join
-                    </button>
-                  ) : (
-                    <span style={styles.badge}>Joined</span>
-                  )}
+                  <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                    {!room.players.includes(playerId) ? (
+                      <button
+                        style={styles.buttonSmall}
+                        onClick={() => joinRoom(room.id, room.gameId)}
+                      >
+                        Join
+                      </button>
+                    ) : (
+                      <span style={styles.badge}>Joined</span>
+                    )}
+                    {room.creatorId === playerId && (
+                      <button
+                        style={styles.deleteButton}
+                        onClick={() => deleteRoom(room.id)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
           </div>
@@ -224,6 +252,10 @@ const styles: Record<string, React.CSSProperties> = {
   badge: { fontSize: "0.75rem", color: "#22c55e", fontWeight: 600 },
   rejoinButton: {
     background: "#22c55e", color: "#fff", border: "none", borderRadius: 6,
+    padding: "0.4rem 0.8rem", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600,
+  },
+  deleteButton: {
+    background: "#ef4444", color: "#fff", border: "none", borderRadius: 6,
     padding: "0.4rem 0.8rem", cursor: "pointer", fontSize: "0.8rem", fontWeight: 600,
   },
   botName: { color: "#f59e0b", fontStyle: "italic" },

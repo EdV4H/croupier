@@ -25,6 +25,7 @@ export class GameRoomDO extends DurableObject<Env> {
   private players: PlayerId[] = [];
   private engine: CroupierCore | null = null;
   private botManager: BotManager | null = null;
+  private creatorId = "";
   private started = false;
   private createdAt = 0;
 
@@ -37,6 +38,7 @@ export class GameRoomDO extends DurableObject<Env> {
       players: this.players,
       started: this.started,
       createdAt: this.createdAt,
+      creatorId: this.creatorId,
     };
     await lobby.fetch(new Request("http://lobby/update", {
       method: "POST",
@@ -66,6 +68,36 @@ export class GameRoomDO extends DurableObject<Env> {
         );
       } catch {
         // Connection may be closing
+      }
+    }
+
+    // Auto-delete: schedule cleanup 30s after game finishes
+    if (engineState.finished) {
+      const msg = JSON.stringify({ type: "roomDeleted" });
+      for (const ws of this.ctx.getWebSockets()) {
+        try {
+          ws.send(msg);
+        } catch {
+          // Connection may be closing
+        }
+      }
+      this.ctx.storage.setAlarm(Date.now() + 30_000);
+    }
+  }
+
+  async alarm(): Promise<void> {
+    // Clean up from Lobby after game finished
+    const lobbyId = this.env.LOBBY.idFromName("singleton");
+    const lobby = this.env.LOBBY.get(lobbyId);
+    await lobby.fetch(
+      new Request(`http://lobby/rooms/${this.roomId}`, { method: "DELETE" }),
+    );
+    // Close any remaining WebSockets
+    for (const ws of this.ctx.getWebSockets()) {
+      try {
+        ws.close(1000, "Room expired");
+      } catch {
+        // Already closed
       }
     }
   }
@@ -133,6 +165,7 @@ export class GameRoomDO extends DurableObject<Env> {
 
       this.roomId = roomId;
       this.gameId = gameId;
+      this.creatorId = playerId;
       this.players = [playerId];
       this.createdAt = Date.now();
 
@@ -201,6 +234,28 @@ export class GameRoomDO extends DurableObject<Env> {
       this.broadcastGameState();
       await this.updateLobby();
       return Response.json({ started: true });
+    }
+
+    if (request.method === "POST" && path === "/delete") {
+      const { playerId } = (await request.json()) as { playerId: string };
+      if (playerId !== this.creatorId) {
+        return Response.json({ error: "Only the room creator can delete it" }, { status: 403 });
+      }
+      if (this.botManager) {
+        this.botManager.stop();
+        this.botManager = null;
+      }
+      const msg = JSON.stringify({ type: "roomDeleted" });
+      for (const ws of this.ctx.getWebSockets()) {
+        try {
+          ws.send(msg);
+          ws.close(1000, "Room deleted");
+        } catch {
+          // Connection may be closing
+        }
+      }
+      this.engine = null;
+      return Response.json({ ok: true });
     }
 
     if (request.method === "GET" && path === "/info") {

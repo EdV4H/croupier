@@ -25,6 +25,7 @@ export interface GameStateData {
 export interface UseGameStateReturn {
   connected: boolean;
   gameState: GameStateData | null;
+  roomDeleted: boolean;
   dispatch: (action: string, payload?: unknown) => void;
   lastError: string | null;
   lastActionResult: { ok: boolean; error?: string } | null;
@@ -36,6 +37,7 @@ export function useGameState(
 ): UseGameStateReturn {
   const [connected, setConnected] = useState(false);
   const [gameState, setGameState] = useState<GameStateData | null>(null);
+  const [roomDeleted, setRoomDeleted] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
   const [lastActionResult, setLastActionResult] = useState<{
     ok: boolean;
@@ -46,6 +48,7 @@ export function useGameState(
   // Reset game state when roomId changes (e.g., leaving a game)
   useEffect(() => {
     setGameState(null);
+    setRoomDeleted(false);
     setLastError(null);
     setLastActionResult(null);
   }, [roomId]);
@@ -81,6 +84,9 @@ export function useGameState(
           case "error":
             setLastError(msg.error);
             break;
+          case "roomDeleted":
+            setRoomDeleted(true);
+            break;
           case "playerJoined":
             // Could handle player join notifications
             break;
@@ -110,5 +116,5 @@ export function useGameState(
     [],
   );
 
-  return { connected, gameState, dispatch, lastError, lastActionResult };
+  return { connected, gameState, roomDeleted, dispatch, lastError, lastActionResult };
 }

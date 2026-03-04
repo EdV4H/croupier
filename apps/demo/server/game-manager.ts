@@ -16,6 +16,7 @@ import { AVAILABLE_GAMES, createGameConfig } from "./shared/game-registry.js";
 export interface Room {
   id: string;
   gameId: string;
+  creatorId: PlayerId;
   players: PlayerId[];
   engine: CroupierCore | null;
   botManager: BotManager | null;
@@ -37,6 +38,7 @@ export class GameManager {
     const room: Room = {
       id,
       gameId,
+      creatorId,
       players: [creatorId],
       engine: null,
       botManager: null,
