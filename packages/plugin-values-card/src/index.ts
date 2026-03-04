@@ -194,7 +194,20 @@ export function createValuesCardConfig(
 
       presentation: {
         allowedActions: [],
-        // No actions needed — game effectively ends here
+        endConditions: [
+          {
+            guard: () => true,
+            result: (ctx) => ({
+              reason: "All cards have been exchanged",
+              summary: Object.fromEntries(
+                ctx.game.playerOrder.map((pid) => [
+                  pid,
+                  ctx.game.players[pid].hand.map((c) => c.name),
+                ]),
+              ),
+            }),
+          },
+        ],
       },
     },
 
