@@ -14,4 +14,5 @@ export interface RoomSummary {
   players: PlayerId[];
   started: boolean;
   createdAt: number;
+  creatorId: string;
 }

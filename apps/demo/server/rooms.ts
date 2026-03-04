@@ -72,6 +72,15 @@ export class RoomManager {
         // Connection may be closed
       }
     }
+
+    // Auto-delete: notify clients and clean up 30s after game finishes
+    if (engineState?.finished) {
+      this.broadcastToRoom(roomId, { type: "roomDeleted" });
+      setTimeout(() => {
+        this.closeRoom(roomId);
+        this.gameManager.deleteRoom(roomId);
+      }, 30_000);
+    }
   }
 
   /** Broadcast a generic message to all clients in a room */
@@ -87,6 +96,24 @@ export class RoomManager {
         // Connection may be closed
       }
     }
+  }
+
+  /** Broadcast roomDeleted to all clients in a room and close their connections */
+  closeRoom(roomId: string): void {
+    const clients = this.roomConnections.get(roomId);
+    if (!clients) return;
+
+    const msg = JSON.stringify({ type: "roomDeleted" });
+    for (const ws of clients) {
+      try {
+        ws.send(msg);
+        ws.close();
+      } catch {
+        // Connection may already be closed
+      }
+      this.connections.delete(ws);
+    }
+    this.roomConnections.delete(roomId);
   }
 
   handleMessage(ws: WSContext, raw: string): void {

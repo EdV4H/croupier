@@ -122,6 +122,34 @@ app.post("/api/rooms/:roomId/start", async (c) => {
   return c.json(data);
 });
 
+/** Delete a room (creator only) */
+app.delete("/api/rooms/:roomId", async (c) => {
+  const roomId = c.req.param("roomId");
+  const playerId = c.req.query("playerId");
+  if (!playerId) return c.json({ error: "playerId required" }, 400);
+
+  // Ask GameRoomDO to verify creator & close WebSockets
+  const room = getGameRoom(c.env, roomId);
+  const deleteRes = await room.fetch(
+    new Request("http://game-room/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId }),
+    }),
+  );
+  if (!deleteRes.ok) {
+    const data = await deleteRes.json();
+    return c.json(data, deleteRes.status as any);
+  }
+
+  // Remove from Lobby
+  const lobby = getLobby(c.env);
+  await lobby.fetch(
+    new Request(`http://lobby/rooms/${roomId}`, { method: "DELETE" }),
+  );
+  return c.body(null, 204);
+});
+
 /** Get room info */
 app.get("/api/rooms/:roomId", async (c) => {
   const roomId = c.req.param("roomId");

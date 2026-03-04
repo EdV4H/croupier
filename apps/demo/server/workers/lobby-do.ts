@@ -14,6 +14,7 @@ export class LobbyDO extends DurableObject {
       players: [],
       started: false,
       createdAt: Date.now(),
+      creatorId: "",
     };
     await this.ctx.storage.put(`room:${roomId}`, summary);
     return roomId;

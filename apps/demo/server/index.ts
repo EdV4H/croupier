@@ -47,6 +47,7 @@ app.get("/api/rooms", (c) => {
     players: r.players,
     started: r.started,
     createdAt: r.createdAt,
+    creatorId: r.creatorId,
   }));
   return c.json(rooms);
 });
@@ -91,6 +92,20 @@ app.post("/api/rooms/:roomId/start", async (c) => {
   } catch (e: any) {
     return c.json({ error: e.message }, 400);
   }
+});
+
+/** Delete a room (creator only) */
+app.delete("/api/rooms/:roomId", (c) => {
+  const roomId = c.req.param("roomId");
+  const playerId = c.req.query("playerId");
+  const room = gameManager.getRoom(roomId);
+  if (!room) return c.json({ error: "Room not found" }, 404);
+  if (playerId !== room.creatorId) {
+    return c.json({ error: "Only the room creator can delete it" }, 403);
+  }
+  roomManager.closeRoom(roomId);
+  gameManager.deleteRoom(roomId);
+  return c.body(null, 204);
 });
 
 /** Get room info */
