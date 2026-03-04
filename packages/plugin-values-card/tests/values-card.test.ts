@@ -175,10 +175,12 @@ describe("Values Card", () => {
         });
       }
 
-      // Deck should be empty, game should be in presentation phase
+      // Deck should be empty, game should be finished
       state = engine.getState() as ValuesCardState;
       expect(state.deck).toHaveLength(0);
-      expect(engine.getEngineState().phase).toBe("presentation");
+      const es = engine.getEngineState();
+      expect(es.finished).toBe(true);
+      expect(es.result?.reason).toBe("All cards have been exchanged");
     });
   });
 });

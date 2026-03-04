@@ -182,23 +182,29 @@ export function createValuesCardConfig(
         initialStage: "waitingForDraw",
         transitions: [
           {
-            target: "presentation",
-            guard: (ctx) => ctx.game.deck.length === 0,
-          },
-          {
             target: "playerTurn",
             guard: () => true, // loop back
           },
         ],
       },
-
-      presentation: {
-        allowedActions: [],
-        // No actions needed — game effectively ends here
-      },
     },
 
     initialPhase: "playerTurn",
+
+    endConditions: [
+      {
+        guard: (ctx) => ctx.game.deck.length === 0,
+        result: (ctx) => ({
+          reason: "All cards have been exchanged",
+          summary: Object.fromEntries(
+            ctx.game.playerOrder.map((pid: PlayerId) => [
+              pid,
+              ctx.game.players[pid].hand.map((c: Card) => c.name),
+            ]),
+          ),
+        }),
+      },
+    ],
 
     view: {
       playerView: (state, playerId) => {
