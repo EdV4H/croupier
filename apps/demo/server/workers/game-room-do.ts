@@ -99,10 +99,11 @@ export class GameRoomDO extends DurableObject<Env> {
         try {
           const playerView = this.engine.getPlayerView(playerId);
           const engineState = this.engine.getEngineState();
+          const actionLog = this.engine.getLog();
           pair[1].send(
             JSON.stringify({
               type: "gameState",
-              data: { playerView, engineState, playerId },
+              data: { playerView, engineState, actionLog, playerId },
             }),
           );
         } catch {

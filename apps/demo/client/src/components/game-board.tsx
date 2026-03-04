@@ -64,7 +64,7 @@ export function GameBoard({
                 ? "Game Over"
                 : isMyTurn
                   ? "Your Turn"
-                  : "Waiting..."}
+                  : `Waiting... (current: ${JSON.stringify(engineState.currentPlayers)}, you: ${playerId})`}
             </span>
           </div>
         </div>
