@@ -16,7 +16,7 @@ export function App() {
 
   const roomId = "roomId" in screen ? screen.roomId : null;
   const gameId = "gameId" in screen ? screen.gameId : null;
-  const { connected, gameState, dispatch, lastError } = useGameState(
+  const { connected, gameState, roomDeleted, dispatch, lastError } = useGameState(
     roomId,
     playerId || null,
   );
@@ -53,6 +53,11 @@ export function App() {
       console.error(e);
     }
   }, [screen]);
+
+  // Navigate to lobby when room is deleted
+  if (roomDeleted && screen.type !== "lobby" && screen.type !== "login") {
+    setScreen({ type: "lobby" });
+  }
 
   // Auto-transition to playing when game state arrives
   if (
