@@ -22,12 +22,14 @@ export interface TCGOptions {
   deck1?: Card[];
   deck2?: Card[];
   initialLife?: number;
+  /** Timeout per turn in ms. */
+  turnTimeoutMs?: number;
 }
 
 export function createDigitalTCGConfig(
   options: TCGOptions = {},
 ): CroupierConfig<TCGState> {
-  const { initialLife = INITIAL_LIFE } = options;
+  const { initialLife = INITIAL_LIFE, turnTimeoutMs } = options;
 
   // Custom turn order: always the active player (pure, reads from ctx.game)
   const tcgTurnOrder = custom<TCGState>({
@@ -221,6 +223,7 @@ export function createDigitalTCGConfig(
       main: {
         allowedActions: ["playCard", "attack", "endTurn"],
         turnOrder: tcgTurnOrder,
+        turnTimeoutMs,
       },
     },
 

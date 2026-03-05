@@ -78,6 +78,9 @@ importers:
       vite:
         specifier: ^6.0.0
         version: 6.4.1(@types/node@25.3.2)(tsx@4.21.0)(yaml@2.8.2)
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@25.3.2)(tsx@4.21.0)(yaml@2.8.2)
       wrangler:
         specifier: ^3.99.0
         version: 3.114.17(@cloudflare/workers-types@4.20260301.1)

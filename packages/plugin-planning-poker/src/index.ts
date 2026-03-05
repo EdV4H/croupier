@@ -34,12 +34,14 @@ export interface PlanningPokerOptions {
   deck?: string[];
   facilitators?: PlayerId[];
   facilitatorCanVote?: boolean;
+  /** Timeout for the voting phase in ms. All voters must vote within this time. */
+  votingTimeoutMs?: number;
 }
 
 export function createPlanningPokerConfig(
   options: PlanningPokerOptions = {},
 ): CroupierConfig<PlanningPokerState> {
-  const { deck = FIBONACCI_DECK, facilitators = [], facilitatorCanVote = false } = options;
+  const { deck = FIBONACCI_DECK, facilitators = [], facilitatorCanVote = false, votingTimeoutMs } = options;
 
   return {
     name: "planning-poker",
@@ -224,6 +226,7 @@ export function createPlanningPokerConfig(
       voting: {
         allowedActions: ["vote", "reveal"],
         turnOrder: SIMULTANEOUS,
+        turnTimeoutMs: votingTimeoutMs,
         always: [
           { target: "evaluation", guard: (ctx) => ctx.game.revealedCards !== null },
         ],

@@ -90,12 +90,14 @@ const HAND_SIZE = 5;
 export interface ValuesCardOptions {
   theme?: string;
   cards?: Card[];
+  /** Timeout per turn in ms. */
+  turnTimeoutMs?: number;
 }
 
 export function createValuesCardConfig(
   options: ValuesCardOptions = {},
 ): CroupierConfig<ValuesCardState> {
-  const { theme = "人生で大事な5つの価値観", cards = DEFAULT_VALUES_CARDS } =
+  const { theme = "人生で大事な5つの価値観", cards = DEFAULT_VALUES_CARDS, turnTimeoutMs } =
     options;
 
   // Custom turn order that tracks currentPlayerIndex (pure — reads from ctx.game)
@@ -190,6 +192,7 @@ export function createValuesCardConfig(
     phases: {
       playerTurn: {
         turnOrder: valuesCardTurnOrder,
+        turnTimeoutMs,
         stages: {
           waitingForDraw: {
             allowedActions: ["drawFromDeck", "drawFromDiscard"],

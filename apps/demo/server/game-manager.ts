@@ -12,6 +12,7 @@ import {
 export type { GameInfo } from "./shared/types.js";
 export { AVAILABLE_GAMES, createGameConfig } from "./shared/game-registry.js";
 import { AVAILABLE_GAMES, createGameConfig } from "./shared/game-registry.js";
+import { TurnTimeoutManager } from "./turn-timeout-manager.js";
 
 export interface Room {
   id: string;
@@ -20,6 +21,7 @@ export interface Room {
   players: PlayerId[];
   engine: CroupierCore | null;
   botManager: BotManager | null;
+  turnTimeoutManager: TurnTimeoutManager | null;
   started: boolean;
   createdAt: number;
 }
@@ -53,6 +55,7 @@ export class GameManager {
       players: [creatorId],
       engine: null,
       botManager: null,
+      turnTimeoutManager: null,
       started: false,
       createdAt: Date.now(),
     };
@@ -119,6 +122,28 @@ export class GameManager {
       room.botManager.start();
     }
 
+    // Start TurnTimeoutManager if bot strategy exists and any phase has turnTimeoutMs
+    if (config.bot) {
+      const hasTimeout = Object.values(config.phases).some((p) => {
+        if (p.turnTimeoutMs) return true;
+        if (p.stages) {
+          return Object.values(p.stages).some((s) => s.turnTimeoutMs);
+        }
+        return false;
+      });
+
+      if (hasTimeout) {
+        room.turnTimeoutManager = new TurnTimeoutManager(
+          room.engine,
+          () => {
+            if (this.onBotAction) {
+              this.onBotAction(roomId);
+            }
+          },
+        );
+      }
+    }
+
     return room;
   }
 
@@ -173,6 +198,9 @@ export class GameManager {
     const room = this.rooms.get(roomId);
     if (room?.botManager) {
       room.botManager.stop();
+    }
+    if (room?.turnTimeoutManager) {
+      room.turnTimeoutManager.dispose();
     }
     this.rooms.delete(roomId);
   }
