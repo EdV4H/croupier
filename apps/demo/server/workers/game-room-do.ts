@@ -19,6 +19,15 @@ interface Env {
   GAME_ROOM: DurableObjectNamespace;
 }
 
+interface GameRoomState {
+  roomId: string;
+  gameId: string;
+  players: PlayerId[];
+  creatorId: string;
+  started: boolean;
+  createdAt: number;
+}
+
 export class GameRoomDO extends DurableObject<Env> {
   private roomId = "";
   private gameId = "";
@@ -28,6 +37,29 @@ export class GameRoomDO extends DurableObject<Env> {
   private creatorId = "";
   private started = false;
   private createdAt = 0;
+
+  private async saveState(): Promise<void> {
+    await this.ctx.storage.put<GameRoomState>("state", {
+      roomId: this.roomId,
+      gameId: this.gameId,
+      players: this.players,
+      creatorId: this.creatorId,
+      started: this.started,
+      createdAt: this.createdAt,
+    });
+  }
+
+  private async loadState(): Promise<boolean> {
+    const state = await this.ctx.storage.get<GameRoomState>("state");
+    if (!state) return false;
+    this.roomId = state.roomId;
+    this.gameId = state.gameId;
+    this.players = state.players;
+    this.creatorId = state.creatorId;
+    this.started = state.started;
+    this.createdAt = state.createdAt;
+    return true;
+  }
 
   private async updateLobby(): Promise<void> {
     const lobbyId = this.env.LOBBY.idFromName("singleton");
@@ -86,6 +118,7 @@ export class GameRoomDO extends DurableObject<Env> {
   }
 
   async alarm(): Promise<void> {
+    await this.loadState();
     // Clean up from Lobby after game finished
     const lobbyId = this.env.LOBBY.idFromName("singleton");
     const lobby = this.env.LOBBY.get(lobbyId);
@@ -114,6 +147,8 @@ export class GameRoomDO extends DurableObject<Env> {
   }
 
   async fetch(request: Request): Promise<Response> {
+    await this.loadState();
+
     const url = new URL(request.url);
     const path = url.pathname;
 
@@ -176,6 +211,7 @@ export class GameRoomDO extends DurableObject<Env> {
         }
       }
 
+      await this.saveState();
       await this.updateLobby();
       return Response.json(
         { id: this.roomId, gameId: this.gameId, players: this.players },
@@ -194,6 +230,7 @@ export class GameRoomDO extends DurableObject<Env> {
         return Response.json({ error: "Already in room" }, { status: 400 });
 
       this.players.push(playerId);
+      await this.saveState();
       this.broadcastToRoom({
         type: "playerJoined",
         data: { playerId, players: this.players },
@@ -220,6 +257,7 @@ export class GameRoomDO extends DurableObject<Env> {
       const config = createGameConfig(this.gameId, this.players);
       this.engine = new CroupierCore(config, this.players);
       this.started = true;
+      await this.saveState();
 
       // Start BotManager
       const botIds = this.players.filter(isBotPlayer);
@@ -255,6 +293,7 @@ export class GameRoomDO extends DurableObject<Env> {
         }
       }
       this.engine = null;
+      await this.ctx.storage.deleteAll();
       return Response.json({ ok: true });
     }
 
