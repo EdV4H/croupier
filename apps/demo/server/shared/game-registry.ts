@@ -46,7 +46,7 @@ export function createGameConfig(
     case "planning-poker":
       return createPlanningPokerConfig({
         facilitators: [players[0]],
-        votingTimeoutMs: 60_000,
+        facilitatorCanVote: true,
       });
     case "values-card":
       return createValuesCardConfig({ turnTimeoutMs: 60_000 });
