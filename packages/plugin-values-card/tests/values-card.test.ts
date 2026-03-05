@@ -22,8 +22,8 @@ describe("Values Card", () => {
     it("removes dealt cards from deck", () => {
       const engine = createGame(3);
       const state = engine.getState() as ValuesCardState;
-      // 25 cards total, 15 dealt (5 per player)
-      expect(state.deck).toHaveLength(10);
+      // 70 cards total, 15 dealt (5 per player)
+      expect(state.deck).toHaveLength(55);
     });
 
     it("starts in playerTurn phase with waitingForDraw stage", () => {
