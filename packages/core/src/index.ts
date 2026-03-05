@@ -51,5 +51,9 @@ export { createRandom, SeededRandom } from "./util/random.js";
 export { extractPhaseGraph } from "./phase-graph.js";
 export type { PhaseGraph, PhaseGraphNode } from "./phase-graph.js";
 
+// Turn Timeout
+export { getActiveTimeoutMs, executeBotTakeover } from "./turn-timeout.js";
+export type { TimeoutEngine } from "./turn-timeout.js";
+
 // Events
 export { EventEmitter } from "./events.js";

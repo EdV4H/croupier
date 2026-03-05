@@ -112,6 +112,8 @@ export interface StageConfig<S extends GameState = GameState> {
   /** Guard-based transitions evaluated after action/turn completion.
    *  Target: stage name or "__done__" (final stage) */
   always?: GuardedTransition<S>[];
+  /** Turn timeout in ms. Overrides phase-level turnTimeoutMs when set. */
+  turnTimeoutMs?: number;
 }
 
 export interface PhaseConfig<S extends GameState = GameState> {
@@ -128,6 +130,8 @@ export interface PhaseConfig<S extends GameState = GameState> {
   stages?: { [name: string]: StageConfig<S> };
   initialStage?: string;
   allowedRoles?: string[];
+  /** Turn timeout in ms. When elapsed, bot strategy takes over for idle human players. */
+  turnTimeoutMs?: number;
 }
 
 // ============================================================
