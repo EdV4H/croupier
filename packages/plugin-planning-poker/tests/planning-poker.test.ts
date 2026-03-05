@@ -221,6 +221,107 @@ describe("Planning Poker", () => {
     });
   });
 
+  describe("facilitatorCanVote", () => {
+    function createVotableGame() {
+      const config = createPlanningPokerConfig({
+        facilitators: ["Facilitator"],
+        facilitatorCanVote: true,
+      });
+      return new CroupierCore(config, ["Facilitator", "Dev1", "Dev2"], {
+        seed: 42,
+      });
+    }
+
+    it("defaults to false — facilitator cannot vote", () => {
+      const engine = createGame();
+      const state = engine.getState() as PlanningPokerState;
+      expect(state.facilitatorCanVote).toBe(false);
+
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
+      engine.dispatch("Facilitator", "startVoting");
+      const result = engine.dispatch("Facilitator", "vote", { card: "5" });
+      expect(result.ok).toBe(false);
+    });
+
+    it("facilitator can vote when facilitatorCanVote is true", () => {
+      const engine = createVotableGame();
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
+      engine.dispatch("Facilitator", "startVoting");
+      const result = engine.dispatch("Facilitator", "vote", { card: "5" });
+      expect(result.ok).toBe(true);
+
+      const state = engine.getState() as PlanningPokerState;
+      expect(state.players.Facilitator.selectedCard).toBe("5");
+    });
+
+    it("reveal includes facilitator vote when facilitatorCanVote is true", () => {
+      const engine = createVotableGame();
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
+      engine.dispatch("Facilitator", "startVoting");
+      engine.dispatch("Facilitator", "vote", { card: "3" });
+      engine.dispatch("Dev1", "vote", { card: "5" });
+      engine.dispatch("Dev2", "vote", { card: "8" });
+      engine.dispatch("Facilitator", "reveal");
+
+      const state = engine.getState() as PlanningPokerState;
+      expect(state.revealedCards).toEqual({
+        Facilitator: "3",
+        Dev1: "5",
+        Dev2: "8",
+      });
+    });
+
+    it("reveal fails if facilitator has not voted when facilitatorCanVote is true", () => {
+      const engine = createVotableGame();
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
+      engine.dispatch("Facilitator", "startVoting");
+      engine.dispatch("Dev1", "vote", { card: "5" });
+      engine.dispatch("Dev2", "vote", { card: "8" });
+      // Facilitator hasn't voted
+      const result = engine.dispatch("Facilitator", "reveal");
+      expect(result.ok).toBe(false);
+    });
+
+    it("toggleFacilitatorVote toggles the flag", () => {
+      const engine = createGame();
+      expect((engine.getState() as PlanningPokerState).facilitatorCanVote).toBe(false);
+
+      engine.dispatch("Facilitator", "toggleFacilitatorVote");
+      expect((engine.getState() as PlanningPokerState).facilitatorCanVote).toBe(true);
+
+      engine.dispatch("Facilitator", "toggleFacilitatorVote");
+      expect((engine.getState() as PlanningPokerState).facilitatorCanVote).toBe(false);
+    });
+
+    it("toggleFacilitatorVote resets facilitator selectedCard when disabled", () => {
+      const engine = createVotableGame();
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
+      engine.dispatch("Facilitator", "startVoting");
+      engine.dispatch("Facilitator", "vote", { card: "5" });
+      expect((engine.getState() as PlanningPokerState).players.Facilitator.selectedCard).toBe("5");
+
+      // Toggle off in discussion (go back to discussion first by re-creating scenario)
+      // toggleFacilitatorVote is available in idle and discussion phases
+      const engine2 = createVotableGame();
+      engine2.dispatch("Facilitator", "toggleFacilitatorVote");
+      const state = engine2.getState() as PlanningPokerState;
+      expect(state.facilitatorCanVote).toBe(false);
+      expect(state.players.Facilitator.selectedCard).toBeNull();
+    });
+
+    it("only facilitator can toggle", () => {
+      const engine = createGame();
+      const result = engine.dispatch("Dev1", "toggleFacilitatorVote");
+      expect(result.ok).toBe(false);
+    });
+
+    it("playerView includes facilitatorCanVote", () => {
+      const engine = createVotableGame();
+      const view = engine.getPlayerView("Dev1") as any;
+      expect(view.facilitatorCanVote).toBe(true);
+    });
+  });
+
   describe("full scenario", () => {
     it("plays through complete estimation session", () => {
       const engine = createGame();

@@ -33,12 +33,13 @@ export const FIBONACCI_DECK = [
 export interface PlanningPokerOptions {
   deck?: string[];
   facilitators?: PlayerId[];
+  facilitatorCanVote?: boolean;
 }
 
 export function createPlanningPokerConfig(
   options: PlanningPokerOptions = {},
 ): CroupierConfig<PlanningPokerState> {
-  const { deck = FIBONACCI_DECK, facilitators = [] } = options;
+  const { deck = FIBONACCI_DECK, facilitators = [], facilitatorCanVote = false } = options;
 
   return {
     name: "planning-poker",
@@ -61,6 +62,7 @@ export function createPlanningPokerConfig(
         finalEstimate: null,
         roundHistory: [],
         roundNumber: 0,
+        facilitatorCanVote,
       };
     },
 
@@ -108,7 +110,7 @@ export function createPlanningPokerConfig(
           game.players[playerId].selectedCard = card;
         },
         validate: (game, playerId, payload) => {
-          if (game.players[playerId].role !== "voter")
+          if (game.players[playerId].role !== "voter" && !game.facilitatorCanVote)
             return "Facilitators cannot vote";
           const { card } = payload as { card: string };
           if (!game.deck.includes(card)) return "Invalid card value";
@@ -120,7 +122,8 @@ export function createPlanningPokerConfig(
         execute: (game) => {
           const revealed: Record<PlayerId, string> = {};
           for (const [pid, pState] of Object.entries(game.players)) {
-            if (pState.role === "voter" && pState.selectedCard !== null) {
+            const isVoter = pState.role === "voter" || (pState.role === "facilitator" && game.facilitatorCanVote);
+            if (isVoter && pState.selectedCard !== null) {
               revealed[pid] = pState.selectedCard;
             }
           }
@@ -138,11 +141,11 @@ export function createPlanningPokerConfig(
         validate: (game, playerId) => {
           if (game.players[playerId].role !== "facilitator")
             return "Only facilitator can reveal cards";
-          // Check all voters have voted
-          const voters = Object.entries(game.players).filter(
-            ([, p]) => p.role === "voter",
+          // Check all voting participants have voted
+          const votingParticipants = Object.entries(game.players).filter(
+            ([, p]) => p.role === "voter" || (p.role === "facilitator" && game.facilitatorCanVote),
           );
-          const allVoted = voters.every(([, p]) => p.selectedCard !== null);
+          const allVoted = votingParticipants.every(([, p]) => p.selectedCard !== null);
           if (!allVoted) return "Not all voters have voted";
           return true;
         },
@@ -180,17 +183,37 @@ export function createPlanningPokerConfig(
         },
         unrestricted: true,
       },
+
+      toggleFacilitatorVote: {
+        execute: (game) => {
+          game.facilitatorCanVote = !game.facilitatorCanVote;
+          // Reset facilitator's selected card when disabling
+          if (!game.facilitatorCanVote) {
+            for (const p of Object.values(game.players)) {
+              if (p.role === "facilitator") {
+                p.selectedCard = null;
+              }
+            }
+          }
+        },
+        validate: (game, playerId) => {
+          if (game.players[playerId].role !== "facilitator")
+            return "Only facilitator can toggle voting";
+          return true;
+        },
+        unrestricted: true,
+      },
     },
 
     phases: {
       idle: {
-        allowedActions: ["selectTask"],
+        allowedActions: ["selectTask", "toggleFacilitatorVote"],
         always: [
           { target: "discussion", guard: (ctx) => ctx.game.currentTask !== null },
         ],
       },
       discussion: {
-        allowedActions: ["startVoting"],
+        allowedActions: ["startVoting", "toggleFacilitatorVote"],
         always: [
           {
             target: "voting",
@@ -239,6 +262,7 @@ export function createPlanningPokerConfig(
           revealedCards: state.revealedCards,
           finalEstimate: state.finalEstimate,
           roundNumber: state.roundNumber,
+          facilitatorCanVote: state.facilitatorCanVote,
           players: {},
         };
 
@@ -284,6 +308,12 @@ const planningPokerBotStrategy: BotStrategy<PlanningPokerState> = {
       if (view.roundNumber === 0) {
         return { action: "startVoting" };
       }
+      // If facilitator can vote and hasn't voted yet, vote first
+      if (view.facilitatorCanVote && me.selectedCard === null && view.roundNumber > 0 && !view.revealedCards) {
+        const card =
+          numericCards[Math.floor(Math.random() * numericCards.length)] ?? "5";
+        return { action: "vote", payload: { card } };
+      }
       if (view.revealedCards) {
         if (!view.finalEstimate) {
           // Pick the most common vote as the estimate
@@ -293,11 +323,11 @@ const planningPokerBotStrategy: BotStrategy<PlanningPokerState> = {
         }
         return { action: "resetForNextTask" };
       }
-      // Check if all voters have voted to reveal
-      const voters = Object.entries(view.players as Record<string, any>).filter(
-        ([, p]) => p.role === "voter",
+      // Check if all voting participants have voted to reveal
+      const votingParticipants = Object.entries(view.players as Record<string, any>).filter(
+        ([, p]) => p.role === "voter" || (p.role === "facilitator" && view.facilitatorCanVote),
       );
-      const allVoted = voters.every(([, p]) => p.selectedCard !== null);
+      const allVoted = votingParticipants.every(([, p]) => p.selectedCard !== null);
       if (allVoted) {
         return { action: "reveal" };
       }
