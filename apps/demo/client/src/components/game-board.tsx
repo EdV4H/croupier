@@ -4,6 +4,7 @@ import type { ActionLogEntry, GameStateData } from "../hooks/use-game-state.js";
 import { useInspector } from "../hooks/use-inspector.js";
 import { GenericDisplay } from "./generic-display.js";
 import { HoldemRichUI } from "../games/texas-holdem/index.js";
+import { PlanningPokerRichUI } from "../games/planning-poker/index.js";
 
 export type UIMode = "generic" | "rich";
 
@@ -26,6 +27,16 @@ export function GameBoard({
   if (uiMode === "rich" && gameId === "texas-holdem") {
     return (
       <HoldemRichUI
+        gameState={gameState}
+        dispatch={dispatch}
+        lastError={lastError}
+      />
+    );
+  }
+  // Rich UI for Planning Poker
+  if (uiMode === "rich" && gameId === "planning-poker") {
+    return (
+      <PlanningPokerRichUI
         gameState={gameState}
         dispatch={dispatch}
         lastError={lastError}
