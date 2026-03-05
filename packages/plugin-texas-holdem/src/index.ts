@@ -26,6 +26,8 @@ export interface HoldemOptions {
   smallBlind?: number;
   bigBlind?: number;
   startingStack?: number;
+  /** Timeout per turn in ms for all betting phases. */
+  turnTimeoutMs?: number;
 }
 
 /** Get active player indices (not folded, not allIn) */
@@ -232,6 +234,7 @@ export function createTexasHoldemConfig(
     smallBlind = 1,
     bigBlind = 2,
     startingStack = 100,
+    turnTimeoutMs,
   } = options;
 
   // Pure turn order: reads currentPlayerIndex from ctx.game, no mutation
@@ -416,6 +419,7 @@ export function createTexasHoldemConfig(
       preFlop: {
         allowedActions: ["fold", "check", "call", "raise", "allIn"],
         turnOrder: holdemTurnOrder,
+        turnTimeoutMs,
         onEnter: (game) => {
           // Post blinds (skip busted players)
           const sbIdx = nextPlayerWithChipsIndex(game, game.dealerPosition);
@@ -461,6 +465,7 @@ export function createTexasHoldemConfig(
       flop: {
         allowedActions: ["fold", "check", "call", "raise", "allIn"],
         turnOrder: holdemTurnOrder,
+        turnTimeoutMs,
         onEnter: (game) => {
           dealCommunityCards(game, 3);
           resetBettingRound(game);
@@ -486,6 +491,7 @@ export function createTexasHoldemConfig(
       turn: {
         allowedActions: ["fold", "check", "call", "raise", "allIn"],
         turnOrder: holdemTurnOrder,
+        turnTimeoutMs,
         onEnter: (game) => {
           dealCommunityCards(game, 1);
           resetBettingRound(game);
@@ -511,6 +517,7 @@ export function createTexasHoldemConfig(
       river: {
         allowedActions: ["fold", "check", "call", "raise", "allIn"],
         turnOrder: holdemTurnOrder,
+        turnTimeoutMs,
         onEnter: (game) => {
           dealCommunityCards(game, 1);
           resetBettingRound(game);
