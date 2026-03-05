@@ -28,4 +28,5 @@ export interface PlanningPokerState extends GameState {
   finalEstimate: string | null;
   roundHistory: RoundHistory[];
   roundNumber: number;
+  facilitatorCanVote: boolean;
 }
