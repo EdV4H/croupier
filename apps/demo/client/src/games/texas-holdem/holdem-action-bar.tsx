@@ -61,7 +61,8 @@ export function HoldemActionBar({ playerView, playerId, dispatch }: ActionBarPro
                 key={p.label}
                 style={{
                   ...presetBtnStyle,
-                  background: effectiveRaise === p.value ? "#6366f1" : "#334155",
+                  background: effectiveRaise === p.value ? "#2dd4bf" : "#152029",
+                  color: effectiveRaise === p.value ? "#0f1923" : "#e2e8f0",
                 }}
                 onClick={() => setRaiseAmount(p.value)}
               >
@@ -77,7 +78,7 @@ export function HoldemActionBar({ playerView, playerId, dispatch }: ActionBarPro
               step={bigBlind}
               value={effectiveRaise}
               onChange={(e) => setRaiseAmount(Number(e.target.value))}
-              style={{ flex: 1, accentColor: "#6366f1" }}
+              style={{ flex: 1, accentColor: "#2dd4bf" }}
             />
             <span style={{ color: "#e2e8f0", fontSize: "0.85rem", fontWeight: 600, minWidth: 50, textAlign: "right" }}>
               ${effectiveRaise}
@@ -102,15 +103,16 @@ const containerStyle: CSSProperties = {
   alignItems: "center",
   gap: "0.6rem",
   padding: "0.8rem 1rem",
-  background: "#1e293b",
-  borderRadius: 10,
-  border: "1px solid #334155",
+  background: "#1a2332",
+  borderRadius: 16,
+  border: "1px solid #253545",
   flexWrap: "wrap",
+  boxShadow: "0 -4px 16px rgba(0,0,0,0.3)",
 };
 
 const btnBase: CSSProperties = {
   border: "none",
-  borderRadius: 8,
+  borderRadius: 20,
   padding: "0.6rem 1rem",
   cursor: "pointer",
   fontSize: "0.85rem",
@@ -121,7 +123,7 @@ const btnBase: CSSProperties = {
 
 const foldBtnStyle: CSSProperties = {
   ...btnBase,
-  background: "#64748b",
+  background: "#dc2626",
 };
 
 const checkBtnStyle: CSSProperties = {
@@ -131,17 +133,19 @@ const checkBtnStyle: CSSProperties = {
 
 const callBtnStyle: CSSProperties = {
   ...btnBase,
-  background: "#3b82f6",
+  background: "#22c55e",
 };
 
 const raiseBtnStyle: CSSProperties = {
   ...btnBase,
-  background: "#6366f1",
+  background: "#2dd4bf",
+  color: "#0f1923",
 };
 
 const allInBtnStyle: CSSProperties = {
   ...btnBase,
-  background: "#dc2626",
+  background: "linear-gradient(135deg, #dc2626, #ef4444)",
+  border: "1px solid #ef4444",
 };
 
 const raiseSectionStyle: CSSProperties = {
@@ -158,8 +162,8 @@ const presetRowStyle: CSSProperties = {
 };
 
 const presetBtnStyle: CSSProperties = {
-  border: "none",
-  borderRadius: 4,
+  border: "1px solid #253545",
+  borderRadius: 12,
   padding: "0.3rem 0.5rem",
   cursor: "pointer",
   fontSize: "0.7rem",

@@ -33,16 +33,18 @@ export function PlayerSeat({
     gap: 4,
     padding: "0.5rem",
     borderRadius: 10,
-    background: isMe ? "rgba(59,130,246,0.15)" : "rgba(15,23,42,0.7)",
-    border: `1px solid ${isMe ? "#3b82f6" : "#334155"}`,
+    background: isMe ? "rgba(59,130,246,0.08)" : "#1a2332",
+    border: `1px solid ${isMe ? "rgba(59,130,246,0.3)" : "#253545"}`,
     opacity: dimmed ? 0.4 : 1,
-    boxShadow: isCurrentTurn ? "0 0 12px 3px rgba(250,204,21,0.6)" : "none",
-    minWidth: 90,
+    boxShadow: isCurrentTurn
+      ? "0 0 12px 3px rgba(45,212,191,0.4)"
+      : "0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.02)",
+    minWidth: 80,
     position: "relative",
   };
 
   const statusColor: Record<string, string> = {
-    active: "#22c55e",
+    active: "#2dd4bf",
     folded: "#64748b",
     allIn: "#ef4444",
     busted: "#475569",
@@ -82,16 +84,14 @@ export function PlayerSeat({
       </div>
 
       {/* Stack */}
-      <span style={{ color: "#fbbf24", fontSize: "0.7rem", fontWeight: 600 }}>
+      <span style={{ color: "#d4a843", fontSize: "0.7rem", fontWeight: 600 }}>
         ${stack}
       </span>
 
-      {/* Bet */}
-      {currentBet > 0 && (
-        <span style={{ color: "#94a3b8", fontSize: "0.65rem" }}>
-          Bet: ${currentBet}
-        </span>
-      )}
+      {/* Bet (always reserve space) */}
+      <span style={{ color: "#94a3b8", fontSize: "0.65rem", visibility: currentBet > 0 ? "visible" : "hidden" }}>
+        Bet: ${currentBet || 0}
+      </span>
 
       {/* Status badge */}
       {status !== "active" && (
@@ -115,7 +115,7 @@ const dealerBtnStyle: CSSProperties = {
   width: 20,
   height: 20,
   borderRadius: "50%",
-  background: "#fbbf24",
+  background: "#d4a843",
   color: "#0f172a",
   fontSize: "0.65rem",
   fontWeight: 800,

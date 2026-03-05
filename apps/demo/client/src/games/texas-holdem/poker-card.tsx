@@ -12,9 +12,9 @@ const SUIT_SYMBOL: Record<string, string> = {
 type CardSize = "large" | "medium" | "small";
 
 const SIZE_MAP: Record<CardSize, { w: number; h: number; font: string; suitFont: string }> = {
-  large:  { w: 72, h: 100, font: "1.2rem", suitFont: "1.6rem" },
-  medium: { w: 52, h: 72,  font: "0.9rem", suitFont: "1.2rem" },
-  small:  { w: 36, h: 50,  font: "0.65rem", suitFont: "0.85rem" },
+  large:  { w: 64, h: 90, font: "1.1rem", suitFont: "1.4rem" },
+  medium: { w: 46, h: 64,  font: "0.85rem", suitFont: "1.1rem" },
+  small:  { w: 32, h: 44,  font: "0.6rem", suitFont: "0.8rem" },
 };
 
 interface PokerCardProps {
@@ -32,17 +32,17 @@ export function PokerCard({ suit, rank, size = "medium" }: PokerCardProps) {
   const style: CSSProperties = {
     width: s.w,
     height: s.h,
-    background: "#fff",
-    borderRadius: 6,
-    border: "1px solid #cbd5e1",
+    background: "#1e2d3d",
+    borderRadius: 8,
+    border: "1px solid #253545",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    color: isRed ? "#dc2626" : "#1e293b",
+    color: isRed ? "#ef6b6b" : "#c8d6e5",
     fontWeight: 700,
     flexShrink: 0,
-    boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03)",
     userSelect: "none",
   };
 
@@ -64,20 +64,20 @@ export function CardBack({ size = "medium" }: CardBackProps) {
   const style: CSSProperties = {
     width: s.w,
     height: s.h,
-    background: "linear-gradient(135deg, #1e40af, #3b82f6)",
-    borderRadius: 6,
-    border: "1px solid #60a5fa",
+    background: "linear-gradient(135deg, #152029, #1a2332)",
+    borderRadius: 8,
+    border: "1px solid #253545",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
-    boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.03)",
     userSelect: "none",
   };
 
   return (
     <div style={style}>
-      <span style={{ color: "#93c5fd", fontSize: s.suitFont, fontWeight: 700 }}>?</span>
+      <span style={{ color: "#2a3f52", fontSize: s.suitFont, fontWeight: 700 }}>?</span>
     </div>
   );
 }

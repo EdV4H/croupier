@@ -27,7 +27,7 @@ export function TimerBar({ turnDeadline }: TimerBarProps) {
 
   if (!turnDeadline) return null;
 
-  const color = ratio > 0.5 ? "#22c55e" : ratio > 0.2 ? "#eab308" : "#ef4444";
+  const color = ratio > 0.5 ? "#2dd4bf" : ratio > 0.2 ? "#d4a843" : "#ef4444";
 
   return (
     <div style={containerStyle}>
@@ -44,15 +44,15 @@ export function TimerBar({ turnDeadline }: TimerBarProps) {
 
 const containerStyle: CSSProperties = {
   width: "80%",
-  height: 6,
-  background: "#064e3b",
-  borderRadius: 3,
+  height: 4,
+  background: "#152029",
+  borderRadius: 2,
   overflow: "hidden",
   margin: "0.4rem auto 0",
 };
 
 const barStyle: CSSProperties = {
   height: "100%",
-  borderRadius: 3,
+  borderRadius: 2,
   transition: "background 0.3s",
 };

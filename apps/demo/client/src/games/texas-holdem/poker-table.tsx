@@ -15,53 +15,53 @@ interface PokerTableProps {
  */
 const SEAT_POSITIONS: Record<number, { top: string; left: string }[]> = {
   2: [
-    { top: "85%", left: "50%" },  // self bottom center
-    { top: "5%",  left: "50%" },  // opponent top
+    { top: "82%", left: "50%" },  // self bottom center
+    { top: "10%", left: "50%" },  // opponent top
   ],
   3: [
-    { top: "85%", left: "50%" },
-    { top: "15%", left: "20%" },
-    { top: "15%", left: "80%" },
+    { top: "82%", left: "50%" },
+    { top: "18%", left: "22%" },
+    { top: "18%", left: "78%" },
   ],
   4: [
-    { top: "85%", left: "50%" },
-    { top: "45%", left: "5%" },
-    { top: "5%",  left: "50%" },
-    { top: "45%", left: "95%" },
+    { top: "82%", left: "50%" },
+    { top: "48%", left: "12%" },
+    { top: "10%", left: "50%" },
+    { top: "48%", left: "88%" },
   ],
   5: [
-    { top: "85%", left: "50%" },
-    { top: "60%", left: "5%" },
-    { top: "10%", left: "20%" },
-    { top: "10%", left: "80%" },
-    { top: "60%", left: "95%" },
+    { top: "82%", left: "50%" },
+    { top: "58%", left: "12%" },
+    { top: "14%", left: "22%" },
+    { top: "14%", left: "78%" },
+    { top: "58%", left: "88%" },
   ],
   6: [
-    { top: "85%", left: "50%" },
-    { top: "55%", left: "3%" },
-    { top: "10%", left: "18%" },
-    { top: "10%", left: "50%" },
-    { top: "10%", left: "82%" },
-    { top: "55%", left: "97%" },
+    { top: "82%", left: "50%" },
+    { top: "52%", left: "12%" },
+    { top: "14%", left: "22%" },
+    { top: "14%", left: "50%" },
+    { top: "14%", left: "78%" },
+    { top: "52%", left: "88%" },
   ],
   7: [
-    { top: "85%", left: "50%" },
-    { top: "60%", left: "3%" },
-    { top: "20%", left: "8%" },
-    { top: "5%",  left: "35%" },
-    { top: "5%",  left: "65%" },
-    { top: "20%", left: "92%" },
-    { top: "60%", left: "97%" },
+    { top: "82%", left: "50%" },
+    { top: "58%", left: "12%" },
+    { top: "22%", left: "14%" },
+    { top: "10%", left: "36%" },
+    { top: "10%", left: "64%" },
+    { top: "22%", left: "86%" },
+    { top: "58%", left: "88%" },
   ],
   8: [
-    { top: "85%", left: "50%" },
-    { top: "65%", left: "3%" },
-    { top: "30%", left: "3%" },
-    { top: "5%",  left: "25%" },
-    { top: "5%",  left: "50%" },
-    { top: "5%",  left: "75%" },
-    { top: "30%", left: "97%" },
-    { top: "65%", left: "97%" },
+    { top: "82%", left: "50%" },
+    { top: "62%", left: "12%" },
+    { top: "32%", left: "12%" },
+    { top: "10%", left: "28%" },
+    { top: "10%", left: "50%" },
+    { top: "10%", left: "72%" },
+    { top: "32%", left: "88%" },
+    { top: "62%", left: "88%" },
   ],
 };
 
@@ -93,13 +93,13 @@ export function PokerTable({ playerView, playerId, turnDeadline }: PokerTablePro
               <PokerCard key={i} suit={c.suit} rank={c.rank} size="medium" />
             ))}
             {communityCards.length === 0 && (
-              <span style={{ color: "#6ee7b7", fontSize: "0.8rem" }}>
+              <span style={{ color: "#4a5f73", fontSize: "0.8rem" }}>
                 No community cards yet
               </span>
             )}
           </div>
-          <div style={{ color: "#fbbf24", fontSize: "0.95rem", fontWeight: 700 }}>
-            Pot: ${pv.pot ?? 0}
+          <div style={{ color: "#d4a843", fontSize: "0.95rem", fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
+            POT: ${pv.pot ?? 0}
           </div>
           <TimerBar turnDeadline={turnDeadline} />
         </div>
@@ -156,10 +156,10 @@ const tableStyle: CSSProperties = {
   width: "100%",
   maxWidth: 800,
   aspectRatio: "16 / 10",
-  background: "radial-gradient(ellipse at center, #065f46, #064e3b 60%, #022c22)",
-  borderRadius: "50%",
-  border: "6px solid #854d0e",
-  boxShadow: "0 0 30px rgba(0,0,0,0.5), inset 0 0 60px rgba(0,0,0,0.3)",
+  background: "#1a2332",
+  borderRadius: 24,
+  border: "3px solid #2a3f52",
+  boxShadow: "0 8px 32px rgba(0,0,0,0.5), inset 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.02)",
 };
 
 const centerAreaStyle: CSSProperties = {

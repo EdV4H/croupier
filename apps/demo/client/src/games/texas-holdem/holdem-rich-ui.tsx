@@ -30,11 +30,11 @@ export function HoldemRichUI({ gameState, dispatch, lastError }: HoldemRichUIPro
         {/* Status bar */}
         <div style={statusBarStyle}>
           <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-            <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>
+            <span style={{ color: "#7a8fa3", fontSize: "0.85rem" }}>
               Phase: {engineState.phase}
             </span>
             {engineState.stage && (
-              <span style={{ color: "#64748b", fontSize: "0.85rem" }}>
+              <span style={{ color: "#4a5f73", fontSize: "0.85rem" }}>
                 Stage: {engineState.stage}
               </span>
             )}
@@ -45,7 +45,7 @@ export function HoldemRichUI({ gameState, dispatch, lastError }: HoldemRichUIPro
             padding: "0.3rem 0.7rem",
             borderRadius: 20,
             fontWeight: 600,
-            background: engineState.finished ? "#6366f1" : isMyTurn ? "#22c55e" : "#64748b",
+            background: engineState.finished ? "#6366f1" : isMyTurn ? "#2dd4bf" : "#4a5568",
           }}>
             {engineState.finished ? "Game Over" : isMyTurn ? "Your Turn" : "Waiting..."}
           </span>
@@ -82,7 +82,7 @@ export function HoldemRichUI({ gameState, dispatch, lastError }: HoldemRichUIPro
         {/* Your hole cards (large) */}
         {visibleCards.length > 0 && (
           <div style={yourCardsStyle}>
-            <span style={{ color: "#94a3b8", fontSize: "0.8rem", fontWeight: 600 }}>
+            <span style={{ color: "#7a8fa3", fontSize: "0.8rem", fontWeight: 600 }}>
               Your Cards
             </span>
             <div style={{ display: "flex", gap: 8 }}>
@@ -113,8 +113,8 @@ export function HoldemRichUI({ gameState, dispatch, lastError }: HoldemRichUIPro
 
 const layoutStyle: CSSProperties = {
   display: "flex",
-  gap: "1rem",
-  padding: "1rem",
+  gap: "0.8rem",
+  padding: "0.8rem",
   flex: 1,
   minHeight: 0,
   overflow: "hidden",
@@ -123,7 +123,7 @@ const layoutStyle: CSSProperties = {
 const mainStyle: CSSProperties = {
   display: "flex",
   flexDirection: "column",
-  gap: "0.8rem",
+  gap: "0.6rem",
   flex: 1,
   minWidth: 0,
   overflowY: "auto",
@@ -141,14 +141,14 @@ const statusBarStyle: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  background: "#1e293b",
-  borderRadius: 8,
+  background: "#1a2332",
+  borderRadius: 12,
   padding: "0.8rem 1rem",
-  border: "1px solid #334155",
+  border: "1px solid #253545",
 };
 
 const errorStyle: CSSProperties = {
-  background: "#450a0a",
+  background: "#2d0a0a",
   color: "#fca5a5",
   padding: "0.6rem 1rem",
   borderRadius: 8,
@@ -156,8 +156,8 @@ const errorStyle: CSSProperties = {
 };
 
 const resultStyle: CSSProperties = {
-  background: "#14532d",
-  color: "#86efac",
+  background: "#0f2d1e",
+  color: "#2dd4bf",
   padding: "1rem",
   borderRadius: 8,
   textAlign: "center",
@@ -168,7 +168,7 @@ const yourCardsStyle: CSSProperties = {
   alignItems: "center",
   gap: 12,
   padding: "0.8rem 1rem",
-  background: "#1e293b",
+  background: "#1a2332",
   borderRadius: 10,
-  border: "1px solid #334155",
+  border: "1px solid #253545",
 };
