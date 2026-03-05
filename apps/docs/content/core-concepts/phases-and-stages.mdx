@@ -7,32 +7,54 @@ Phases represent the major states of your game. Stages are optional sub-states w
 Define phases in your `CroupierConfig`:
 
 ```typescript
-const config: CroupierConfig = {
+const config: CroupierConfig<MyState> = {
   // ...
   initialPhase: "betting",
   phases: {
     betting: {
       allowedActions: ["fold", "check", "call", "raise"],
       turnOrder: ROUND_ROBIN,
-      next: (state) => isBettingComplete(state) ? "showdown" : null,
+      transitions: [
+        { target: "showdown", guard: (ctx) => isBettingComplete(ctx.game) },
+      ],
     },
     showdown: {
       allowedActions: [],
-      onEnter: (state) => resolveWinner(state),
-      next: () => null, // terminal phase
+      onEnter: (game) => resolveWinner(game),
+      always: [
+        { target: "betting", guard: (ctx) => ctx.game.playersRemaining > 1 },
+      ],
     },
   },
 };
 ```
 
+### Phase Transitions
+
+Phases use two arrays for guard-based transitions:
+
+- **`transitions[]`** — Evaluated when the turn order completes (all players have acted) or a stage finishes with `"__done__"`.
+- **`always[]`** — Evaluated after every state change. Use for auto-advancing phases.
+
+Each entry is a `GuardedTransition`:
+
+```typescript
+interface GuardedTransition<S> {
+  target: string;                          // Phase name to transition to
+  guard: (ctx: CroupierContext<S>) => boolean;  // Condition to check
+}
+```
+
+Transitions are evaluated in array order — the first matching guard wins.
+
 ### Phase Lifecycle
 
-1. **`onEnter(state, ctx)`** — Called when entering the phase. Use for setup (deal cards, reset counters).
+1. **`onEnter(game, ctx)`** — Called when entering the phase. Use for setup (deal cards, reset counters).
 2. **Turn order initialization** — `turnOrder.first()` determines who goes first.
-3. **Auto-advance check** — If `allowedActions` is empty, the phase can auto-advance via `next()`.
+3. **Always-check** — `always[]` guards are evaluated. If any match, the phase transitions immediately.
 4. **Player actions** — Players dispatch actions until the turn order completes or a transition triggers.
-5. **`next(state, ctx)`** — After each action (or turn order completion), checked for a phase transition. Return a phase name to transition, or `null` to stay.
-6. **`onExit(state, ctx)`** — Called when leaving the phase.
+5. **Transition check** — After turn order completes, `transitions[]` guards are evaluated.
+6. **`onExit(game, ctx)`** — Called when leaving the phase.
 
 ### Auto-Advancing Phases
 
@@ -42,11 +64,13 @@ Phases with no `allowedActions` (or an empty array) automatically advance. This 
 phases: {
   turnStart: {
     // No allowedActions — auto-advances after onEnter
-    onEnter: (state) => {
-      state.currentMana += 1;
-      drawCard(state);
+    onEnter: (game) => {
+      game.currentMana += 1;
+      drawCard(game);
     },
-    next: () => "main",
+    always: [
+      { target: "main", guard: () => true },
+    ],
   },
   main: {
     allowedActions: ["playCard", "attack", "endTurn"],
@@ -65,35 +89,43 @@ phases: {
     stages: {
       waitingForDraw: {
         allowedActions: ["drawFromDeck", "drawFromDiscard"],
-        next: (state) => state.drewCard ? "waitingForDiscard" : null,
+        always: [
+          { target: "waitingForDiscard", guard: (ctx) => ctx.game.drewCard },
+        ],
       },
       waitingForDiscard: {
         allowedActions: ["discardCard"],
-        next: (state) => state.discarded ? "__end__" : null,
+        always: [
+          { target: "__done__", guard: (ctx) => ctx.game.discarded },
+        ],
       },
     },
     initialStage: "waitingForDraw",
-    next: (state) => isGameOver(state) ? null : "play", // loop
+    transitions: [
+      { target: "presentation", guard: (ctx) => ctx.game.deck.length === 0 },
+      { target: "play", guard: () => true }, // loop back
+    ],
   },
 }
 ```
 
-### The `__end__` Sentinel
+### The `__done__` Sentinel
 
-When a stage's `next()` returns `"__end__"`, it signals that the stage sequence is complete. The engine then evaluates the parent phase's `next()` to determine the next phase.
+When a stage's `always[]` transition targets `"__done__"`, it signals that the stage sequence is complete. The engine then evaluates the parent phase's `transitions[]` to determine the next phase.
 
 ### Stage Lifecycle
 
-1. **`onEnter(state, ctx)`** — Called when entering the stage.
+1. **`onEnter(game, ctx)`** — Called when entering the stage.
 2. **Turn order** — Uses the stage's `turnOrder` if defined, otherwise the phase's.
 3. **Actions** — Players dispatch actions allowed by the stage's `allowedActions`.
-4. **`next(state, ctx)`** — Checked after each action. Return a stage name, `"__end__"`, or `null`.
-5. **`onExit(state, ctx)`** — Called when leaving the stage.
+4. **`always[]`** — After each action, stage transitions are checked. Target can be a stage name or `"__done__"`.
+5. **`onExit(game, ctx)`** — Called when leaving the stage.
 
 ## Transition Priority
 
 When checking transitions:
 
-1. If in a stage, the **stage's `next()`** is checked first.
-2. If the stage returns `"__end__"`, the **phase's `next()`** is checked.
-3. If not in a stage, the **phase's `next()`** is checked directly.
+1. If in a stage, the **stage's `always[]`** transitions are checked first.
+2. If a stage transitions to `"__done__"`, the **phase's `transitions[]`** are checked.
+3. If not in a stage, the **phase's `transitions[]`** are checked on turn order completion.
+4. The **phase's `always[]`** transitions are checked after every state change.

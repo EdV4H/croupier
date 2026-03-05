@@ -1,5 +1,5 @@
 // ============================================================
-// @croupier/core — Type Definitions
+// @croupier/core — Type Definitions (XState v5 Native Design)
 // ============================================================
 
 /** Player identifier */
@@ -29,27 +29,50 @@ export interface SetupContext {
   };
 }
 
-/** Context available for turn order decisions */
-export interface TurnContext {
-  state: GameState;
+// ============================================================
+// CroupierContext — XState context (unified engine state)
+// ============================================================
+
+export interface CroupierContext<S extends GameState = GameState> {
+  game: S;
   players: PlayerId[];
-  phase: string;
-  stage?: string;
-  /** The player who just acted (undefined at phase/stage entry) */
-  lastPlayer?: PlayerId;
-  /** Action count in the current phase/stage */
+  currentPlayers: PlayerId[];
+  lastPlayer: PlayerId | null;
   actionCount: number;
+  result: GameResult | null;
+  log: ActionLogEntry[];
 }
 
 // ============================================================
-// Turn Order
+// Turn Order (pure functions, no mutation)
 // ============================================================
 
-export interface TurnOrder {
+export interface TurnOrder<S extends GameState = GameState> {
   /** Determine the first player(s) when entering a phase/stage */
-  first(ctx: TurnContext): PlayerId | PlayerId[];
+  first(ctx: CroupierContext<S>): PlayerId | PlayerId[];
   /** Determine the next player(s) after an action. Return null to signal turn-order completion. */
-  next(ctx: TurnContext): PlayerId | PlayerId[] | null;
+  next(ctx: CroupierContext<S>): PlayerId | PlayerId[] | null;
+}
+
+// ============================================================
+// Guarded Transitions
+// ============================================================
+
+export interface GuardedTransition<S extends GameState = GameState> {
+  target: string;
+  guard: (ctx: CroupierContext<S>) => boolean;
+}
+
+// ============================================================
+// End Conditions (unified interrupts + endIf)
+// ============================================================
+
+export interface GameEndCondition<S extends GameState = GameState> {
+  guard: (ctx: CroupierContext<S>) => boolean;
+  result: (ctx: CroupierContext<S>) => GameResult;
+  /** Lower priority = checked first. Default: 100.
+   *  Use priority 0 for interrupt-like conditions. */
+  priority?: number;
 }
 
 // ============================================================
@@ -57,10 +80,20 @@ export interface TurnOrder {
 // ============================================================
 
 export interface ActionConfig<S extends GameState = GameState> {
-  /** Execute the action and mutate state */
-  execute: (state: S, playerId: PlayerId, payload: unknown) => void;
+  /** Execute the action. Mutates game state or returns partial update. */
+  execute: (
+    game: S,
+    playerId: PlayerId,
+    payload: unknown,
+    ctx: CroupierContext<S>,
+  ) => Partial<S> | void;
   /** Return true/string-error if invalid, false/undefined if valid */
-  validate?: (state: S, playerId: PlayerId, payload: unknown) => boolean | string;
+  validate?: (
+    game: S,
+    playerId: PlayerId,
+    payload: unknown,
+    ctx: CroupierContext<S>,
+  ) => boolean | string;
   /** If true, dispatching this action ends the current player's turn */
   endsTurn?: boolean;
   /** If true, any player can dispatch this action regardless of turn order */
@@ -73,42 +106,28 @@ export interface ActionConfig<S extends GameState = GameState> {
 
 export interface StageConfig<S extends GameState = GameState> {
   allowedActions?: string[];
-  turnOrder?: TurnOrder;
-  onEnter?: (state: S, ctx: PhaseContext) => void;
-  onExit?: (state: S, ctx: PhaseContext) => void;
-  /** Return next stage name, "__end__" to exit stages, or null to stay */
-  next?: (state: S, ctx: PhaseContext) => string | "__end__" | null;
+  turnOrder?: TurnOrder<S>;
+  onEnter?: (game: S, ctx: CroupierContext<S>) => void;
+  onExit?: (game: S, ctx: CroupierContext<S>) => void;
+  /** Guard-based transitions evaluated after action/turn completion.
+   *  Target: stage name or "__done__" (final stage) */
+  always?: GuardedTransition<S>[];
 }
 
 export interface PhaseConfig<S extends GameState = GameState> {
-  turnOrder?: TurnOrder;
+  turnOrder?: TurnOrder<S>;
   allowedActions?: string[];
-  onEnter?: (state: S, ctx: PhaseContext) => void;
-  onExit?: (state: S, ctx: PhaseContext) => void;
-  /** Return next phase name, or null to stay */
-  next?: (state: S, ctx: PhaseContext) => string | null;
+  onEnter?: (game: S, ctx: CroupierContext<S>) => void;
+  onExit?: (game: S, ctx: CroupierContext<S>) => void;
+  /** Guard-based transitions evaluated on turn-order completion or stage done.
+   *  Target: phase name. */
+  transitions?: GuardedTransition<S>[];
+  /** Guard-based transitions evaluated after every state change (always-check).
+   *  Target: phase name. Used for auto-advance phases. */
+  always?: GuardedTransition<S>[];
   stages?: { [name: string]: StageConfig<S> };
   initialStage?: string;
   allowedRoles?: string[];
-}
-
-/** Context available to phase/stage hooks */
-export interface PhaseContext {
-  phase: string;
-  stage?: string;
-  currentPlayers: PlayerId | PlayerId[];
-  players: PlayerId[];
-  /** Number of actions executed in the current phase */
-  actionCount: number;
-}
-
-// ============================================================
-// Interrupts
-// ============================================================
-
-export interface InterruptGuard<S extends GameState = GameState> {
-  /** If this returns a non-null GameResult, the game ends immediately */
-  condition: (state: S) => GameResult | null;
 }
 
 // ============================================================
@@ -172,9 +191,10 @@ export interface CroupierConfig<S extends GameState = GameState> {
   actions: { [name: string]: ActionConfig<S> };
   phases: { [name: string]: PhaseConfig<S> };
   initialPhase?: string;
-  defaultTurnOrder?: TurnOrder;
-  endIf?: (state: S) => GameResult | null;
-  interrupts?: InterruptGuard<S>[];
+  defaultTurnOrder?: TurnOrder<S>;
+  /** Unified end conditions (replaces interrupts[] + endIf).
+   *  Checked after every action, sorted by priority (lower first). */
+  endConditions?: GameEndCondition<S>[];
   view?: ViewConfig<S>;
   roles?: { [name: string]: RoleConfig };
   /** Bot strategy for automated players */
@@ -182,7 +202,7 @@ export interface CroupierConfig<S extends GameState = GameState> {
 }
 
 // ============================================================
-// Engine State (internal, exposed read-only)
+// Engine State (exposed read-only, derived from XState snapshot)
 // ============================================================
 
 export interface EngineState {

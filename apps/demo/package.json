@@ -7,28 +7,34 @@
     "dev": "concurrently \"pnpm run dev:server\" \"pnpm run dev:client\"",
     "dev:server": "tsx watch server/index.ts",
     "dev:client": "vite",
+    "dev:workers": "concurrently \"WORKERS_DEV=1 pnpm run dev:client\" \"wrangler dev\"",
     "build": "vite build",
+    "deploy": "pnpm run build && wrangler deploy",
     "preview": "vite preview"
   },
   "dependencies": {
     "@croupier/core": "workspace:*",
-    "@croupier/plugin-texas-holdem": "workspace:*",
-    "@croupier/plugin-planning-poker": "workspace:*",
-    "@croupier/plugin-values-card": "workspace:*",
     "@croupier/plugin-digital-tcg": "workspace:*",
+    "@croupier/plugin-planning-poker": "workspace:*",
+    "@croupier/plugin-texas-holdem": "workspace:*",
+    "@croupier/plugin-values-card": "workspace:*",
     "@hono/node-server": "^1.13.0",
     "@hono/node-ws": "^1.1.0",
+    "@statelyai/inspect": "^0.4.0",
     "hono": "^4.7.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "xstate": "^5.28.0"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
     "concurrently": "^9.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "wrangler": "^3.99.0"
   }
 }

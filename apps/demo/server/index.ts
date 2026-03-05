@@ -28,6 +28,17 @@ app.get("/api/games", (c) => {
   return c.json(AVAILABLE_GAMES);
 });
 
+/** Get phase graph for a game type */
+app.get("/api/games/:gameId/phase-graph", (c) => {
+  const gameId = c.req.param("gameId");
+  try {
+    const graph = gameManager.getPhaseGraph(gameId);
+    return c.json(graph);
+  } catch (e: any) {
+    return c.json({ error: e.message }, 400);
+  }
+});
+
 /** List rooms */
 app.get("/api/rooms", (c) => {
   const rooms = gameManager.listRooms().map((r) => ({
@@ -36,15 +47,16 @@ app.get("/api/rooms", (c) => {
     players: r.players,
     started: r.started,
     createdAt: r.createdAt,
+    creatorId: r.creatorId,
   }));
   return c.json(rooms);
 });
 
 /** Create a room */
 app.post("/api/rooms", async (c) => {
-  const body = await c.req.json<{ gameId: string; playerId: string }>();
+  const body = await c.req.json<{ gameId: string; playerId: string; botCount?: number }>();
   try {
-    const room = gameManager.createRoom(body.gameId, body.playerId);
+    const room = gameManager.createRoom(body.gameId, body.playerId, body.botCount);
     return c.json(
       { id: room.id, gameId: room.gameId, players: room.players },
       201,
@@ -64,7 +76,7 @@ app.post("/api/rooms/:roomId/join", async (c) => {
       type: "playerJoined",
       data: { playerId: body.playerId, players: room.players },
     });
-    return c.json({ players: room.players });
+    return c.json({ gameId: room.gameId, players: room.players });
   } catch (e: any) {
     return c.json({ error: e.message }, 400);
   }
@@ -80,6 +92,20 @@ app.post("/api/rooms/:roomId/start", async (c) => {
   } catch (e: any) {
     return c.json({ error: e.message }, 400);
   }
+});
+
+/** Delete a room (creator only) */
+app.delete("/api/rooms/:roomId", (c) => {
+  const roomId = c.req.param("roomId");
+  const playerId = c.req.query("playerId");
+  const room = gameManager.getRoom(roomId);
+  if (!room) return c.json({ error: "Room not found" }, 404);
+  if (playerId !== room.creatorId) {
+    return c.json({ error: "Only the room creator can delete it" }, 403);
+  }
+  roomManager.closeRoom(roomId);
+  gameManager.deleteRoom(roomId);
+  return c.body(null, 204);
 });
 
 /** Get room info */
@@ -146,7 +172,7 @@ app.get(
 // Start Server
 // ============================================================
 
-const port = Number(process.env.PORT) || 3000;
+const port = Number(process.env.PORT) || 9615;
 const server = serve({ fetch: app.fetch, port }, (info) => {
   console.log(`Croupier demo server running on http://localhost:${info.port}`);
 });

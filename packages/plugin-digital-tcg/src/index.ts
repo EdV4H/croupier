@@ -29,9 +29,9 @@ export function createDigitalTCGConfig(
 ): CroupierConfig<TCGState> {
   const { initialLife = INITIAL_LIFE } = options;
 
-  // Custom turn order: always the active player
-  const tcgTurnOrder = custom({
-    first: (ctx) => (ctx.state as TCGState).activePlayer,
+  // Custom turn order: always the active player (pure, reads from ctx.game)
+  const tcgTurnOrder = custom<TCGState>({
+    first: (ctx) => ctx.game.activePlayer,
     next: () => null, // endsTurn action handles turn swap
   });
 
@@ -78,9 +78,9 @@ export function createDigitalTCGConfig(
 
     actions: {
       playCard: {
-        execute: (state, playerId, payload) => {
+        execute: (game, playerId, payload) => {
           const { cardId } = payload as { cardId: string };
-          const player = state.players[playerId];
+          const player = game.players[playerId];
           const cardIdx = player.hand.findIndex((c) => c.id === cardId);
           const card = player.hand.splice(cardIdx, 1)[0];
 
@@ -98,10 +98,10 @@ export function createDigitalTCGConfig(
             player.graveyard.push(card);
           }
         },
-        validate: (state, playerId, payload) => {
-          if (playerId !== state.activePlayer) return "Not your turn";
+        validate: (game, playerId, payload) => {
+          if (playerId !== game.activePlayer) return "Not your turn";
           const { cardId } = payload as { cardId: string };
-          const player = state.players[playerId];
+          const player = game.players[playerId];
           const card = player.hand.find((c) => c.id === cardId);
           if (!card) return "Card not in hand";
           if (card.cost > player.currentMana) return "Not enough mana";
@@ -115,15 +115,15 @@ export function createDigitalTCGConfig(
       },
 
       attack: {
-        execute: (state, playerId, payload) => {
+        execute: (game, playerId, payload) => {
           const { attackerId, targetId } = payload as {
             attackerId: string;
             targetId: string | "face";
           };
-          const player = state.players[playerId];
+          const player = game.players[playerId];
           const opponent =
-            state.players[
-              state.playerOrder.find((p) => p !== playerId)!
+            game.players[
+              game.playerOrder.find((p) => p !== playerId)!
             ];
 
           const attacker = player.board.find(
@@ -157,13 +157,13 @@ export function createDigitalTCGConfig(
             }
           }
         },
-        validate: (state, playerId, payload) => {
-          if (playerId !== state.activePlayer) return "Not your turn";
+        validate: (game, playerId, payload) => {
+          if (playerId !== game.activePlayer) return "Not your turn";
           const { attackerId, targetId } = payload as {
             attackerId: string;
             targetId: string | "face";
           };
-          const player = state.players[playerId];
+          const player = game.players[playerId];
           const attacker = player.board.find(
             (e) => e.card.id === attackerId,
           );
@@ -173,8 +173,8 @@ export function createDigitalTCGConfig(
             return "Creature has summoning sickness";
           if (targetId !== "face") {
             const opponent =
-              state.players[
-                state.playerOrder.find((p) => p !== playerId)!
+              game.players[
+                game.playerOrder.find((p) => p !== playerId)!
               ];
             if (!opponent.board.find((e) => e.card.id === targetId))
               return "Target not found";
@@ -184,16 +184,16 @@ export function createDigitalTCGConfig(
       },
 
       endTurn: {
-        execute: (state, playerId) => {
+        execute: (game, playerId) => {
           // Swap active player
-          const nextPlayer = state.playerOrder.find(
+          const nextPlayer = game.playerOrder.find(
             (p) => p !== playerId,
           )!;
-          state.activePlayer = nextPlayer;
-          state.turnCount++;
+          game.activePlayer = nextPlayer;
+          game.turnCount++;
 
           // Turn start effects for next player
-          const player = state.players[nextPlayer];
+          const player = game.players[nextPlayer];
 
           // Increase max mana (cap at MAX_MANA)
           if (player.maxMana < MAX_MANA) {
@@ -224,17 +224,21 @@ export function createDigitalTCGConfig(
       },
     },
 
-    interrupts: [
+    endConditions: [
       {
-        condition: (state) => {
-          for (const [pid, pState] of Object.entries(state.players)) {
+        guard: (ctx) => {
+          return Object.values(ctx.game.players).some((p) => p.life <= 0);
+        },
+        result: (ctx) => {
+          for (const [pid, pState] of Object.entries(ctx.game.players)) {
             if (pState.life <= 0) {
-              const winner = state.playerOrder.find((p) => p !== pid);
+              const winner = ctx.game.playerOrder.find((p) => p !== pid);
               return { winner, reason: `${pid} defeated` };
             }
           }
-          return null;
+          return { reason: "Unknown" };
         },
+        priority: 0, // interrupt-like
       },
     ],
 

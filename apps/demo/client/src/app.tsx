@@ -16,7 +16,7 @@ export function App() {
 
   const roomId = "roomId" in screen ? screen.roomId : null;
   const gameId = "gameId" in screen ? screen.gameId : null;
-  const { connected, gameState, dispatch, lastError } = useGameState(
+  const { connected, gameState, roomDeleted, dispatch, lastError } = useGameState(
     roomId,
     playerId || null,
   );
@@ -53,6 +53,11 @@ export function App() {
       console.error(e);
     }
   }, [screen]);
+
+  // Navigate to lobby when room is deleted
+  if (roomDeleted && screen.type !== "lobby" && screen.type !== "login") {
+    setScreen({ type: "lobby" });
+  }
 
   // Auto-transition to playing when game state arrives
   if (
@@ -167,17 +172,29 @@ function WaitingRoom({
       .then(setRoomData);
   });
 
+  const copyRoomId = () => navigator.clipboard.writeText(roomId);
+
   return (
     <div style={styles.centered}>
       <div style={styles.waitingCard}>
         <h2 style={{ color: "#f1f5f9", marginBottom: "0.5rem" }}>
           Waiting Room
         </h2>
-        <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>
-          Game: {gameId} | Room: {roomId}
+        <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginBottom: "1rem" }}>
+          Share this Room ID with your friends:
         </p>
-        <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>
-          Status: {connected ? "Connected" : "Connecting..."}
+        <div
+          style={styles.roomIdBadge}
+          onClick={copyRoomId}
+          title="Click to copy"
+        >
+          {roomId}
+        </div>
+        <p style={{ color: "#64748b", fontSize: "0.75rem", marginTop: "0.3rem" }}>
+          Click to copy
+        </p>
+        <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginTop: "1rem" }}>
+          Game: {gameId} | {connected ? "Connected" : "Connecting..."}
         </p>
         {roomData && (
           <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>
@@ -223,6 +240,13 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#1e293b", borderRadius: 16, padding: "2rem",
     border: "1px solid #334155", minWidth: 360, textAlign: "center",
   },
+  roomIdBadge: {
+    fontSize: "2.5rem", fontWeight: 800, color: "#3b82f6",
+    letterSpacing: "0.3em", fontFamily: "monospace",
+    background: "#0f172a", borderRadius: 12, padding: "0.8rem 1.5rem",
+    border: "2px dashed #334155", cursor: "pointer",
+    userSelect: "all" as const, display: "inline-block",
+  },
   title: { fontSize: "2rem", fontWeight: 700, color: "#f1f5f9" },
   subtitle: { color: "#94a3b8", fontSize: "0.9rem" },
   input: {
@@ -234,10 +258,14 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "0.7rem 1.2rem", cursor: "pointer", fontSize: "0.95rem",
     fontWeight: 600,
   },
-  gameContainer: { maxWidth: 960, margin: "0 auto" },
+  gameContainer: {
+    display: "flex", flexDirection: "column",
+    height: "100vh", overflow: "hidden",
+  },
   header: {
     display: "flex", alignItems: "center", gap: "1rem",
     padding: "0.8rem 1rem", borderBottom: "1px solid #1e293b",
+    flexShrink: 0,
   },
   backBtn: {
     background: "none", border: "1px solid #334155", borderRadius: 6,

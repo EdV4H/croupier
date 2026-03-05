@@ -33,9 +33,9 @@ function createTestConfig(
     setup: () => ({ count: 0, lastActor: null }),
     actions: {
       increment: {
-        execute: (state, playerId) => {
-          state.count++;
-          state.lastActor = playerId;
+        execute: (game, playerId) => {
+          game.count++;
+          game.lastActor = playerId;
         },
       },
     },
@@ -45,12 +45,12 @@ function createTestConfig(
         turnOrder: ROUND_ROBIN,
       },
     },
-    endIf: (state) => {
-      if (state.count >= 4) {
-        return { winner: state.lastActor, reason: "Reached 4" };
-      }
-      return null;
-    },
+    endConditions: [
+      {
+        guard: (ctx) => ctx.game.count >= 4,
+        result: (ctx) => ({ winner: ctx.game.lastActor, reason: "Reached 4" }),
+      },
+    ],
     bot: botStrategy,
     ...overrides,
   };
@@ -109,9 +109,9 @@ describe("BotManager", () => {
       setup: () => ({ count: 0, lastActor: null }),
       actions: {
         increment: {
-          execute: (state, playerId) => {
-            state.count++;
-            state.lastActor = playerId;
+          execute: (game, playerId) => {
+            game.count++;
+            game.lastActor = playerId;
           },
         },
       },

@@ -10,25 +10,28 @@ export type {
   BotManagerOptions,
   BotStrategy,
   CroupierConfig,
+  CroupierContext,
   CroupierEvents,
   DispatchResult,
   EngineState,
+  GameEndCondition,
   GameResult,
   GameState,
-  InterruptGuard,
+  GuardedTransition,
   PhaseConfig,
-  PhaseContext,
   PlayerId,
   RoleConfig,
   SetupContext,
   StageConfig,
-  TurnContext,
   TurnOrder,
   ViewConfig,
 } from "./types.js";
 
 // Turn Orders
 export { ALTERNATING, ROUND_ROBIN, SIMULTANEOUS, custom } from "./turn-orders.js";
+
+// Machine Builder (optional XState integration)
+export { resolveTurnOrder } from "./machine-builder.js";
 
 // Bot
 export { BotManager } from "./bot-manager.js";
@@ -43,6 +46,10 @@ export {
 // Utilities
 export { countOnly, deepClone, maskArray } from "./util/clone.js";
 export { createRandom, SeededRandom } from "./util/random.js";
+
+// Phase Graph
+export { extractPhaseGraph } from "./phase-graph.js";
+export type { PhaseGraph, PhaseGraphNode } from "./phase-graph.js";
 
 // Events
 export { EventEmitter } from "./events.js";

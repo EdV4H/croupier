@@ -22,8 +22,8 @@ describe("Values Card", () => {
     it("removes dealt cards from deck", () => {
       const engine = createGame(3);
       const state = engine.getState() as ValuesCardState;
-      // 25 cards total, 15 dealt (5 per player)
-      expect(state.deck).toHaveLength(10);
+      // 70 cards total, 15 dealt (5 per player)
+      expect(state.deck).toHaveLength(55);
     });
 
     it("starts in playerTurn phase with waitingForDraw stage", () => {
@@ -175,10 +175,12 @@ describe("Values Card", () => {
         });
       }
 
-      // Deck should be empty, game should be in presentation phase
+      // Deck should be empty, game should be finished
       state = engine.getState() as ValuesCardState;
       expect(state.deck).toHaveLength(0);
-      expect(engine.getEngineState().phase).toBe("presentation");
+      const es = engine.getEngineState();
+      expect(es.finished).toBe(true);
+      expect(es.result?.reason).toBe("All cards have been exchanged");
     });
   });
 });

@@ -46,6 +46,7 @@ export class RoomManager {
     if (!room?.engine) return;
 
     const engineState = this.gameManager.getEngineState(roomId);
+    const actionLog = this.gameManager.getActionLog(roomId);
 
     for (const ws of clients) {
       const conn = this.connections.get(ws);
@@ -62,6 +63,7 @@ export class RoomManager {
             data: {
               playerView,
               engineState,
+              actionLog,
               playerId: conn.playerId,
             },
           }),
@@ -69,6 +71,15 @@ export class RoomManager {
       } catch {
         // Connection may be closed
       }
+    }
+
+    // Auto-delete: notify clients and clean up 30s after game finishes
+    if (engineState?.finished) {
+      this.broadcastToRoom(roomId, { type: "roomDeleted" });
+      setTimeout(() => {
+        this.closeRoom(roomId);
+        this.gameManager.deleteRoom(roomId);
+      }, 30_000);
     }
   }
 
@@ -85,6 +96,24 @@ export class RoomManager {
         // Connection may be closed
       }
     }
+  }
+
+  /** Broadcast roomDeleted to all clients in a room and close their connections */
+  closeRoom(roomId: string): void {
+    const clients = this.roomConnections.get(roomId);
+    if (!clients) return;
+
+    const msg = JSON.stringify({ type: "roomDeleted" });
+    for (const ws of clients) {
+      try {
+        ws.send(msg);
+        ws.close();
+      } catch {
+        // Connection may already be closed
+      }
+      this.connections.delete(ws);
+    }
+    this.roomConnections.delete(roomId);
   }
 
   handleMessage(ws: WSContext, raw: string): void {
@@ -132,12 +161,14 @@ export class RoomManager {
             conn.playerId,
           );
           const engineState = this.gameManager.getEngineState(conn.roomId);
+          const actionLog = this.gameManager.getActionLog(conn.roomId);
           ws.send(
             JSON.stringify({
               type: "gameState",
               data: {
                 playerView,
                 engineState,
+                actionLog,
                 playerId: conn.playerId,
               },
             }),

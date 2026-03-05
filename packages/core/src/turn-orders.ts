@@ -1,4 +1,4 @@
-import type { PlayerId, TurnContext, TurnOrder } from "./types.js";
+import type { CroupierContext, GameState, PlayerId, TurnOrder } from "./types.js";
 
 /**
  * Round-robin: cycles through players in order.
@@ -6,10 +6,10 @@ import type { PlayerId, TurnContext, TurnOrder } from "./types.js";
  * Returns null when all players have acted once (one full cycle).
  */
 export const ROUND_ROBIN: TurnOrder = {
-  first(ctx: TurnContext): PlayerId {
+  first(ctx: CroupierContext): PlayerId {
     return ctx.players[0];
   },
-  next(ctx: TurnContext): PlayerId | null {
+  next(ctx: CroupierContext): PlayerId | null {
     if (!ctx.lastPlayer) return ctx.players[0];
     const idx = ctx.players.indexOf(ctx.lastPlayer);
     const nextIdx = idx + 1;
@@ -26,10 +26,10 @@ export const ROUND_ROBIN: TurnOrder = {
  * Returns null after the current player acts (signaling end of their turn).
  */
 export const ALTERNATING: TurnOrder = {
-  first(ctx: TurnContext): PlayerId {
+  first(ctx: CroupierContext): PlayerId {
     return ctx.players[0];
   },
-  next(ctx: TurnContext): PlayerId | null {
+  next(_ctx: CroupierContext): PlayerId | null {
     // In alternating mode, a single action ends the turn
     // The phase machine will swap the active player on re-entry
     return null;
@@ -41,10 +41,10 @@ export const ALTERNATING: TurnOrder = {
  * `first()` returns all players, `next()` returns null (no turn progression).
  */
 export const SIMULTANEOUS: TurnOrder = {
-  first(ctx: TurnContext): PlayerId[] {
+  first(ctx: CroupierContext): PlayerId[] {
     return [...ctx.players];
   },
-  next(ctx: TurnContext): PlayerId[] | null {
+  next(ctx: CroupierContext): PlayerId[] | null {
     // In simultaneous mode, all players can act.
     // The phase will transition when a condition is met (e.g. all voted).
     return [...ctx.players];
@@ -54,6 +54,8 @@ export const SIMULTANEOUS: TurnOrder = {
 /**
  * Create a custom turn order with first/next functions.
  */
-export function custom(order: TurnOrder): TurnOrder {
+export function custom<S extends GameState = GameState>(
+  order: TurnOrder<S>,
+): TurnOrder<S> {
   return order;
 }

@@ -5,56 +5,59 @@ import {
   SIMULTANEOUS,
   custom,
 } from "../src/turn-orders.js";
-import type { TurnContext } from "../src/types.js";
+import type { CroupierContext } from "../src/types.js";
 
-function makeTurnCtx(
-  overrides: Partial<TurnContext> = {},
-): TurnContext {
+function makeCtx(
+  overrides: Partial<CroupierContext> = {},
+): CroupierContext {
   return {
-    state: {},
+    game: {},
     players: ["P1", "P2", "P3"],
-    phase: "main",
+    currentPlayers: [],
+    lastPlayer: null,
     actionCount: 0,
+    result: null,
+    log: [],
     ...overrides,
   };
 }
 
 describe("ROUND_ROBIN", () => {
   it("first() returns players[0]", () => {
-    expect(ROUND_ROBIN.first(makeTurnCtx())).toBe("P1");
+    expect(ROUND_ROBIN.first(makeCtx())).toBe("P1");
   });
 
   it("next() cycles through players", () => {
-    expect(ROUND_ROBIN.next(makeTurnCtx({ lastPlayer: "P1" }))).toBe("P2");
-    expect(ROUND_ROBIN.next(makeTurnCtx({ lastPlayer: "P2" }))).toBe("P3");
+    expect(ROUND_ROBIN.next(makeCtx({ lastPlayer: "P1" }))).toBe("P2");
+    expect(ROUND_ROBIN.next(makeCtx({ lastPlayer: "P2" }))).toBe("P3");
   });
 
   it("next() returns null after last player", () => {
-    expect(ROUND_ROBIN.next(makeTurnCtx({ lastPlayer: "P3" }))).toBeNull();
+    expect(ROUND_ROBIN.next(makeCtx({ lastPlayer: "P3" }))).toBeNull();
   });
 
   it("next() returns first player when no lastPlayer", () => {
-    expect(ROUND_ROBIN.next(makeTurnCtx())).toBe("P1");
+    expect(ROUND_ROBIN.next(makeCtx())).toBe("P1");
   });
 });
 
 describe("ALTERNATING", () => {
   it("first() returns players[0]", () => {
-    expect(ALTERNATING.first(makeTurnCtx())).toBe("P1");
+    expect(ALTERNATING.first(makeCtx())).toBe("P1");
   });
 
   it("next() always returns null (single action per turn)", () => {
-    expect(ALTERNATING.next(makeTurnCtx({ lastPlayer: "P1" }))).toBeNull();
+    expect(ALTERNATING.next(makeCtx({ lastPlayer: "P1" }))).toBeNull();
   });
 });
 
 describe("SIMULTANEOUS", () => {
   it("first() returns all players", () => {
-    expect(SIMULTANEOUS.first(makeTurnCtx())).toEqual(["P1", "P2", "P3"]);
+    expect(SIMULTANEOUS.first(makeCtx())).toEqual(["P1", "P2", "P3"]);
   });
 
   it("next() returns all players (barrier sync)", () => {
-    expect(SIMULTANEOUS.next(makeTurnCtx({ lastPlayer: "P1" }))).toEqual([
+    expect(SIMULTANEOUS.next(makeCtx({ lastPlayer: "P1" }))).toEqual([
       "P1",
       "P2",
       "P3",
@@ -68,7 +71,7 @@ describe("custom()", () => {
       first: (ctx) => ctx.players[ctx.players.length - 1],
       next: () => null,
     });
-    expect(myOrder.first(makeTurnCtx())).toBe("P3");
-    expect(myOrder.next(makeTurnCtx())).toBeNull();
+    expect(myOrder.first(makeCtx())).toBe("P3");
+    expect(myOrder.next(makeCtx())).toBeNull();
   });
 });

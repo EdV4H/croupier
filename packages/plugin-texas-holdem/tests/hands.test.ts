@@ -10,7 +10,7 @@ describe("Hand Evaluation", () => {
   describe("evaluateBestHand", () => {
     it("detects royal flush", () => {
       const cards: Card[] = [
-        card(14, "hearts"),
+        card(1, "hearts"),
         card(13, "hearts"),
         card(12, "hearts"),
         card(11, "hearts"),
@@ -66,7 +66,7 @@ describe("Hand Evaluation", () => {
 
     it("detects flush", () => {
       const cards: Card[] = [
-        card(14, "hearts"),
+        card(1, "hearts"),
         card(10, "hearts"),
         card(8, "hearts"),
         card(6, "hearts"),
@@ -94,7 +94,7 @@ describe("Hand Evaluation", () => {
 
     it("detects ace-low straight", () => {
       const cards: Card[] = [
-        card(14, "hearts"),
+        card(1, "hearts"),
         card(2, "diamonds"),
         card(3, "clubs"),
         card(4, "spades"),
@@ -151,7 +151,7 @@ describe("Hand Evaluation", () => {
 
     it("detects high card", () => {
       const cards: Card[] = [
-        card(14, "hearts"),
+        card(1, "hearts"),
         card(10, "diamonds"),
         card(8, "clubs"),
         card(6, "spades"),
@@ -167,7 +167,7 @@ describe("Hand Evaluation", () => {
   describe("compareHands", () => {
     it("higher rank wins", () => {
       const flush = evaluateBestHand([
-        card(14, "hearts"),
+        card(1, "hearts"),
         card(10, "hearts"),
         card(8, "hearts"),
         card(6, "hearts"),
@@ -176,8 +176,8 @@ describe("Hand Evaluation", () => {
         card(3, "diamonds"),
       ]);
       const pair = evaluateBestHand([
-        card(14, "hearts"),
-        card(14, "diamonds"),
+        card(1, "hearts"),
+        card(1, "diamonds"),
         card(8, "clubs"),
         card(6, "spades"),
         card(4, "hearts"),
@@ -191,7 +191,7 @@ describe("Hand Evaluation", () => {
       const pairK = evaluateBestHand([
         card(13, "hearts"),
         card(13, "diamonds"),
-        card(14, "clubs"),
+        card(1, "clubs"),
         card(10, "spades"),
         card(8, "hearts"),
         card(2, "clubs"),
@@ -200,7 +200,7 @@ describe("Hand Evaluation", () => {
       const pairQ = evaluateBestHand([
         card(12, "hearts"),
         card(12, "diamonds"),
-        card(14, "clubs"),
+        card(1, "clubs"),
         card(10, "spades"),
         card(8, "hearts"),
         card(2, "clubs"),
@@ -211,7 +211,7 @@ describe("Hand Evaluation", () => {
 
     it("identical hands are equal", () => {
       const hand1 = evaluateBestHand([
-        card(14, "hearts"),
+        card(1, "hearts"),
         card(13, "diamonds"),
         card(10, "clubs"),
         card(8, "spades"),
@@ -220,7 +220,7 @@ describe("Hand Evaluation", () => {
         card(2, "diamonds"),
       ]);
       const hand2 = evaluateBestHand([
-        card(14, "spades"),
+        card(1, "spades"),
         card(13, "clubs"),
         card(10, "hearts"),
         card(8, "diamonds"),

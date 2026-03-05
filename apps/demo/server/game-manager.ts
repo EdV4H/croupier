@@ -1,80 +1,22 @@
 import {
   BotManager,
   CroupierCore,
-  type CroupierConfig,
   type EngineState,
   type PlayerId,
+  type PhaseGraph,
   BOT_NAMES,
   createBotId,
   isBotPlayer,
+  extractPhaseGraph,
 } from "@croupier/core";
-import { createTexasHoldemConfig } from "@croupier/plugin-texas-holdem";
-import { createPlanningPokerConfig } from "@croupier/plugin-planning-poker";
-import { createValuesCardConfig } from "@croupier/plugin-values-card";
-import { createDigitalTCGConfig } from "@croupier/plugin-digital-tcg";
-
-export interface GameInfo {
-  id: string;
-  name: string;
-  description: string;
-  minPlayers: number;
-  maxPlayers: number;
-}
-
-export const AVAILABLE_GAMES: GameInfo[] = [
-  {
-    id: "texas-holdem",
-    name: "Texas Hold'em",
-    description: "Classic poker game with community cards",
-    minPlayers: 2,
-    maxPlayers: 8,
-  },
-  {
-    id: "planning-poker",
-    name: "Planning Poker",
-    description: "Agile estimation tool for teams",
-    minPlayers: 2,
-    maxPlayers: 10,
-  },
-  {
-    id: "values-card",
-    name: "Values Card",
-    description: "Discover and share your values with your team",
-    minPlayers: 2,
-    maxPlayers: 6,
-  },
-  {
-    id: "digital-tcg",
-    name: "Digital TCG",
-    description: "Turn-based trading card game",
-    minPlayers: 2,
-    maxPlayers: 2,
-  },
-];
-
-function createGameConfig(
-  gameId: string,
-  players: PlayerId[],
-): CroupierConfig<any> {
-  switch (gameId) {
-    case "texas-holdem":
-      return createTexasHoldemConfig();
-    case "planning-poker":
-      return createPlanningPokerConfig({
-        facilitators: [players[0]],
-      });
-    case "values-card":
-      return createValuesCardConfig();
-    case "digital-tcg":
-      return createDigitalTCGConfig();
-    default:
-      throw new Error(`Unknown game: ${gameId}`);
-  }
-}
+export type { GameInfo } from "./shared/types.js";
+export { AVAILABLE_GAMES, createGameConfig } from "./shared/game-registry.js";
+import { AVAILABLE_GAMES, createGameConfig } from "./shared/game-registry.js";
 
 export interface Room {
   id: string;
   gameId: string;
+  creatorId: PlayerId;
   players: PlayerId[];
   engine: CroupierCore | null;
   botManager: BotManager | null;
@@ -84,24 +26,46 @@ export interface Room {
 
 export class GameManager {
   private rooms = new Map<string, Room>();
-  private roomCounter = 0;
   /** Callback invoked when a bot acts, so the server can broadcast state updates */
   onBotAction: ((roomId: string) => void) | null = null;
 
-  createRoom(gameId: string, creatorId: PlayerId): Room {
+  private generateRoomId(): string {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    for (let attempt = 0; attempt < 100; attempt++) {
+      let id = "";
+      for (let i = 0; i < 4; i++) {
+        id += chars[Math.floor(Math.random() * chars.length)];
+      }
+      if (!this.rooms.has(id)) return id;
+    }
+    throw new Error("Failed to generate unique room ID");
+  }
+
+  createRoom(gameId: string, creatorId: PlayerId, botCount?: number): Room {
     const game = AVAILABLE_GAMES.find((g) => g.id === gameId);
     if (!game) throw new Error(`Unknown game: ${gameId}`);
 
-    const id = `room_${++this.roomCounter}`;
+    const id = this.generateRoomId();
     const room: Room = {
       id,
       gameId,
+      creatorId,
       players: [creatorId],
       engine: null,
       botManager: null,
       started: false,
       createdAt: Date.now(),
     };
+
+    // Add requested bots
+    if (botCount && botCount > 0) {
+      const maxBots = Math.min(botCount, game.maxPlayers - 1, BOT_NAMES.length);
+      for (let i = 0; i < maxBots; i++) {
+        const botId = createBotId(BOT_NAMES[i]);
+        room.players.push(botId);
+      }
+    }
+
     this.rooms.set(id, room);
     return room;
   }
@@ -185,12 +149,24 @@ export class GameManager {
     return room.engine.getEngineState();
   }
 
+  getActionLog(roomId: string) {
+    const room = this.rooms.get(roomId);
+    if (!room?.engine) return [];
+    return room.engine.getLog();
+  }
+
   getRoom(roomId: string): Room | undefined {
     return this.rooms.get(roomId);
   }
 
   listRooms(): Room[] {
     return [...this.rooms.values()];
+  }
+
+  getPhaseGraph(gameId: string): PhaseGraph {
+    // Create a temporary config with dummy players to extract the topology
+    const config = createGameConfig(gameId, ["__dummy1__", "__dummy2__"]);
+    return extractPhaseGraph(config);
   }
 
   deleteRoom(roomId: string): void {

@@ -38,6 +38,51 @@ export const DEFAULT_VALUES_CARDS: Card[] = [
   { id: "v23", name: "友情" },
   { id: "v24", name: "学び" },
   { id: "v25", name: "貢献" },
+  { id: "v26", name: "正義" },
+  { id: "v27", name: "平和" },
+  { id: "v28", name: "美しさ" },
+  { id: "v29", name: "ユーモア" },
+  { id: "v30", name: "冒険" },
+  { id: "v31", name: "安定" },
+  { id: "v32", name: "独立" },
+  { id: "v33", name: "知恵" },
+  { id: "v34", name: "寛容" },
+  { id: "v35", name: "リーダーシップ" },
+  { id: "v36", name: "共感" },
+  { id: "v37", name: "効率" },
+  { id: "v38", name: "品質" },
+  { id: "v39", name: "柔軟性" },
+  { id: "v40", name: "誇り" },
+  { id: "v41", name: "素直さ" },
+  { id: "v42", name: "節制" },
+  { id: "v43", name: "愛情" },
+  { id: "v44", name: "自律" },
+  { id: "v45", name: "環境" },
+  { id: "v46", name: "伝統" },
+  { id: "v47", name: "革新" },
+  { id: "v48", name: "奉仕" },
+  { id: "v49", name: "達成感" },
+  { id: "v50", name: "集中力" },
+  { id: "v51", name: "直感" },
+  { id: "v52", name: "誠意" },
+  { id: "v53", name: "礼儀" },
+  { id: "v54", name: "団結" },
+  { id: "v55", name: "希望" },
+  { id: "v56", name: "幸福" },
+  { id: "v57", name: "調和" },
+  { id: "v58", name: "粘り強さ" },
+  { id: "v59", name: "感性" },
+  { id: "v60", name: "合理性" },
+  { id: "v61", name: "透明性" },
+  { id: "v62", name: "主体性" },
+  { id: "v63", name: "利他" },
+  { id: "v64", name: "探求心" },
+  { id: "v65", name: "遊び心" },
+  { id: "v66", name: "覚悟" },
+  { id: "v67", name: "受容" },
+  { id: "v68", name: "シンプル" },
+  { id: "v69", name: "つながり" },
+  { id: "v70", name: "自然体" },
 ];
 
 const HAND_SIZE = 5;
@@ -53,11 +98,10 @@ export function createValuesCardConfig(
   const { theme = "人生で大事な5つの価値観", cards = DEFAULT_VALUES_CARDS } =
     options;
 
-  // Custom turn order that tracks currentPlayerIndex
-  const valuesCardTurnOrder = custom({
+  // Custom turn order that tracks currentPlayerIndex (pure — reads from ctx.game)
+  const valuesCardTurnOrder = custom<ValuesCardState>({
     first: (ctx) => {
-      const state = ctx.state as ValuesCardState;
-      return state.playerOrder[state.currentPlayerIndex];
+      return ctx.game.playerOrder[ctx.game.currentPlayerIndex];
     },
     next: () => null, // single action per turn handled by stages
   });
@@ -88,55 +132,55 @@ export function createValuesCardConfig(
 
     actions: {
       drawFromDeck: {
-        execute: (state, playerId) => {
-          const card = state.deck.shift()!;
-          state.players[playerId].hand.push(card);
+        execute: (game, playerId) => {
+          const card = game.deck.shift()!;
+          game.players[playerId].hand.push(card);
         },
-        validate: (state, playerId) => {
-          if (state.deck.length === 0) return "Deck is empty";
-          if (state.players[playerId].hand.length !== HAND_SIZE)
+        validate: (game, playerId) => {
+          if (game.deck.length === 0) return "Deck is empty";
+          if (game.players[playerId].hand.length !== HAND_SIZE)
             return "Already drew a card";
           return true;
         },
       },
 
       drawFromDiscard: {
-        execute: (state, playerId, payload) => {
+        execute: (game, playerId, payload) => {
           const { cardId } = payload as { cardId: string };
-          const idx = state.discardPool.findIndex(
+          const idx = game.discardPool.findIndex(
             (e) => e.card.id === cardId,
           );
-          const entry = state.discardPool.splice(idx, 1)[0];
-          state.players[playerId].hand.push(entry.card);
+          const entry = game.discardPool.splice(idx, 1)[0];
+          game.players[playerId].hand.push(entry.card);
         },
-        validate: (state, playerId, payload) => {
+        validate: (game, playerId, payload) => {
           const { cardId } = payload as { cardId: string };
-          if (state.players[playerId].hand.length !== HAND_SIZE)
+          if (game.players[playerId].hand.length !== HAND_SIZE)
             return "Already drew a card";
-          if (!state.discardPool.find((e) => e.card.id === cardId))
+          if (!game.discardPool.find((e) => e.card.id === cardId))
             return "Card not found in discard pool";
           return true;
         },
       },
 
       discardCard: {
-        execute: (state, playerId, payload) => {
+        execute: (game, playerId, payload) => {
           const { cardId } = payload as { cardId: string };
-          const hand = state.players[playerId].hand;
+          const hand = game.players[playerId].hand;
           const idx = hand.findIndex((c) => c.id === cardId);
           const card = hand.splice(idx, 1)[0];
-          state.discardPool.push({ card, discardedBy: playerId });
+          game.discardPool.push({ card, discardedBy: playerId });
 
           // Advance to next player
-          state.currentPlayerIndex =
-            (state.currentPlayerIndex + 1) % state.playerOrder.length;
-          state.turnCount++;
+          game.currentPlayerIndex =
+            (game.currentPlayerIndex + 1) % game.playerOrder.length;
+          game.turnCount++;
         },
-        validate: (state, playerId, payload) => {
+        validate: (game, playerId, payload) => {
           const { cardId } = payload as { cardId: string };
-          if (state.players[playerId].hand.length !== HAND_SIZE + 1)
+          if (game.players[playerId].hand.length !== HAND_SIZE + 1)
             return "Must draw a card first";
-          if (!state.players[playerId].hand.find((c) => c.id === cardId))
+          if (!game.players[playerId].hand.find((c) => c.id === cardId))
             return "Card not in hand";
           return true;
         },
@@ -149,54 +193,63 @@ export function createValuesCardConfig(
         stages: {
           waitingForDraw: {
             allowedActions: ["drawFromDeck", "drawFromDiscard"],
-            next: (state, ctx) => {
-              // Check if current player has 6 cards (drew one)
-              const currentPlayer =
-                state.playerOrder[state.currentPlayerIndex];
-              return state.players[currentPlayer].hand.length > HAND_SIZE
-                ? "waitingForDiscard"
-                : null;
-            },
+            always: [
+              {
+                target: "waitingForDiscard",
+                guard: (ctx) => {
+                  // Check if current player has 6 cards (drew one)
+                  const currentPlayer =
+                    ctx.game.playerOrder[ctx.game.currentPlayerIndex];
+                  return ctx.game.players[currentPlayer].hand.length > HAND_SIZE;
+                },
+              },
+            ],
           },
           waitingForDiscard: {
             allowedActions: ["discardCard"],
-            next: (state) => {
-              // Check if current player is back to 5 cards
-              // Note: after discard, currentPlayerIndex has already advanced
-              // So we check the *previous* player
-              const prevIdx =
-                (state.currentPlayerIndex - 1 + state.playerOrder.length) %
-                state.playerOrder.length;
-              const prevPlayer = state.playerOrder[prevIdx];
-              return state.players[prevPlayer].hand.length === HAND_SIZE
-                ? "__end__"
-                : null;
-            },
+            always: [
+              {
+                target: "__done__",
+                guard: (ctx) => {
+                  // Check if current player is back to 5 cards
+                  // Note: after discard, currentPlayerIndex has already advanced
+                  // So we check the *previous* player
+                  const prevIdx =
+                    (ctx.game.currentPlayerIndex - 1 + ctx.game.playerOrder.length) %
+                    ctx.game.playerOrder.length;
+                  const prevPlayer = ctx.game.playerOrder[prevIdx];
+                  return ctx.game.players[prevPlayer].hand.length === HAND_SIZE;
+                },
+              },
+            ],
           },
         },
         initialStage: "waitingForDraw",
-        next: (state) => {
-          // Check if deck is empty → go to presentation
-          if (state.deck.length === 0) {
-            return "presentation";
-          }
-          return "playerTurn"; // loop back
-        },
-      },
-
-      presentation: {
-        allowedActions: [],
-        // No actions needed — game effectively ends here
+        transitions: [
+          {
+            target: "playerTurn",
+            guard: () => true, // loop back
+          },
+        ],
       },
     },
 
     initialPhase: "playerTurn",
 
-    endIf: (state) => {
-      // Game ends when we enter presentation phase
-      // (handled by phase machine — presentation has no actions)
-      return null;
-    },
+    endConditions: [
+      {
+        guard: (ctx) => ctx.game.deck.length === 0,
+        result: (ctx) => ({
+          reason: "All cards have been exchanged",
+          summary: Object.fromEntries(
+            ctx.game.playerOrder.map((pid: PlayerId) => [
+              pid,
+              ctx.game.players[pid].hand.map((c: Card) => c.name),
+            ]),
+          ),
+        }),
+      },
+    ],
 
     view: {
       playerView: (state, playerId) => {
