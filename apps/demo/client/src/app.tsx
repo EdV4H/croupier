@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { GameBoard } from "./components/game-board.js";
+import type { UIMode } from "./components/game-board.js";
 import { GameSelector } from "./components/game-selector.js";
 import { useGameState } from "./hooks/use-game-state.js";
 
@@ -13,6 +14,16 @@ export function App() {
   const [screen, setScreen] = useState<Screen>({ type: "login" });
   const [playerId, setPlayerId] = useState("");
   const [playerInput, setPlayerInput] = useState("");
+  const [uiMode, setUiMode] = useState<UIMode>(
+    () => (localStorage.getItem("croupier-ui-mode") as UIMode) || "generic",
+  );
+  const toggleUiMode = useCallback(() => {
+    setUiMode((prev) => {
+      const next = prev === "generic" ? "rich" : "generic";
+      localStorage.setItem("croupier-ui-mode", next);
+      return next;
+    });
+  }, []);
 
   const roomId = "roomId" in screen ? screen.roomId : null;
   const gameId = "gameId" in screen ? screen.gameId : null;
@@ -136,12 +147,27 @@ export function App() {
             <span style={styles.headerInfo}>
               Room: {screen.roomId} | Game: {screen.gameId} | Player: {playerId}
             </span>
+            {screen.gameId === "texas-holdem" && (
+              <button
+                style={{
+                  ...styles.backBtn,
+                  marginLeft: "auto",
+                  background: uiMode === "rich" ? "#6366f1" : "none",
+                  color: uiMode === "rich" ? "#fff" : "#94a3b8",
+                  borderColor: uiMode === "rich" ? "#6366f1" : "#334155",
+                }}
+                onClick={toggleUiMode}
+              >
+                {uiMode === "rich" ? "Rich UI" : "Generic UI"}
+              </button>
+            )}
           </div>
           <GameBoard
             gameId={screen.gameId}
             gameState={gameState}
             dispatch={dispatch}
             lastError={lastError}
+            uiMode={uiMode}
           />
         </div>
       );

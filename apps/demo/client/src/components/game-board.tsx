@@ -3,12 +3,16 @@ import type { PhaseGraph } from "@croupier/core";
 import type { ActionLogEntry, GameStateData } from "../hooks/use-game-state.js";
 import { useInspector } from "../hooks/use-inspector.js";
 import { GenericDisplay } from "./generic-display.js";
+import { HoldemRichUI } from "../games/texas-holdem/index.js";
+
+export type UIMode = "generic" | "rich";
 
 interface GameBoardProps {
   gameId: string;
   gameState: GameStateData;
   dispatch: (action: string, payload?: unknown) => void;
   lastError: string | null;
+  uiMode?: UIMode;
 }
 
 export function GameBoard({
@@ -16,7 +20,18 @@ export function GameBoard({
   gameState,
   dispatch,
   lastError,
+  uiMode = "generic",
 }: GameBoardProps) {
+  // Rich UI for Texas Hold'em
+  if (uiMode === "rich" && gameId === "texas-holdem") {
+    return (
+      <HoldemRichUI
+        gameState={gameState}
+        dispatch={dispatch}
+        lastError={lastError}
+      />
+    );
+  }
   const { engineState, playerView, playerId } = gameState;
   const isMyTurn = Array.isArray(engineState.currentPlayers)
     ? engineState.currentPlayers.includes(playerId)
@@ -452,7 +467,7 @@ function formatPayload(payload: unknown): string {
   return String(payload);
 }
 
-function EventLog({ entries, currentPlayerId }: { entries: ActionLogEntry[]; currentPlayerId: string }) {
+export function EventLog({ entries, currentPlayerId }: { entries: ActionLogEntry[]; currentPlayerId: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

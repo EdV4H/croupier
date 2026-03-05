@@ -20,6 +20,7 @@ export interface GameStateData {
   };
   actionLog: ActionLogEntry[];
   playerId: string;
+  turnDeadline?: number | null;
 }
 
 export interface UseGameStateReturn {
