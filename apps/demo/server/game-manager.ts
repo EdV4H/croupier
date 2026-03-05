@@ -26,15 +26,26 @@ export interface Room {
 
 export class GameManager {
   private rooms = new Map<string, Room>();
-  private roomCounter = 0;
   /** Callback invoked when a bot acts, so the server can broadcast state updates */
   onBotAction: ((roomId: string) => void) | null = null;
+
+  private generateRoomId(): string {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    for (let attempt = 0; attempt < 100; attempt++) {
+      let id = "";
+      for (let i = 0; i < 4; i++) {
+        id += chars[Math.floor(Math.random() * chars.length)];
+      }
+      if (!this.rooms.has(id)) return id;
+    }
+    throw new Error("Failed to generate unique room ID");
+  }
 
   createRoom(gameId: string, creatorId: PlayerId, botCount?: number): Room {
     const game = AVAILABLE_GAMES.find((g) => g.id === gameId);
     if (!game) throw new Error(`Unknown game: ${gameId}`);
 
-    const id = `room_${++this.roomCounter}`;
+    const id = this.generateRoomId();
     const room: Room = {
       id,
       gameId,

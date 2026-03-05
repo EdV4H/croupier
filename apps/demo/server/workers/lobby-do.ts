@@ -2,12 +2,23 @@ import { DurableObject } from "cloudflare:workers";
 import type { RoomSummary } from "../shared/types.js";
 
 export class LobbyDO extends DurableObject {
-  async createId(gameId: string): Promise<string> {
-    const counter =
-      ((await this.ctx.storage.get<number>("roomCounter")) ?? 0) + 1;
-    await this.ctx.storage.put("roomCounter", counter);
+  private generateRoomId(existingIds: Set<string>): string {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    for (let attempt = 0; attempt < 100; attempt++) {
+      let id = "";
+      for (let i = 0; i < 4; i++) {
+        id += chars[Math.floor(Math.random() * chars.length)];
+      }
+      if (!existingIds.has(id)) return id;
+    }
+    throw new Error("Failed to generate unique room ID");
+  }
 
-    const roomId = `room_${counter}`;
+  async createId(gameId: string): Promise<string> {
+    const entries = await this.ctx.storage.list<RoomSummary>({ prefix: "room:" });
+    const existingIds = new Set([...entries.values()].map((r) => r.id));
+
+    const roomId = this.generateRoomId(existingIds);
     const summary: RoomSummary = {
       id: roomId,
       gameId,
