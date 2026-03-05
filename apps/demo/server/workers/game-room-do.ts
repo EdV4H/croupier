@@ -236,7 +236,7 @@ export class GameRoomDO extends DurableObject<Env> {
         data: { playerId, players: this.players },
       });
       await this.updateLobby();
-      return Response.json({ players: this.players });
+      return Response.json({ gameId: this.gameId, players: this.players });
     }
 
     if (request.method === "POST" && path === "/start") {

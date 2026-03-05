@@ -172,17 +172,29 @@ function WaitingRoom({
       .then(setRoomData);
   });
 
+  const copyRoomId = () => navigator.clipboard.writeText(roomId);
+
   return (
     <div style={styles.centered}>
       <div style={styles.waitingCard}>
         <h2 style={{ color: "#f1f5f9", marginBottom: "0.5rem" }}>
           Waiting Room
         </h2>
-        <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>
-          Game: {gameId} | Room: {roomId}
+        <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginBottom: "1rem" }}>
+          Share this Room ID with your friends:
         </p>
-        <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>
-          Status: {connected ? "Connected" : "Connecting..."}
+        <div
+          style={styles.roomIdBadge}
+          onClick={copyRoomId}
+          title="Click to copy"
+        >
+          {roomId}
+        </div>
+        <p style={{ color: "#64748b", fontSize: "0.75rem", marginTop: "0.3rem" }}>
+          Click to copy
+        </p>
+        <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginTop: "1rem" }}>
+          Game: {gameId} | {connected ? "Connected" : "Connecting..."}
         </p>
         {roomData && (
           <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>
@@ -227,6 +239,13 @@ const styles: Record<string, React.CSSProperties> = {
   waitingCard: {
     background: "#1e293b", borderRadius: 16, padding: "2rem",
     border: "1px solid #334155", minWidth: 360, textAlign: "center",
+  },
+  roomIdBadge: {
+    fontSize: "2.5rem", fontWeight: 800, color: "#3b82f6",
+    letterSpacing: "0.3em", fontFamily: "monospace",
+    background: "#0f172a", borderRadius: 12, padding: "0.8rem 1.5rem",
+    border: "2px dashed #334155", cursor: "pointer",
+    userSelect: "all" as const, display: "inline-block",
   },
   title: { fontSize: "2rem", fontWeight: 700, color: "#f1f5f9" },
   subtitle: { color: "#94a3b8", fontSize: "0.9rem" },

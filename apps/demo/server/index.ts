@@ -76,7 +76,7 @@ app.post("/api/rooms/:roomId/join", async (c) => {
       type: "playerJoined",
       data: { playerId: body.playerId, players: room.players },
     });
-    return c.json({ players: room.players });
+    return c.json({ gameId: room.gameId, players: room.players });
   } catch (e: any) {
     return c.json({ error: e.message }, 400);
   }
