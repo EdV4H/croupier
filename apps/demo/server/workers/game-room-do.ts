@@ -7,6 +7,8 @@ import {
   BOT_NAMES,
   createBotId,
   isBotPlayer,
+  getActiveTimeoutMs,
+  executeBotTakeover,
 } from "@croupier/core";
 import {
   AVAILABLE_GAMES,
@@ -37,6 +39,7 @@ export class GameRoomDO extends DurableObject<Env> {
   private creatorId = "";
   private started = false;
   private createdAt = 0;
+  private turnTimeoutDeadline: number | null = null;
 
   private async saveState(): Promise<void> {
     await this.ctx.storage.put<GameRoomState>("state", {
@@ -79,11 +82,43 @@ export class GameRoomDO extends DurableObject<Env> {
     }));
   }
 
+  private async scheduleTurnTimeout(): Promise<void> {
+    if (!this.engine) return;
+
+    const config = this.engine.getConfig();
+    const engineState = this.engine.getEngineState();
+
+    if (engineState.finished) {
+      this.turnTimeoutDeadline = null;
+      return;
+    }
+
+    const timeoutMs = getActiveTimeoutMs(config, engineState);
+    if (!timeoutMs) {
+      this.turnTimeoutDeadline = null;
+      return;
+    }
+
+    // Only set timer if there are human players in currentPlayers
+    const currentPlayers = Array.isArray(engineState.currentPlayers)
+      ? engineState.currentPlayers
+      : [engineState.currentPlayers];
+    const hasHumans = currentPlayers.some((pid) => !isBotPlayer(pid));
+    if (!hasHumans) {
+      this.turnTimeoutDeadline = null;
+      return;
+    }
+
+    this.turnTimeoutDeadline = Date.now() + timeoutMs;
+    await this.ctx.storage.setAlarm(this.turnTimeoutDeadline);
+  }
+
   private broadcastGameState(): void {
     if (!this.engine) return;
 
     const engineState = this.engine.getEngineState();
     const actionLog = this.engine.getLog();
+    const turnDeadline = this.turnTimeoutDeadline;
 
     for (const ws of this.ctx.getWebSockets()) {
       const tags = this.ctx.getTags(ws);
@@ -95,7 +130,7 @@ export class GameRoomDO extends DurableObject<Env> {
         ws.send(
           JSON.stringify({
             type: "gameState",
-            data: { playerView, engineState, actionLog, playerId },
+            data: { playerView, engineState, actionLog, playerId, turnDeadline },
           }),
         );
       } catch {
@@ -119,7 +154,22 @@ export class GameRoomDO extends DurableObject<Env> {
 
   async alarm(): Promise<void> {
     await this.loadState();
-    // Clean up from Lobby after game finished
+
+    // Determine if this is a turn timeout or a cleanup alarm
+    if (this.turnTimeoutDeadline && this.engine && !this.engine.getEngineState().finished) {
+      // Turn timeout — bot takeover
+      this.turnTimeoutDeadline = null;
+      const config = this.engine.getConfig();
+      if (config.bot) {
+        await executeBotTakeover(this.engine, config.bot);
+        this.broadcastGameState();
+        // Schedule next timeout if game is still going
+        await this.scheduleTurnTimeout();
+      }
+      return;
+    }
+
+    // Cleanup alarm — remove from Lobby after game finished
     const lobbyId = this.env.LOBBY.idFromName("singleton");
     const lobby = this.env.LOBBY.get(lobbyId);
     await lobby.fetch(
@@ -270,6 +320,7 @@ export class GameRoomDO extends DurableObject<Env> {
       }
 
       this.broadcastGameState();
+      await this.scheduleTurnTimeout();
       await this.updateLobby();
       return Response.json({ started: true });
     }
@@ -333,6 +384,7 @@ export class GameRoomDO extends DurableObject<Env> {
           ws.send(JSON.stringify({ type: "actionResult", data: result }));
           if (result.ok) {
             this.broadcastGameState();
+            await this.scheduleTurnTimeout();
           }
         } catch (e: any) {
           ws.send(JSON.stringify({ type: "error", error: e.message }));

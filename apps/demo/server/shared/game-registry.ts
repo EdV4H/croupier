@@ -42,15 +42,16 @@ export function createGameConfig(
 ): CroupierConfig<any> {
   switch (gameId) {
     case "texas-holdem":
-      return createTexasHoldemConfig();
+      return createTexasHoldemConfig({ turnTimeoutMs: 30_000 });
     case "planning-poker":
       return createPlanningPokerConfig({
         facilitators: [players[0]],
+        votingTimeoutMs: 60_000,
       });
     case "values-card":
-      return createValuesCardConfig();
+      return createValuesCardConfig({ turnTimeoutMs: 60_000 });
     case "digital-tcg":
-      return createDigitalTCGConfig();
+      return createDigitalTCGConfig({ turnTimeoutMs: 90_000 });
     default:
       throw new Error(`Unknown game: ${gameId}`);
   }

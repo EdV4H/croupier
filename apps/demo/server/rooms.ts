@@ -47,6 +47,7 @@ export class RoomManager {
 
     const engineState = this.gameManager.getEngineState(roomId);
     const actionLog = this.gameManager.getActionLog(roomId);
+    const turnDeadline = room.turnTimeoutManager?.getDeadline() ?? null;
 
     for (const ws of clients) {
       const conn = this.connections.get(ws);
@@ -65,6 +66,7 @@ export class RoomManager {
               engineState,
               actionLog,
               playerId: conn.playerId,
+              turnDeadline,
             },
           }),
         );
