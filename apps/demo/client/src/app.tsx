@@ -101,7 +101,7 @@ export function App() {
               placeholder="Player name"
               value={playerInput}
               onChange={(e) => setPlayerInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+              onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && handleLogin()}
               autoFocus
             />
             <button style={styles.button} onClick={handleLogin}>

@@ -155,7 +155,7 @@ export function GameSelector({ playerId, onJoinRoom }: GameSelectorProps) {
               setJoinRoomInput(e.target.value.toUpperCase());
               setJoinError(null);
             }}
-            onKeyDown={(e) => e.key === "Enter" && handleJoinByRoomId()}
+            onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && handleJoinByRoomId()}
           />
           <button style={styles.button} onClick={handleJoinByRoomId}>
             Join
