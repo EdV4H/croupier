@@ -22,4 +22,6 @@ export interface ValuesCardState extends GameState {
   players: Record<PlayerId, PlayerState>;
   playerOrder: PlayerId[];
   turnCount: number;
+  /** Remaining turns in the last round. null if last round hasn't started yet. */
+  lastRoundTurnsLeft: number | null;
 }
