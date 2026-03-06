@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { CSSProperties } from "react";
-import type { ActionLogEntry, GameStateData } from "../../hooks/use-game-state.js";
+import type { GameStateData } from "../../hooks/use-game-state.js";
 import { EventLog } from "../../components/game-board.js";
 import { PlayerCard } from "./player-card.js";
 import { DeckSelector } from "./deck-selector.js";
 import { FacilitatorControls } from "./facilitator-controls.js";
+import { CountdownOverlay } from "./countdown-overlay.js";
 
 interface PlanningPokerRichUIProps {
   gameState: GameStateData;
@@ -111,6 +112,25 @@ export function PlanningPokerRichUI({ gameState, dispatch, lastError, onLeave }:
   const pv = playerView;
   const phase = engineState.phase;
 
+  const [countdown, setCountdown] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (countdown === null || countdown <= 0) return;
+    const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown]);
+
+  useEffect(() => {
+    if (countdown === 0) {
+      dispatch("reveal");
+      setCountdown(null);
+    }
+  }, [countdown, dispatch]);
+
+  const startCountdown = useCallback(() => {
+    setCountdown(3);
+  }, []);
+
   const me = pv.players?.[playerId];
   const isFacilitator = me?.role === "facilitator";
   const canVote =
@@ -122,18 +142,6 @@ export function PlanningPokerRichUI({ gameState, dispatch, lastError, onLeave }:
   const seats = SEAT_POSITIONS[count] ?? SEAT_POSITIONS[2];
 
   const revealedCards: Record<string, string> | null = pv.revealedCards;
-
-  // Mask other players' vote payloads until cards are revealed
-  const maskedActionLog = useMemo(() => {
-    const raw: ActionLogEntry[] = gameState.actionLog ?? [];
-    if (revealedCards) return raw; // Already revealed, show everything
-    return raw.map((entry) => {
-      if (entry.action === "vote" && entry.playerId !== playerId) {
-        return { ...entry, payload: undefined };
-      }
-      return entry;
-    });
-  }, [gameState.actionLog, revealedCards, playerId]);
 
   // Compute vote stats for evaluation/consensus
   let voteStats: { value: string; count: number }[] = [];
@@ -280,6 +288,11 @@ export function PlanningPokerRichUI({ gameState, dispatch, lastError, onLeave }:
               )}
             </div>
 
+            {/* Countdown overlay */}
+            {countdown !== null && countdown > 0 && (
+              <CountdownOverlay value={countdown} />
+            )}
+
             {/* Player seats around the table */}
             {rotated.map((pid, i) => {
               if (i >= seats.length) return null;
@@ -321,13 +334,18 @@ export function PlanningPokerRichUI({ gameState, dispatch, lastError, onLeave }:
 
         {/* Facilitator controls */}
         {isFacilitator && (
-          <FacilitatorControls phase={phase} dispatch={dispatch} />
+          <FacilitatorControls
+            phase={phase}
+            dispatch={dispatch}
+            onReveal={startCountdown}
+            countdownActive={countdown !== null}
+          />
         )}
       </div>
 
       {/* Sidebar: Event Log */}
       <div style={sidebarStyle}>
-        <EventLog entries={maskedActionLog} currentPlayerId={playerId} />
+        <EventLog entries={gameState.actionLog ?? []} currentPlayerId={playerId} />
       </div>
     </div>
   );

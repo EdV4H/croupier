@@ -46,7 +46,6 @@ export class RoomManager {
     if (!room?.engine) return;
 
     const engineState = this.gameManager.getEngineState(roomId);
-    const actionLog = this.gameManager.getActionLog(roomId);
     const turnDeadline = room.turnTimeoutManager?.getDeadline() ?? null;
 
     for (const ws of clients) {
@@ -58,6 +57,7 @@ export class RoomManager {
           roomId,
           conn.playerId,
         );
+        const actionLog = this.gameManager.getPlayerLog(roomId, conn.playerId);
         ws.send(
           JSON.stringify({
             type: "gameState",
@@ -162,7 +162,7 @@ export class RoomManager {
             conn.playerId,
           );
           const engineState = this.gameManager.getEngineState(conn.roomId);
-          const actionLog = this.gameManager.getActionLog(conn.roomId);
+          const actionLog = this.gameManager.getPlayerLog(conn.roomId, conn.playerId);
           ws.send(
             JSON.stringify({
               type: "gameState",

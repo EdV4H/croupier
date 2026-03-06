@@ -92,7 +92,8 @@ export function useGameState(
             // Could handle player join notifications
             break;
           case "connected":
-            // Initial connection ack
+            // Request latest state in case we missed a broadcast
+            ws.send(JSON.stringify({ type: "getState" }));
             break;
         }
       } catch {

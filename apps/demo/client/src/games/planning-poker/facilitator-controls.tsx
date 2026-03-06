@@ -4,9 +4,11 @@ import type { CSSProperties } from "react";
 interface FacilitatorControlsProps {
   phase: string;
   dispatch: (action: string, payload?: unknown) => void;
+  onReveal?: () => void;
+  countdownActive?: boolean;
 }
 
-export function FacilitatorControls({ phase, dispatch }: FacilitatorControlsProps) {
+export function FacilitatorControls({ phase, dispatch, onReveal, countdownActive }: FacilitatorControlsProps) {
   const [taskTitle, setTaskTitle] = useState("");
   const [estimate, setEstimate] = useState("");
 
@@ -53,8 +55,16 @@ export function FacilitatorControls({ phase, dispatch }: FacilitatorControlsProp
       )}
 
       {phase === "voting" && (
-        <button style={btnStyle} onClick={() => dispatch("reveal")}>
-          Reveal Cards
+        <button
+          style={{
+            ...btnStyle,
+            opacity: countdownActive ? 0.5 : 1,
+            cursor: countdownActive ? "not-allowed" : "pointer",
+          }}
+          disabled={countdownActive}
+          onClick={() => (onReveal ? onReveal() : dispatch("reveal"))}
+        >
+          {countdownActive ? "Revealing..." : "Reveal Cards"}
         </button>
       )}
 

@@ -180,6 +180,12 @@ export class GameManager {
     return room.engine.getLog();
   }
 
+  getPlayerLog(roomId: string, playerId: PlayerId) {
+    const room = this.rooms.get(roomId);
+    if (!room?.engine) return [];
+    return room.engine.getPlayerLog(playerId);
+  }
+
   getRoom(roomId: string): Room | undefined {
     return this.rooms.get(roomId);
   }

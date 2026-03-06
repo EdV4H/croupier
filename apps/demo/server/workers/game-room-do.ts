@@ -117,7 +117,6 @@ export class GameRoomDO extends DurableObject<Env> {
     if (!this.engine) return;
 
     const engineState = this.engine.getEngineState();
-    const actionLog = this.engine.getLog();
     const turnDeadline = this.turnTimeoutDeadline;
 
     for (const ws of this.ctx.getWebSockets()) {
@@ -127,6 +126,7 @@ export class GameRoomDO extends DurableObject<Env> {
 
       try {
         const playerView = this.engine.getPlayerView(playerId);
+        const actionLog = this.engine.getPlayerLog(playerId);
         ws.send(
           JSON.stringify({
             type: "gameState",
@@ -209,7 +209,7 @@ export class GameRoomDO extends DurableObject<Env> {
         try {
           const playerView = this.engine.getPlayerView(playerId);
           const engineState = this.engine.getEngineState();
-          const actionLog = this.engine.getLog();
+          const actionLog = this.engine.getPlayerLog(playerId);
           pair[1].send(
             JSON.stringify({
               type: "gameState",
@@ -389,7 +389,7 @@ export class GameRoomDO extends DurableObject<Env> {
         try {
           const playerView = this.engine.getPlayerView(playerId);
           const engineState = this.engine.getEngineState();
-          const actionLog = this.engine.getLog();
+          const actionLog = this.engine.getPlayerLog(playerId);
           ws.send(
             JSON.stringify({
               type: "gameState",

@@ -287,6 +287,13 @@ export function createPlanningPokerConfig(
     },
 
     bot: planningPokerBotStrategy,
+
+    logMask: (entry, viewerPlayerId, game) => {
+      if (entry.action === "vote" && entry.playerId !== viewerPlayerId && game.revealedCards === null) {
+        return { ...entry, payload: undefined };
+      }
+      return entry;
+    },
   };
 }
 

@@ -173,6 +173,14 @@ export class CroupierCore<S extends GameState = GameState> {
     return [...this.ctx.log];
   }
 
+  /** Get the action log masked for a specific player */
+  getPlayerLog(playerId: PlayerId): ActionLogEntry[] {
+    if (!this.config.logMask) return this.getLog();
+    return this.ctx.log.map((entry) =>
+      this.config.logMask!(entry, playerId, this.ctx.game),
+    );
+  }
+
   /** Subscribe to events */
   on<K extends keyof CroupierEvents<S>>(
     event: K,
