@@ -10,6 +10,7 @@ interface PlanningPokerRichUIProps {
   gameState: GameStateData;
   dispatch: (action: string, payload?: unknown) => void;
   lastError: string | null;
+  onLeave?: () => void;
 }
 
 const PHASE_LABELS: Record<string, string> = {
@@ -105,7 +106,7 @@ function rotateToSelf(order: string[], selfId: string): string[] {
   return [...order.slice(idx), ...order.slice(0, idx)];
 }
 
-export function PlanningPokerRichUI({ gameState, dispatch, lastError }: PlanningPokerRichUIProps) {
+export function PlanningPokerRichUI({ gameState, dispatch, lastError, onLeave }: PlanningPokerRichUIProps) {
   const { engineState, playerView, playerId } = gameState;
   const pv = playerView;
   const phase = engineState.phase;
@@ -198,6 +199,18 @@ export function PlanningPokerRichUI({ gameState, dispatch, lastError }: Planning
         {/* Error */}
         {lastError && (
           <div style={errorStyle}>{lastError}</div>
+        )}
+
+        {/* Game Over */}
+        {engineState.finished && onLeave && (
+          <div style={resultStyle}>
+            <span style={{ color: "#e2e8f0", fontSize: "0.9rem", fontWeight: 600 }}>
+              Session Complete
+            </span>
+            <button style={lobbyBtnStyle} onClick={onLeave}>
+              Back to Lobby
+            </button>
+          </div>
         )}
 
         {/* Table */}
@@ -368,6 +381,28 @@ const errorStyle: CSSProperties = {
   padding: "0.6rem 1rem",
   borderRadius: 8,
   fontSize: "0.85rem",
+};
+
+const resultStyle: CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "1rem",
+  background: "#1a2332",
+  borderRadius: 12,
+  padding: "0.8rem 1rem",
+  border: "1px solid #253545",
+};
+
+const lobbyBtnStyle: CSSProperties = {
+  background: "#3b82f6",
+  color: "#fff",
+  border: "none",
+  borderRadius: 8,
+  padding: "0.5rem 1rem",
+  cursor: "pointer",
+  fontSize: "0.85rem",
+  fontWeight: 600,
 };
 
 const tableOuterStyle: CSSProperties = {

@@ -9,9 +9,10 @@ interface HoldemRichUIProps {
   gameState: GameStateData;
   dispatch: (action: string, payload?: unknown) => void;
   lastError: string | null;
+  onLeave?: () => void;
 }
 
-export function HoldemRichUI({ gameState, dispatch, lastError }: HoldemRichUIProps) {
+export function HoldemRichUI({ gameState, dispatch, lastError, onLeave }: HoldemRichUIProps) {
   const { engineState, playerView, playerId } = gameState;
   const pv = playerView;
 
@@ -69,6 +70,11 @@ export function HoldemRichUI({ gameState, dispatch, lastError }: HoldemRichUIPro
               </p>
             )}
             {engineState.result.reason && <p style={{ margin: 0 }}>{engineState.result.reason}</p>}
+            {onLeave && (
+              <button style={lobbyBtnStyle} onClick={onLeave}>
+                Back to Lobby
+              </button>
+            )}
           </div>
         )}
 
@@ -161,6 +167,18 @@ const resultStyle: CSSProperties = {
   padding: "1rem",
   borderRadius: 8,
   textAlign: "center",
+};
+
+const lobbyBtnStyle: CSSProperties = {
+  background: "#3b82f6",
+  color: "#fff",
+  border: "none",
+  borderRadius: 8,
+  padding: "0.6rem 1.2rem",
+  cursor: "pointer",
+  fontSize: "0.9rem",
+  fontWeight: 600,
+  marginTop: "0.8rem",
 };
 
 const yourCardsStyle: CSSProperties = {
