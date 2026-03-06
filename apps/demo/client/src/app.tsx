@@ -11,9 +11,10 @@ type Screen =
   | { type: "playing"; roomId: string; gameId: string };
 
 export function App() {
-  const [screen, setScreen] = useState<Screen>({ type: "login" });
-  const [playerId, setPlayerId] = useState("");
-  const [playerInput, setPlayerInput] = useState("");
+  const saved = localStorage.getItem("croupier-player-id");
+  const [screen, setScreen] = useState<Screen>(saved ? { type: "lobby" } : { type: "login" });
+  const [playerId, setPlayerId] = useState(saved ?? "");
+  const [playerInput, setPlayerInput] = useState(saved ?? "");
   const [uiMode, setUiMode] = useState<UIMode>(
     () => (localStorage.getItem("croupier-ui-mode") as UIMode) || "rich",
   );
@@ -34,10 +35,17 @@ export function App() {
 
   const handleLogin = useCallback(() => {
     if (playerInput.trim()) {
-      setPlayerId(playerInput.trim());
+      const name = playerInput.trim();
+      setPlayerId(name);
+      localStorage.setItem("croupier-player-id", name);
       setScreen({ type: "lobby" });
     }
   }, [playerInput]);
+
+  const handleChangeName = useCallback((newName: string) => {
+    setPlayerId(newName);
+    localStorage.setItem("croupier-player-id", newName);
+  }, []);
 
   const handleJoinRoom = useCallback(
     (roomId: string, gameId: string) => {
@@ -114,7 +122,7 @@ export function App() {
     case "lobby":
       return (
         <div>
-          <GameSelector playerId={playerId} onJoinRoom={handleJoinRoom} />
+          <GameSelector playerId={playerId} onJoinRoom={handleJoinRoom} onChangeName={handleChangeName} />
         </div>
       );
 

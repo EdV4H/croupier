@@ -19,9 +19,10 @@ interface RoomInfo {
 interface GameSelectorProps {
   playerId: string;
   onJoinRoom: (roomId: string, gameId: string) => void;
+  onChangeName: (name: string) => void;
 }
 
-export function GameSelector({ playerId, onJoinRoom }: GameSelectorProps) {
+export function GameSelector({ playerId, onJoinRoom, onChangeName }: GameSelectorProps) {
   const [games, setGames] = useState<GameInfo[]>([]);
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +31,8 @@ export function GameSelector({ playerId, onJoinRoom }: GameSelectorProps) {
   const [createdGameId, setCreatedGameId] = useState<string | null>(null);
   const [joinRoomInput, setJoinRoomInput] = useState("");
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [nameInput, setNameInput] = useState(playerId);
 
   const fetchData = useCallback(async () => {
     try {
@@ -109,7 +112,58 @@ export function GameSelector({ playerId, onJoinRoom }: GameSelectorProps) {
     <div style={styles.container}>
       <h1 style={styles.title}>Croupier</h1>
       <p style={styles.subtitle}>Universal Game Engine Demo</p>
-      <p style={styles.playerInfo}>Playing as: <strong>{playerId}</strong></p>
+      <div style={styles.playerInfo}>
+        {editing ? (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+            Playing as:{" "}
+            <input
+              style={styles.nameInput}
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                  const trimmed = nameInput.trim();
+                  if (trimmed && !trimmed.startsWith("bot:")) {
+                    onChangeName(trimmed);
+                    setEditing(false);
+                  }
+                }
+                if (e.key === "Escape") {
+                  setNameInput(playerId);
+                  setEditing(false);
+                }
+              }}
+              autoFocus
+            />
+            <button
+              style={styles.nameBtn}
+              onClick={() => {
+                const trimmed = nameInput.trim();
+                if (trimmed && !trimmed.startsWith("bot:")) {
+                  onChangeName(trimmed);
+                  setEditing(false);
+                }
+              }}
+            >
+              Save
+            </button>
+            <button
+              style={{ ...styles.nameBtn, background: "#475569" }}
+              onClick={() => { setNameInput(playerId); setEditing(false); }}
+            >
+              Cancel
+            </button>
+          </span>
+        ) : (
+          <span>
+            Playing as: <strong>{playerId}</strong>{" "}
+            <button style={styles.nameBtn} onClick={() => { setNameInput(playerId); setEditing(true); }}>
+              Edit
+            </button>
+          </span>
+        )}
+      </div>
 
       {/* Created Room ID modal */}
       {createdRoomId && (
@@ -256,6 +310,15 @@ const styles: Record<string, React.CSSProperties> = {
   title: { fontSize: "2.5rem", fontWeight: 700, textAlign: "center", color: "#f1f5f9" },
   subtitle: { textAlign: "center", color: "#94a3b8", marginBottom: "2rem" },
   playerInfo: { textAlign: "center", color: "#94a3b8", marginBottom: "2rem", fontSize: "0.9rem" },
+  nameInput: {
+    background: "#0f172a", color: "#f1f5f9", border: "1px solid #334155",
+    borderRadius: 6, padding: "0.3rem 0.6rem", fontSize: "0.9rem", outline: "none",
+    width: 140,
+  },
+  nameBtn: {
+    background: "#3b82f6", color: "#fff", border: "none", borderRadius: 6,
+    padding: "0.25rem 0.6rem", cursor: "pointer", fontSize: "0.8rem", fontWeight: 500,
+  },
   sectionTitle: { fontSize: "1.3rem", fontWeight: 600, margin: "2rem 0 1rem", color: "#cbd5e1" },
   gameGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "1rem" },
   gameCard: {
