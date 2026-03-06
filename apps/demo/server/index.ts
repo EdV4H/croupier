@@ -76,6 +76,10 @@ app.post("/api/rooms/:roomId/join", async (c) => {
       type: "playerJoined",
       data: { playerId: body.playerId, players: room.players },
     });
+    // If game is already started (mid-game join), broadcast updated game state
+    if (room.started) {
+      roomManager.broadcastGameState(roomId);
+    }
     return c.json({ gameId: room.gameId, players: room.players });
   } catch (e: any) {
     return c.json({ error: e.message }, 400);
