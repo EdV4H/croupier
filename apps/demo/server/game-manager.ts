@@ -76,11 +76,19 @@ export class GameManager {
   joinRoom(roomId: string, playerId: PlayerId): Room {
     const room = this.rooms.get(roomId);
     if (!room) throw new Error(`Room not found: ${roomId}`);
-    if (room.started) throw new Error("Game already started");
+    if (room.players.includes(playerId)) throw new Error("Already in room");
 
+    if (room.started && room.engine) {
+      // Mid-game join: delegate to engine's addPlayer
+      const result = room.engine.addPlayer(playerId);
+      if (!result.ok) throw new Error(result.error ?? "Cannot join mid-game");
+      room.players.push(playerId);
+      return room;
+    }
+
+    // Pre-game join
     const game = AVAILABLE_GAMES.find((g) => g.id === room.gameId)!;
     if (room.players.length >= game.maxPlayers) throw new Error("Room is full");
-    if (room.players.includes(playerId)) throw new Error("Already in room");
 
     room.players.push(playerId);
     return room;

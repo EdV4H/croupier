@@ -1,6 +1,6 @@
 import type { GameState, PlayerId } from "@croupier/core";
 
-export type Role = "facilitator" | "voter";
+export type Role = "facilitator" | "voter" | "observer";
 
 export interface Task {
   id: string;

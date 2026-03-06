@@ -3,7 +3,7 @@ import { VotingCard } from "./voting-card.js";
 
 interface PlayerCardProps {
   name: string;
-  role: "facilitator" | "voter";
+  role: "facilitator" | "voter" | "observer";
   selectedCard: string | null;
   isMe: boolean;
 }
@@ -38,10 +38,10 @@ export function PlayerCard({ name, role, selectedCard, isMe }: PlayerCardProps) 
           padding: "0.1rem 0.4rem",
           borderRadius: 8,
           color: "#fff",
-          background: role === "facilitator" ? "#d4a843" : "#7a8fa3",
+          background: role === "facilitator" ? "#d4a843" : role === "observer" ? "#6366f1" : "#7a8fa3",
           flexShrink: 0,
         }}>
-          {role === "facilitator" ? "F" : "V"}
+          {role === "facilitator" ? "F" : role === "observer" ? "O" : "V"}
         </span>
         {isBot && (
           <span style={botTagStyle}>Bot</span>

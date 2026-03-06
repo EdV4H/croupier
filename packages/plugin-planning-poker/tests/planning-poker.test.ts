@@ -322,6 +322,98 @@ describe("Planning Poker", () => {
     });
   });
 
+  describe("mid-game join", () => {
+    it("mid-game player joins as voter when in idle (no task selected)", () => {
+      const engine = createGame();
+      engine.addPlayer("NewDev");
+      const state = engine.getState() as PlanningPokerState;
+      expect(state.players.NewDev.role).toBe("voter");
+      expect(state.playerOrder).toContain("NewDev");
+    });
+
+    it("mid-game player joins as observer when task is in progress", () => {
+      const engine = createGame();
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
+      engine.addPlayer("NewDev");
+      const state = engine.getState() as PlanningPokerState;
+      expect(state.players.NewDev.role).toBe("observer");
+      expect(state.playerOrder).toContain("NewDev");
+    });
+
+    it("observer cannot vote (blocked by turn order)", () => {
+      const engine = createGame();
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
+      engine.dispatch("Facilitator", "startVoting");
+      engine.addPlayer("NewDev");
+      const result = engine.dispatch("NewDev", "vote", { card: "5" });
+      expect(result.ok).toBe(false);
+      // Observer is not in currentPlayers (SIMULTANEOUS turn order was set before join)
+      expect(result.error).toBeDefined();
+    });
+
+    it("observer is promoted to voter on idle phase", () => {
+      const engine = createGame();
+      // Start a task, then join mid-game as observer
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
+      engine.addPlayer("NewDev");
+      expect((engine.getState() as PlanningPokerState).players.NewDev.role).toBe("observer");
+
+      // Complete the round to return to idle
+      engine.dispatch("Facilitator", "startVoting");
+      engine.dispatch("Dev1", "vote", { card: "5" });
+      engine.dispatch("Dev2", "vote", { card: "5" });
+      engine.dispatch("Dev3", "vote", { card: "5" });
+      engine.dispatch("Facilitator", "reveal");
+      engine.dispatch("Facilitator", "recordEstimate", { estimate: "5" });
+      engine.dispatch("Facilitator", "resetForNextTask");
+
+      // Should now be in idle with observer promoted
+      expect(engine.getEngineState().phase).toBe("idle");
+      const state = engine.getState() as PlanningPokerState;
+      expect(state.players.NewDev.role).toBe("voter");
+    });
+
+    it("promoted observer can vote in subsequent rounds", () => {
+      const engine = createGame();
+      // Join during a task so they become observer
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
+      engine.addPlayer("NewDev");
+
+      // Complete round to promote observer
+      engine.dispatch("Facilitator", "startVoting");
+      engine.dispatch("Dev1", "vote", { card: "5" });
+      engine.dispatch("Dev2", "vote", { card: "5" });
+      engine.dispatch("Dev3", "vote", { card: "5" });
+      engine.dispatch("Facilitator", "reveal");
+      engine.dispatch("Facilitator", "recordEstimate", { estimate: "5" });
+      engine.dispatch("Facilitator", "resetForNextTask");
+
+      // Start new task — NewDev is now voter
+      engine.dispatch("Facilitator", "selectTask", { id: "T2", title: "Test 2" });
+      engine.dispatch("Facilitator", "startVoting");
+      const result = engine.dispatch("NewDev", "vote", { card: "8" });
+      expect(result.ok).toBe(true);
+    });
+
+    it("observer is excluded from voting participant count", () => {
+      const engine = createGame();
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
+      engine.dispatch("Facilitator", "startVoting");
+
+      // Add observer mid-voting
+      engine.addPlayer("NewDev");
+
+      // All original voters vote
+      engine.dispatch("Dev1", "vote", { card: "5" });
+      engine.dispatch("Dev2", "vote", { card: "8" });
+      engine.dispatch("Dev3", "vote", { card: "5" });
+
+      // Reveal should succeed — observer is not counted as voting participant
+      const result = engine.dispatch("Facilitator", "reveal");
+      expect(result.ok).toBe(true);
+    });
+  });
+
   describe("full scenario", () => {
     it("plays through complete estimation session", () => {
       const engine = createGame();

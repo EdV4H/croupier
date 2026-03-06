@@ -264,13 +264,29 @@ export class GameRoomDO extends DurableObject<Env> {
 
     if (request.method === "POST" && path === "/join") {
       const { playerId } = (await request.json()) as { playerId: string };
-      if (this.started) return Response.json({ error: "Game already started" }, { status: 400 });
+      if (this.players.includes(playerId))
+        return Response.json({ error: "Already in room" }, { status: 400 });
 
+      if (this.started && this.engine) {
+        // Mid-game join: delegate to engine's addPlayer
+        const result = this.engine.addPlayer(playerId);
+        if (!result.ok)
+          return Response.json({ error: result.error ?? "Cannot join mid-game" }, { status: 400 });
+        this.players.push(playerId);
+        await this.saveState();
+        this.broadcastToRoom({
+          type: "playerJoined",
+          data: { playerId, players: this.players },
+        });
+        this.broadcastGameState();
+        await this.updateLobby();
+        return Response.json({ gameId: this.gameId, players: this.players });
+      }
+
+      // Pre-game join
       const game = AVAILABLE_GAMES.find((g) => g.id === this.gameId)!;
       if (this.players.length >= game.maxPlayers)
         return Response.json({ error: "Room is full" }, { status: 400 });
-      if (this.players.includes(playerId))
-        return Response.json({ error: "Already in room" }, { status: 400 });
 
       this.players.push(playerId);
       await this.saveState();

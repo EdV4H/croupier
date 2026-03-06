@@ -68,6 +68,13 @@ export function createPlanningPokerConfig(
       };
     },
 
+    onPlayerJoin: (game, playerId, ctx) => {
+      // idleフェーズ（タスク未選択）なら即voterとして参加、それ以外はobserver
+      const isIdle = ctx.game.currentTask === null;
+      game.players[playerId] = { role: isIdle ? "voter" : "observer", selectedCard: null };
+      game.playerOrder.push(playerId);
+    },
+
     actions: {
       selectTask: {
         execute: (game, _playerId, payload) => {
@@ -112,6 +119,8 @@ export function createPlanningPokerConfig(
           game.players[playerId].selectedCard = card;
         },
         validate: (game, playerId, payload) => {
+          if (game.players[playerId].role === "observer")
+            return "Observers cannot vote";
           if (game.players[playerId].role !== "voter" && !game.facilitatorCanVote)
             return "Facilitators cannot vote";
           const { card } = payload as { card: string };
@@ -209,6 +218,11 @@ export function createPlanningPokerConfig(
 
     phases: {
       idle: {
+        onEnter: (game) => {
+          for (const p of Object.values(game.players)) {
+            if (p.role === "observer") p.role = "voter";
+          }
+        },
         allowedActions: ["selectTask", "toggleFacilitatorVote"],
         always: [
           { target: "discussion", guard: (ctx) => ctx.game.currentTask !== null },
@@ -254,6 +268,7 @@ export function createPlanningPokerConfig(
     roles: {
       facilitator: {},
       voter: {},
+      observer: {},
     },
 
     view: {

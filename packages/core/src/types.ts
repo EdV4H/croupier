@@ -205,6 +205,10 @@ export interface CroupierConfig<S extends GameState = GameState> {
   bot?: BotStrategy<S>;
   /** Mask log entries per-player (e.g. hide vote payloads until reveal) */
   logMask?: (entry: ActionLogEntry, viewerPlayerId: PlayerId, game: S) => ActionLogEntry;
+  /** Hook called when a player tries to join mid-game via addPlayer().
+   *  Return void to allow (plugin updates game state), return false to reject.
+   *  If undefined, mid-game joining is not supported (opt-in). */
+  onPlayerJoin?: (game: S, playerId: PlayerId, ctx: CroupierContext<S>) => void | false;
 }
 
 // ============================================================
@@ -215,6 +219,7 @@ export interface EngineState {
   phase: string;
   stage?: string;
   currentPlayers: PlayerId | PlayerId[];
+  players: PlayerId[];
   finished: boolean;
   result?: GameResult;
 }
@@ -241,6 +246,7 @@ export interface CroupierEvents<S extends GameState = GameState> {
   phaseChange: { from: string; to: string; stage?: string };
   stageChange: { phase: string; from?: string; to?: string };
   action: ActionLogEntry;
+  playerJoin: { playerId: PlayerId };
   gameEnd: { result: GameResult; state: S };
 }
 
