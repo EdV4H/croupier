@@ -20,6 +20,7 @@ export type {
   GuardedTransition,
   PhaseConfig,
   PlayerId,
+  PlayerResult,
   RoleConfig,
   SetupContext,
   StageConfig,
