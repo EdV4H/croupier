@@ -52,8 +52,8 @@ export function createDigitalTCGConfig(
       const players: Record<PlayerId, TCGState["players"][string]> = {
         [p1]: {
           life: initialLife,
-          maxMana: 0,
-          currentMana: 0,
+          maxMana: 1,
+          currentMana: 1,
           deck: deck1.slice(INITIAL_HAND_SIZE),
           hand: deck1.slice(0, INITIAL_HAND_SIZE),
           board: [],

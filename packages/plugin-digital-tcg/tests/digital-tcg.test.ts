@@ -39,11 +39,13 @@ describe("Digital TCG", () => {
       expect(engine.getEngineState().currentPlayers).toBe("P1");
     });
 
-    it("starts with 0 mana", () => {
+    it("starts with 1 mana for first player", () => {
       const engine = createGame();
       const state = engine.getState() as TCGState;
-      expect(state.players.P1.maxMana).toBe(0);
-      expect(state.players.P1.currentMana).toBe(0);
+      expect(state.players.P1.maxMana).toBe(1);
+      expect(state.players.P1.currentMana).toBe(1);
+      expect(state.players.P2.maxMana).toBe(0);
+      expect(state.players.P2.currentMana).toBe(0);
     });
   });
 
@@ -103,9 +105,9 @@ describe("Digital TCG", () => {
 
     it("rejects playing when not enough mana", () => {
       const engine = createGame();
-      // No mana on turn 1
       const state = engine.getState() as TCGState;
-      const expensiveCard = state.players.P1.hand.find((c) => c.cost > 0);
+      // P1 starts with 1 mana — find a card costing more than 1
+      const expensiveCard = state.players.P1.hand.find((c) => c.cost > 1);
       if (expensiveCard) {
         const result = engine.dispatch("P1", "playCard", {
           cardId: expensiveCard.id,
