@@ -140,10 +140,12 @@ app.get(
           try {
             const playerView = gameManager.getPlayerView(roomId, playerId);
             const engineState = gameManager.getEngineState(roomId);
+            const actionLog = gameManager.getPlayerLog(roomId, playerId);
+            const turnDeadline = room.turnTimeoutManager?.getDeadline() ?? null;
             ws.send(
               JSON.stringify({
                 type: "gameState",
-                data: { playerView, engineState, playerId },
+                data: { playerView, engineState, actionLog, playerId, turnDeadline },
               }),
             );
           } catch {
