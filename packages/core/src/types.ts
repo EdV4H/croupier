@@ -203,6 +203,8 @@ export interface CroupierConfig<S extends GameState = GameState> {
   roles?: { [name: string]: RoleConfig };
   /** Bot strategy for automated players */
   bot?: BotStrategy<S>;
+  /** Mask log entries per-player (e.g. hide vote payloads until reveal) */
+  logMask?: (entry: ActionLogEntry, viewerPlayerId: PlayerId, game: S) => ActionLogEntry;
 }
 
 // ============================================================
