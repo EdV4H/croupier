@@ -323,8 +323,17 @@ describe("Planning Poker", () => {
   });
 
   describe("mid-game join", () => {
-    it("mid-game player joins as observer", () => {
+    it("mid-game player joins as voter when in idle (no task selected)", () => {
       const engine = createGame();
+      engine.addPlayer("NewDev");
+      const state = engine.getState() as PlanningPokerState;
+      expect(state.players.NewDev.role).toBe("voter");
+      expect(state.playerOrder).toContain("NewDev");
+    });
+
+    it("mid-game player joins as observer when task is in progress", () => {
+      const engine = createGame();
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
       engine.addPlayer("NewDev");
       const state = engine.getState() as PlanningPokerState;
       expect(state.players.NewDev.role).toBe("observer");
@@ -342,22 +351,14 @@ describe("Planning Poker", () => {
       expect(result.error).toBeDefined();
     });
 
-    it("observer validate rejects voting even if unrestricted", () => {
-      // Directly verify the validate logic by checking observer role after join
-      const engine = createGame();
-      engine.addPlayer("NewDev");
-      const state = engine.getState() as PlanningPokerState;
-      expect(state.players.NewDev.role).toBe("observer");
-    });
-
     it("observer is promoted to voter on idle phase", () => {
       const engine = createGame();
-      // Join mid-game
+      // Start a task, then join mid-game as observer
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
       engine.addPlayer("NewDev");
       expect((engine.getState() as PlanningPokerState).players.NewDev.role).toBe("observer");
 
-      // Complete a full round to return to idle
-      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
+      // Complete the round to return to idle
       engine.dispatch("Facilitator", "startVoting");
       engine.dispatch("Dev1", "vote", { card: "5" });
       engine.dispatch("Dev2", "vote", { card: "5" });
@@ -374,10 +375,11 @@ describe("Planning Poker", () => {
 
     it("promoted observer can vote in subsequent rounds", () => {
       const engine = createGame();
+      // Join during a task so they become observer
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
       engine.addPlayer("NewDev");
 
       // Complete round to promote observer
-      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
       engine.dispatch("Facilitator", "startVoting");
       engine.dispatch("Dev1", "vote", { card: "5" });
       engine.dispatch("Dev2", "vote", { card: "5" });

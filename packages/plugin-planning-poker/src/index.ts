@@ -68,8 +68,10 @@ export function createPlanningPokerConfig(
       };
     },
 
-    onPlayerJoin: (game, playerId) => {
-      game.players[playerId] = { role: "observer", selectedCard: null };
+    onPlayerJoin: (game, playerId, ctx) => {
+      // idleフェーズ（タスク未選択）なら即voterとして参加、それ以外はobserver
+      const isIdle = ctx.game.currentTask === null;
+      game.players[playerId] = { role: isIdle ? "voter" : "observer", selectedCard: null };
       game.playerOrder.push(playerId);
     },
 
