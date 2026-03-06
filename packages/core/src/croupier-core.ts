@@ -150,9 +150,34 @@ export class CroupierCore<S extends GameState = GameState> {
         this.ctx.currentPlayers.length === 1
           ? this.ctx.currentPlayers[0]
           : this.ctx.currentPlayers,
+      players: [...this.ctx.players],
       finished: this.finished,
       result: this.ctx.result ?? undefined,
     };
+  }
+
+  /** Add a player mid-game. Requires config.onPlayerJoin to be defined. */
+  addPlayer(playerId: PlayerId): DispatchResult {
+    if (this.finished) {
+      return { ok: false, error: "Game already finished" };
+    }
+    if (this.ctx.players.includes(playerId)) {
+      return { ok: false, error: "Player already in game" };
+    }
+    if (!this.config.onPlayerJoin) {
+      return { ok: false, error: "This game does not support mid-game joining" };
+    }
+
+    const result = this.config.onPlayerJoin(this.ctx.game, playerId, this.ctx);
+    if (result === false) {
+      return { ok: false, error: "Join rejected by game" };
+    }
+
+    this.ctx.players.push(playerId);
+    this.emitter.emit("playerJoin", { playerId });
+    this.emitStateChange();
+
+    return { ok: true };
   }
 
   /** Get the player-specific masked view of the state */
