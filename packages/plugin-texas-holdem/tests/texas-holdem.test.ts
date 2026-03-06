@@ -371,6 +371,53 @@ describe("Texas Hold'em", () => {
     });
   });
 
+  describe("structured results", () => {
+    it("getResult returns mid-game rankings by stack", () => {
+      const engine = createGame();
+      const result = engine.getResult();
+      expect(result).not.toBeNull();
+      expect(result!.playerResults).toBeDefined();
+      expect(result!.rankings).toBeDefined();
+      // P1 has 100, P2 has 99, P3 has 98 (after blinds)
+      expect(result!.playerResults!.P1.score).toBe(100);
+      expect(result!.playerResults!.P1.rank).toBe(1);
+    });
+
+    it("final result includes playerResults and rankings", () => {
+      const players = ["P1", "P2"];
+      const config = createTexasHoldemConfig({
+        smallBlind: 1,
+        bigBlind: 2,
+        startingStack: 5,
+      });
+      const engine = new CroupierCore(config, players, { seed: 42 });
+
+      // Play until game ends
+      let rounds = 0;
+      while (!engine.getEngineState().finished && rounds < 30) {
+        const es = engine.getEngineState();
+        const current = es.currentPlayers as string;
+        if (!current) break;
+        let r = engine.dispatch(current, "allIn");
+        if (!r.ok) {
+          r = engine.dispatch(current, "call");
+          if (!r.ok) engine.dispatch(current, "fold");
+        }
+        rounds++;
+      }
+
+      expect(engine.getEngineState().finished).toBe(true);
+      const result = engine.getEngineState().result;
+      expect(result).toBeDefined();
+      expect(result!.playerResults).toBeDefined();
+      expect(result!.rankings).toBeDefined();
+      // Winner should be rank 1
+      const winner = result!.winner as string;
+      expect(result!.playerResults![winner].rank).toBe(1);
+      expect(result!.playerResults![winner].score).toBeGreaterThan(0);
+    });
+  });
+
   describe("state masking", () => {
     it("hides opponent hole cards", () => {
       const engine = createGame();

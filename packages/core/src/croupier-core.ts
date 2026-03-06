@@ -188,6 +188,36 @@ export class CroupierCore<S extends GameState = GameState> {
     return deepClone(this.ctx.game);
   }
 
+  /** Get a result snapshot.
+   *  - If finished: returns the final result (deep clone).
+   *  - If not finished & config.getResult defined: returns a live snapshot.
+   *  - Otherwise: returns null. */
+  getResult(): GameResult | null {
+    if (this.finished && this.ctx.result) {
+      return deepClone(this.ctx.result);
+    }
+    if (!this.finished && this.config.getResult) {
+      return this.config.getResult(this.ctx.game, this.ctx);
+    }
+    return null;
+  }
+
+  /** End the session manually.
+   *  - If result is provided, uses that result.
+   *  - If config.getResult exists, computes the result from current state.
+   *  - Otherwise uses a default result.
+   *  Throws if the game is already finished. */
+  endSession(result?: GameResult): void {
+    if (this.finished) {
+      throw new Error("Game already finished");
+    }
+    const finalResult =
+      result ??
+      this.config.getResult?.(this.ctx.game, this.ctx) ??
+      { reason: "Session ended" };
+    this.endGame(finalResult);
+  }
+
   /** Get the game configuration */
   getConfig(): CroupierConfig<S> {
     return this.config;

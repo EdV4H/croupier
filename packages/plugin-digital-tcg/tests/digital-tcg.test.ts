@@ -206,6 +206,43 @@ describe("Digital TCG", () => {
     });
   });
 
+  describe("structured results", () => {
+    it("result includes playerResults and rankings when game ends", () => {
+      const config = createDigitalTCGConfig({ initialLife: 1 });
+      const engine = new CroupierCore(config, ["P1", "P2"], { seed: 42 });
+
+      // Give P1 mana and a creature
+      engine.dispatch("P1", "endTurn");
+      engine.dispatch("P2", "endTurn");
+
+      let state = engine.getState() as TCGState;
+      const cheapCard = state.players.P1.hand.find((c) => c.cost <= 1);
+      if (!cheapCard) return;
+
+      engine.dispatch("P1", "playCard", { cardId: cheapCard.id });
+      engine.dispatch("P1", "endTurn");
+      engine.dispatch("P2", "endTurn");
+
+      state = engine.getState() as TCGState;
+      const creature = state.players.P1.board[0];
+      if (creature) {
+        engine.dispatch("P1", "attack", {
+          attackerId: creature.card.id,
+          targetId: "face",
+        });
+        expect(engine.getEngineState().finished).toBe(true);
+        const result = engine.getEngineState().result;
+        expect(result).toBeDefined();
+        expect(result!.playerResults).toBeDefined();
+        expect(result!.rankings).toBeDefined();
+        expect(result!.playerResults!.P1.rank).toBe(1);
+        expect(result!.playerResults!.P2.rank).toBe(2);
+        expect(result!.playerResults!.P2.stats!.finalLife).toBeLessThanOrEqual(0);
+        expect(result!.playerResults!.P1.stats!.cardsPlayed).toBeDefined();
+      }
+    });
+  });
+
   describe("state masking", () => {
     it("hides opponent hand", () => {
       const engine = createGame();

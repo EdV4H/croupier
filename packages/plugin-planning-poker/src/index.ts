@@ -1,7 +1,9 @@
 import {
   type BotStrategy,
   type CroupierConfig,
+  type CroupierContext,
   type EngineState,
+  type GameResult,
   type PlayerId,
   SIMULTANEOUS,
   custom,
@@ -38,6 +40,57 @@ export interface PlanningPokerOptions {
   votingTimeoutMs?: number;
 }
 
+function computePlanningPokerResult(ctx: CroupierContext<PlanningPokerState>): GameResult {
+  const game = ctx.game;
+  // Build per-task estimates
+  const taskMap: Record<string, {
+    taskTitle: string;
+    finalEstimate: string | null;
+    totalRounds: number;
+    votes: Array<{ round: number; votes: Record<string, string> }>;
+  }> = {};
+
+  for (const rh of game.roundHistory) {
+    if (!taskMap[rh.taskId]) {
+      taskMap[rh.taskId] = {
+        taskTitle: rh.taskTitle,
+        finalEstimate: null,
+        totalRounds: 0,
+        votes: [],
+      };
+    }
+    taskMap[rh.taskId].totalRounds = Math.max(taskMap[rh.taskId].totalRounds, rh.round);
+    taskMap[rh.taskId].votes.push({ round: rh.round, votes: rh.votes });
+  }
+
+  // If there's a current final estimate, assign to the current task
+  if (game.currentTask && game.finalEstimate && taskMap[game.currentTask.id]) {
+    taskMap[game.currentTask.id].finalEstimate = game.finalEstimate;
+  }
+
+  // Build player results
+  const playerResults: Record<string, { stats: Record<string, unknown> }> = {};
+  for (const [pid, pState] of Object.entries(game.players)) {
+    const totalVotes = game.roundHistory.filter((rh) => rh.votes[pid] !== undefined).length;
+    playerResults[pid] = {
+      stats: {
+        role: pState.role,
+        totalVotes,
+      },
+    };
+  }
+
+  const uniqueTaskIds = [...new Set(game.roundHistory.map((rh) => rh.taskId))];
+
+  return {
+    reason: "Session ended",
+    playerResults,
+    taskEstimates: taskMap,
+    totalTasks: uniqueTaskIds.length,
+    totalRounds: game.roundHistory.length,
+  };
+}
+
 export function createPlanningPokerConfig(
   options: PlanningPokerOptions = {},
 ): CroupierConfig<PlanningPokerState> {
@@ -65,6 +118,7 @@ export function createPlanningPokerConfig(
         roundHistory: [],
         roundNumber: 0,
         facilitatorCanVote,
+        sessionEnded: false,
       };
     },
 
@@ -144,6 +198,7 @@ export function createPlanningPokerConfig(
           if (game.currentTask) {
             game.roundHistory.push({
               taskId: game.currentTask.id,
+              taskTitle: game.currentTask.title,
               round: game.roundNumber,
               votes: { ...revealed },
             });
@@ -214,6 +269,18 @@ export function createPlanningPokerConfig(
         },
         unrestricted: true,
       },
+
+      endSession: {
+        execute: (game) => {
+          game.sessionEnded = true;
+        },
+        validate: (game, playerId) => {
+          if (game.players[playerId].role !== "facilitator")
+            return "Only facilitator can end session";
+          return true;
+        },
+        unrestricted: true,
+      },
     },
 
     phases: {
@@ -223,13 +290,13 @@ export function createPlanningPokerConfig(
             if (p.role === "observer") p.role = "voter";
           }
         },
-        allowedActions: ["selectTask", "toggleFacilitatorVote"],
+        allowedActions: ["selectTask", "toggleFacilitatorVote", "endSession"],
         always: [
           { target: "discussion", guard: (ctx) => ctx.game.currentTask !== null },
         ],
       },
       discussion: {
-        allowedActions: ["startVoting", "toggleFacilitatorVote"],
+        allowedActions: ["startVoting", "toggleFacilitatorVote", "endSession"],
         always: [
           {
             target: "voting",
@@ -238,7 +305,7 @@ export function createPlanningPokerConfig(
         ],
       },
       voting: {
-        allowedActions: ["vote", "reveal"],
+        allowedActions: ["vote", "reveal", "endSession"],
         turnOrder: SIMULTANEOUS,
         turnTimeoutMs: votingTimeoutMs,
         always: [
@@ -246,7 +313,7 @@ export function createPlanningPokerConfig(
         ],
       },
       evaluation: {
-        allowedActions: ["recordEstimate", "startVoting"],
+        allowedActions: ["recordEstimate", "startVoting", "endSession"],
         always: [
           { target: "consensus", guard: (ctx) => ctx.game.finalEstimate !== null },
           {
@@ -256,7 +323,7 @@ export function createPlanningPokerConfig(
         ],
       },
       consensus: {
-        allowedActions: ["resetForNextTask"],
+        allowedActions: ["resetForNextTask", "endSession"],
         always: [
           { target: "idle", guard: (ctx) => ctx.game.currentTask === null },
         ],
@@ -264,6 +331,15 @@ export function createPlanningPokerConfig(
     },
 
     initialPhase: "idle",
+
+    endConditions: [
+      {
+        guard: (ctx) => ctx.game.sessionEnded,
+        result: (ctx) => computePlanningPokerResult(ctx),
+      },
+    ],
+
+    getResult: (game, ctx) => computePlanningPokerResult(ctx),
 
     roles: {
       facilitator: {},
