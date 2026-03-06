@@ -251,15 +251,26 @@ export function createValuesCardConfig(
         guard: (ctx) =>
           ctx.game.lastRoundTurnsLeft !== null &&
           ctx.game.lastRoundTurnsLeft <= 0,
-        result: (ctx) => ({
-          reason: "All cards have been exchanged",
-          summary: Object.fromEntries(
-            ctx.game.playerOrder.map((pid: PlayerId) => [
-              pid,
-              ctx.game.players[pid].hand.map((c: Card) => c.name),
-            ]),
-          ),
-        }),
+        result: (ctx) => {
+          const playerResults: Record<string, { stats: Record<string, unknown> }> = {};
+          for (const pid of ctx.game.playerOrder) {
+            playerResults[pid] = {
+              stats: {
+                finalHand: ctx.game.players[pid].hand.map((c: Card) => c.name),
+              },
+            };
+          }
+          return {
+            reason: "All cards have been exchanged",
+            playerResults,
+            summary: Object.fromEntries(
+              ctx.game.playerOrder.map((pid: PlayerId) => [
+                pid,
+                ctx.game.players[pid].hand.map((c: Card) => c.name),
+              ]),
+            ),
+          };
+        },
       },
     ],
 

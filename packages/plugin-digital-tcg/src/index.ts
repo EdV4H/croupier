@@ -233,13 +233,34 @@ export function createDigitalTCGConfig(
           return Object.values(ctx.game.players).some((p) => p.life <= 0);
         },
         result: (ctx) => {
+          let winner: string | undefined;
+          let loser: string | undefined;
           for (const [pid, pState] of Object.entries(ctx.game.players)) {
             if (pState.life <= 0) {
-              const winner = ctx.game.playerOrder.find((p) => p !== pid);
-              return { winner, reason: `${pid} defeated` };
+              loser = pid;
+              winner = ctx.game.playerOrder.find((p) => p !== pid);
             }
           }
-          return { reason: "Unknown" };
+
+          const playerResults: Record<string, { rank: number; stats: Record<string, unknown> }> = {};
+          for (const [pid, pState] of Object.entries(ctx.game.players)) {
+            playerResults[pid] = {
+              rank: pid === winner ? 1 : 2,
+              stats: {
+                finalLife: pState.life,
+                cardsPlayed: pState.graveyard.length,
+              },
+            };
+          }
+
+          const rankings = winner && loser ? [winner, loser] : ctx.game.playerOrder;
+
+          return {
+            winner,
+            reason: `${loser} defeated`,
+            playerResults,
+            rankings,
+          };
         },
         priority: 0, // interrupt-like
       },
