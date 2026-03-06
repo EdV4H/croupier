@@ -175,9 +175,32 @@ describe("Values Card", () => {
         });
       }
 
-      // Deck should be empty, game should be finished
+      // Deck is empty but game is NOT over yet — last round begins
       state = engine.getState() as ValuesCardState;
       expect(state.deck).toHaveLength(0);
+      expect(state.lastRoundTurnsLeft).toBe(2); // both players get one more turn
+      expect(engine.getEngineState().finished).toBe(false);
+
+      // Play the last round: each player draws from discard and discards
+      for (let turn = 0; turn < 2; turn++) {
+        state = engine.getState() as ValuesCardState;
+        const currentPlayer =
+          state.playerOrder[state.currentPlayerIndex];
+
+        // Draw from discard pool
+        const pickCard = state.discardPool[0].card;
+        engine.dispatch(currentPlayer, "drawFromDiscard", {
+          cardId: pickCard.id,
+        });
+
+        state = engine.getState() as ValuesCardState;
+        const cardToDiscard = state.players[currentPlayer].hand[0];
+        engine.dispatch(currentPlayer, "discardCard", {
+          cardId: cardToDiscard.id,
+        });
+      }
+
+      // Now game should be finished
       const es = engine.getEngineState();
       expect(es.finished).toBe(true);
       expect(es.result?.reason).toBe("All cards have been exchanged");

@@ -138,16 +138,8 @@ export class GameRoomDO extends DurableObject<Env> {
       }
     }
 
-    // Auto-delete: schedule cleanup 30s after game finishes
+    // Auto-delete: schedule cleanup 30s after game finishes (clients see result screen first)
     if (engineState.finished) {
-      const msg = JSON.stringify({ type: "roomDeleted" });
-      for (const ws of this.ctx.getWebSockets()) {
-        try {
-          ws.send(msg);
-        } catch {
-          // Connection may be closing
-        }
-      }
       this.ctx.storage.setAlarm(Date.now() + 30_000);
     }
   }
@@ -169,20 +161,21 @@ export class GameRoomDO extends DurableObject<Env> {
       return;
     }
 
-    // Cleanup alarm — remove from Lobby after game finished
-    const lobbyId = this.env.LOBBY.idFromName("singleton");
-    const lobby = this.env.LOBBY.get(lobbyId);
-    await lobby.fetch(
-      new Request(`http://lobby/rooms/${this.roomId}`, { method: "DELETE" }),
-    );
-    // Close any remaining WebSockets
+    // Cleanup alarm — notify clients and remove from Lobby after game finished
+    const roomDeletedMsg = JSON.stringify({ type: "roomDeleted" });
     for (const ws of this.ctx.getWebSockets()) {
       try {
+        ws.send(roomDeletedMsg);
         ws.close(1000, "Room expired");
       } catch {
         // Already closed
       }
     }
+    const lobbyId = this.env.LOBBY.idFromName("singleton");
+    const lobby = this.env.LOBBY.get(lobbyId);
+    await lobby.fetch(
+      new Request(`http://lobby/rooms/${this.roomId}`, { method: "DELETE" }),
+    );
   }
 
   private broadcastToRoom(message: unknown): void {

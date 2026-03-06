@@ -5,6 +5,7 @@ import { useInspector } from "../hooks/use-inspector.js";
 import { GenericDisplay } from "./generic-display.js";
 import { HoldemRichUI } from "../games/texas-holdem/index.js";
 import { PlanningPokerRichUI } from "../games/planning-poker/index.js";
+import { ValuesCardRichUI } from "../games/values-card/index.js";
 
 export type UIMode = "generic" | "rich";
 
@@ -14,6 +15,7 @@ interface GameBoardProps {
   dispatch: (action: string, payload?: unknown) => void;
   lastError: string | null;
   uiMode?: UIMode;
+  onLeave?: () => void;
 }
 
 export function GameBoard({
@@ -22,6 +24,7 @@ export function GameBoard({
   dispatch,
   lastError,
   uiMode = "generic",
+  onLeave,
 }: GameBoardProps) {
   // Rich UI for Texas Hold'em
   if (uiMode === "rich" && gameId === "texas-holdem") {
@@ -30,6 +33,7 @@ export function GameBoard({
         gameState={gameState}
         dispatch={dispatch}
         lastError={lastError}
+        onLeave={onLeave}
       />
     );
   }
@@ -40,6 +44,18 @@ export function GameBoard({
         gameState={gameState}
         dispatch={dispatch}
         lastError={lastError}
+        onLeave={onLeave}
+      />
+    );
+  }
+  // Rich UI for Values Card
+  if (uiMode === "rich" && gameId === "values-card") {
+    return (
+      <ValuesCardRichUI
+        gameState={gameState}
+        dispatch={dispatch}
+        lastError={lastError}
+        onLeave={onLeave}
       />
     );
   }
@@ -113,6 +129,11 @@ export function GameBoard({
               </p>
             )}
             {engineState.result.reason && <p>{engineState.result.reason}</p>}
+            {onLeave && (
+              <button style={styles.lobbyBtn} onClick={onLeave}>
+                Back to Lobby
+              </button>
+            )}
           </div>
         )}
 
@@ -675,6 +696,11 @@ const styles: Record<string, React.CSSProperties> = {
   result: {
     background: "#14532d", color: "#86efac", padding: "1rem",
     borderRadius: 8, textAlign: "center",
+  },
+  lobbyBtn: {
+    background: "#3b82f6", color: "#fff", border: "none", borderRadius: 8,
+    padding: "0.6rem 1.2rem", cursor: "pointer", fontSize: "0.9rem",
+    fontWeight: 600, marginTop: "0.8rem",
   },
   stateView: { background: "#1e293b", borderRadius: 8, padding: "0.8rem", border: "1px solid #334155", flexShrink: 0, overflow: "auto" },
   detailsSummary: { cursor: "pointer", color: "#64748b", fontSize: "0.8rem" },

@@ -23,7 +23,7 @@ export function FacilitatorControls({ phase, dispatch }: FacilitatorControlsProp
             value={taskTitle}
             onChange={(e) => setTaskTitle(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && taskTitle.trim()) {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing && taskTitle.trim()) {
                 dispatch("selectTask", { id: `T${Date.now()}`, title: taskTitle.trim() });
                 setTaskTitle("");
               }
@@ -67,7 +67,7 @@ export function FacilitatorControls({ phase, dispatch }: FacilitatorControlsProp
             value={estimate}
             onChange={(e) => setEstimate(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && estimate.trim()) {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing && estimate.trim()) {
                 dispatch("recordEstimate", { estimate: estimate.trim() });
                 setEstimate("");
               }

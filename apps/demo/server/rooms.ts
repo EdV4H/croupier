@@ -75,9 +75,8 @@ export class RoomManager {
       }
     }
 
-    // Auto-delete: notify clients and clean up 30s after game finishes
+    // Auto-delete: clean up 30s after game finishes (clients see result screen first)
     if (engineState?.finished) {
-      this.broadcastToRoom(roomId, { type: "roomDeleted" });
       setTimeout(() => {
         this.closeRoom(roomId);
         this.gameManager.deleteRoom(roomId);

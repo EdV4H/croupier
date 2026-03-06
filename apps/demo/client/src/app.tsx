@@ -15,7 +15,7 @@ export function App() {
   const [playerId, setPlayerId] = useState("");
   const [playerInput, setPlayerInput] = useState("");
   const [uiMode, setUiMode] = useState<UIMode>(
-    () => (localStorage.getItem("croupier-ui-mode") as UIMode) || "generic",
+    () => (localStorage.getItem("croupier-ui-mode") as UIMode) || "rich",
   );
   const toggleUiMode = useCallback(() => {
     setUiMode((prev) => {
@@ -65,8 +65,13 @@ export function App() {
     }
   }, [screen]);
 
-  // Navigate to lobby when room is deleted
-  if (roomDeleted && screen.type !== "lobby" && screen.type !== "login") {
+  // Navigate to lobby when room is deleted (unless viewing game results)
+  if (
+    roomDeleted &&
+    screen.type !== "lobby" &&
+    screen.type !== "login" &&
+    screen.type !== "playing"
+  ) {
     setScreen({ type: "lobby" });
   }
 
@@ -96,7 +101,7 @@ export function App() {
               placeholder="Player name"
               value={playerInput}
               onChange={(e) => setPlayerInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+              onKeyDown={(e) => e.key === "Enter" && !e.nativeEvent.isComposing && handleLogin()}
               autoFocus
             />
             <button style={styles.button} onClick={handleLogin}>
@@ -147,7 +152,7 @@ export function App() {
             <span style={styles.headerInfo}>
               Room: {screen.roomId} | Game: {screen.gameId} | Player: {playerId}
             </span>
-            {["texas-holdem", "planning-poker"].includes(screen.gameId) && (
+            {["texas-holdem", "planning-poker", "values-card"].includes(screen.gameId) && (
               <button
                 style={{
                   ...styles.backBtn,
@@ -168,6 +173,7 @@ export function App() {
             dispatch={dispatch}
             lastError={lastError}
             uiMode={uiMode}
+            onLeave={() => setScreen({ type: "lobby" })}
           />
         </div>
       );

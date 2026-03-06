@@ -129,6 +129,7 @@ export function createValuesCardConfig(
         players,
         playerOrder,
         turnCount: 0,
+        lastRoundTurnsLeft: null,
       };
     },
 
@@ -177,6 +178,12 @@ export function createValuesCardConfig(
           game.currentPlayerIndex =
             (game.currentPlayerIndex + 1) % game.playerOrder.length;
           game.turnCount++;
+          // Start last round countdown after the turn that emptied the deck
+          if (game.deck.length === 0 && game.lastRoundTurnsLeft === null) {
+            game.lastRoundTurnsLeft = game.playerOrder.length;
+          } else if (game.lastRoundTurnsLeft !== null) {
+            game.lastRoundTurnsLeft--;
+          }
         },
         validate: (game, playerId, payload) => {
           const { cardId } = payload as { cardId: string };
@@ -241,7 +248,9 @@ export function createValuesCardConfig(
 
     endConditions: [
       {
-        guard: (ctx) => ctx.game.deck.length === 0,
+        guard: (ctx) =>
+          ctx.game.lastRoundTurnsLeft !== null &&
+          ctx.game.lastRoundTurnsLeft <= 0,
         result: (ctx) => ({
           reason: "All cards have been exchanged",
           summary: Object.fromEntries(
@@ -256,6 +265,9 @@ export function createValuesCardConfig(
 
     view: {
       playerView: (state, playerId) => {
+        const gameOver =
+          state.lastRoundTurnsLeft !== null &&
+          state.lastRoundTurnsLeft <= 0;
         const view: any = {
           theme: state.theme,
           deckCount: countOnly(state.deck),
@@ -263,16 +275,17 @@ export function createValuesCardConfig(
           currentPlayerIndex: state.currentPlayerIndex,
           playerOrder: state.playerOrder,
           turnCount: state.turnCount,
+          lastRound: state.lastRoundTurnsLeft !== null,
           players: {},
         };
 
         for (const [pid, pState] of Object.entries(state.players)) {
-          if (pid === playerId) {
+          if (pid === playerId || gameOver) {
+            // Show own hand always; show all hands when game is over
             view.players[pid] = { hand: pState.hand };
           } else {
-            // Other players' hands are visible (values are public choices)
-            // but in a real game you might want to hide them until presentation
-            view.players[pid] = { hand: pState.hand };
+            // Other players' hands are hidden — only show count
+            view.players[pid] = { handCount: pState.hand.length };
           }
         }
 
