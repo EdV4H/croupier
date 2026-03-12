@@ -531,6 +531,19 @@ export function createTrustBankConfig(
           (view.players as Record<string, unknown>)[pid] = playerView;
         }
 
+        // Turn history with card names (public info)
+        view.turnHistory = state.turnHistory.map((ev) => {
+          const def = getCardDefinition(ev.cardDefinitionId);
+          return {
+            turn: ev.turn,
+            playerId: ev.playerId,
+            cardName: def.name,
+            category: def.category,
+            description: def.description,
+            targetPlayerId: ev.targetPlayerId,
+          };
+        });
+
         // Show drawnCard only to current player (enriched with definition)
         if (playerId === currentPlayer && state.drawnCard) {
           const dDef = getCardDefinition(state.drawnCard.definitionId);
