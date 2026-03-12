@@ -418,6 +418,18 @@ export class GameRoomDO extends DurableObject<Env> {
         break;
       }
 
+      case "emote": {
+        const { emoji, targetPlayerId } = msg as unknown as { emoji: string; targetPlayerId: string };
+        if (typeof emoji !== "string" || emoji.length > 8) break;
+        this.broadcastToRoom({
+          type: "emote",
+          fromPlayerId: playerId,
+          targetPlayerId,
+          emoji,
+        });
+        break;
+      }
+
       default:
         ws.send(
           JSON.stringify({ type: "error", error: `Unknown message type: ${msg.type}` }),
