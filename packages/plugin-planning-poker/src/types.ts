@@ -15,6 +15,7 @@ export interface PlayerState {
 
 export interface RoundHistory {
   taskId: string;
+  taskTitle: string;
   round: number;
   votes: Record<PlayerId, string>;
 }
@@ -29,4 +30,5 @@ export interface PlanningPokerState extends GameState {
   roundHistory: RoundHistory[];
   roundNumber: number;
   facilitatorCanVote: boolean;
+  sessionEnded: boolean;
 }

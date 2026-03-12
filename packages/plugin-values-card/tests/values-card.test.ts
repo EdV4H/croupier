@@ -205,5 +205,63 @@ describe("Values Card", () => {
       expect(es.finished).toBe(true);
       expect(es.result?.reason).toBe("All cards have been exchanged");
     });
+
+    it("result contains playerResults with finalHand stats", () => {
+      // Use a tiny deck so the game ends quickly
+      const tinyCards = [
+        { id: "c1", name: "A" },
+        { id: "c2", name: "B" },
+        { id: "c3", name: "C" },
+        { id: "c4", name: "D" },
+        { id: "c5", name: "E" },
+        { id: "c6", name: "F" },
+        { id: "c7", name: "G" },
+        { id: "c8", name: "H" },
+        { id: "c9", name: "I" },
+        { id: "c10", name: "J" },
+        { id: "c11", name: "K" },
+      ];
+      const config = createValuesCardConfig({ cards: tinyCards });
+      const engine = new CroupierCore(config, ["P1", "P2"], { seed: 42 });
+
+      // Play until finished (11 cards: 5+5 dealt, 1 in deck → exhausts on turn 1)
+      let rounds = 0;
+      while (!engine.getEngineState().finished && rounds < 20) {
+        const state = engine.getState() as ValuesCardState;
+        const currentPlayer = state.playerOrder[state.currentPlayerIndex];
+
+        // Draw
+        if (state.deck.length > 0) {
+          engine.dispatch(currentPlayer, "drawFromDeck");
+        } else if (state.discardPool.length > 0) {
+          engine.dispatch(currentPlayer, "drawFromDiscard", {
+            cardId: state.discardPool[0].card.id,
+          });
+        } else {
+          break;
+        }
+
+        // Discard first card
+        const updated = engine.getState() as ValuesCardState;
+        const hand = updated.players[currentPlayer].hand;
+        if (hand.length > 5) {
+          engine.dispatch(currentPlayer, "discardCard", {
+            cardId: hand[0].id,
+          });
+        }
+        rounds++;
+      }
+
+      const es = engine.getEngineState();
+      if (es.finished) {
+        expect(es.result).toBeDefined();
+        expect(es.result!.playerResults).toBeDefined();
+        expect(es.result!.playerResults!.P1.stats).toBeDefined();
+        expect(es.result!.playerResults!.P1.stats!.finalHand).toBeDefined();
+        expect(Array.isArray(es.result!.playerResults!.P1.stats!.finalHand)).toBe(true);
+        // backward compat: summary still present
+        expect((es.result as any).summary).toBeDefined();
+      }
+    });
   });
 });

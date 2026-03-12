@@ -39,11 +39,13 @@ describe("Digital TCG", () => {
       expect(engine.getEngineState().currentPlayers).toBe("P1");
     });
 
-    it("starts with 0 mana", () => {
+    it("starts with 1 mana for first player", () => {
       const engine = createGame();
       const state = engine.getState() as TCGState;
-      expect(state.players.P1.maxMana).toBe(0);
-      expect(state.players.P1.currentMana).toBe(0);
+      expect(state.players.P1.maxMana).toBe(1);
+      expect(state.players.P1.currentMana).toBe(1);
+      expect(state.players.P2.maxMana).toBe(0);
+      expect(state.players.P2.currentMana).toBe(0);
     });
   });
 
@@ -103,9 +105,9 @@ describe("Digital TCG", () => {
 
     it("rejects playing when not enough mana", () => {
       const engine = createGame();
-      // No mana on turn 1
       const state = engine.getState() as TCGState;
-      const expensiveCard = state.players.P1.hand.find((c) => c.cost > 0);
+      // P1 starts with 1 mana — find a card costing more than 1
+      const expensiveCard = state.players.P1.hand.find((c) => c.cost > 1);
       if (expensiveCard) {
         const result = engine.dispatch("P1", "playCard", {
           cardId: expensiveCard.id,
@@ -202,6 +204,43 @@ describe("Digital TCG", () => {
         });
         expect(engine.getEngineState().finished).toBe(true);
         expect(engine.getEngineState().result?.winner).toBe("P1");
+      }
+    });
+  });
+
+  describe("structured results", () => {
+    it("result includes playerResults and rankings when game ends", () => {
+      const config = createDigitalTCGConfig({ initialLife: 1 });
+      const engine = new CroupierCore(config, ["P1", "P2"], { seed: 42 });
+
+      // Give P1 mana and a creature
+      engine.dispatch("P1", "endTurn");
+      engine.dispatch("P2", "endTurn");
+
+      let state = engine.getState() as TCGState;
+      const cheapCard = state.players.P1.hand.find((c) => c.cost <= 1);
+      if (!cheapCard) return;
+
+      engine.dispatch("P1", "playCard", { cardId: cheapCard.id });
+      engine.dispatch("P1", "endTurn");
+      engine.dispatch("P2", "endTurn");
+
+      state = engine.getState() as TCGState;
+      const creature = state.players.P1.board[0];
+      if (creature) {
+        engine.dispatch("P1", "attack", {
+          attackerId: creature.card.id,
+          targetId: "face",
+        });
+        expect(engine.getEngineState().finished).toBe(true);
+        const result = engine.getEngineState().result;
+        expect(result).toBeDefined();
+        expect(result!.playerResults).toBeDefined();
+        expect(result!.rankings).toBeDefined();
+        expect(result!.playerResults!.P1.rank).toBe(1);
+        expect(result!.playerResults!.P2.rank).toBe(2);
+        expect(result!.playerResults!.P2.stats!.finalLife).toBeLessThanOrEqual(0);
+        expect(result!.playerResults!.P1.stats!.cardsPlayed).toBeDefined();
       }
     });
   });

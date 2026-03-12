@@ -567,15 +567,54 @@ export function createTexasHoldemConfig(
         },
         result: (ctx) => {
           const alive = playersWithChips(ctx.game);
+          const winner = alive[0] ?? ctx.game.playerOrder[0];
+
+          // Build rankings by stack (descending)
+          const sorted = [...ctx.game.playerOrder].sort(
+            (a, b) => ctx.game.players[b].stack - ctx.game.players[a].stack,
+          );
+          const rankings: PlayerId[] = sorted;
+
+          const playerResults: Record<string, { rank: number; score: number; stats: Record<string, unknown> }> = {};
+          sorted.forEach((pid, idx) => {
+            const p = ctx.game.players[pid];
+            playerResults[pid] = {
+              rank: idx + 1,
+              score: p.stack,
+              stats: { finalStack: p.stack, status: p.status },
+            };
+          });
+
           return {
-            winner: alive[0] ?? ctx.game.playerOrder[0],
+            winner,
             reason: alive.length === 1
               ? `${alive[0]} wins — last player standing`
               : "All players eliminated",
+            playerResults,
+            rankings,
           };
         },
       },
     ],
+
+    getResult: (game, ctx) => {
+      const sorted = [...game.playerOrder].sort(
+        (a, b) => game.players[b].stack - game.players[a].stack,
+      );
+      const playerResults: Record<string, { rank: number; score: number; stats: Record<string, unknown> }> = {};
+      sorted.forEach((pid, idx) => {
+        const p = game.players[pid];
+        playerResults[pid] = {
+          rank: idx + 1,
+          score: p.stack,
+          stats: { finalStack: p.stack, status: p.status },
+        };
+      });
+      return {
+        playerResults,
+        rankings: sorted,
+      };
+    },
 
     view: {
       playerView: (state, playerId) => {

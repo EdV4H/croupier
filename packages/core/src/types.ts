@@ -10,11 +10,21 @@ export interface GameState {
   [key: string]: unknown;
 }
 
+/** Player-specific result data */
+export interface PlayerResult {
+  rank?: number;
+  score?: number;
+  stats?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
 /** Result returned when a game ends */
 export interface GameResult {
   winner?: PlayerId | PlayerId[] | null;
   draw?: boolean;
   reason?: string;
+  playerResults?: Record<PlayerId, PlayerResult>;
+  rankings?: (PlayerId | PlayerId[])[];
   [key: string]: unknown;
 }
 
@@ -209,6 +219,9 @@ export interface CroupierConfig<S extends GameState = GameState> {
    *  Return void to allow (plugin updates game state), return false to reject.
    *  If undefined, mid-game joining is not supported (opt-in). */
   onPlayerJoin?: (game: S, playerId: PlayerId, ctx: CroupierContext<S>) => void | false;
+  /** Compute a result snapshot from the current game state.
+   *  Used for games without endConditions or for mid-game result queries. */
+  getResult?: (game: S, ctx: CroupierContext<S>) => GameResult;
 }
 
 // ============================================================

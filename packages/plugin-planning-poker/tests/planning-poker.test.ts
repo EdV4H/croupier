@@ -414,6 +414,94 @@ describe("Planning Poker", () => {
     });
   });
 
+  describe("endSession", () => {
+    it("facilitator can end session from idle phase", () => {
+      const engine = createGame();
+      const result = engine.dispatch("Facilitator", "endSession");
+      expect(result.ok).toBe(true);
+      expect(engine.getEngineState().finished).toBe(true);
+    });
+
+    it("voter cannot end session", () => {
+      const engine = createGame();
+      const result = engine.dispatch("Dev1", "endSession");
+      expect(result.ok).toBe(false);
+    });
+
+    it("endSession result contains taskEstimates and playerResults", () => {
+      const engine = createGame();
+
+      // Complete one task
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Login" });
+      engine.dispatch("Facilitator", "startVoting");
+      engine.dispatch("Dev1", "vote", { card: "5" });
+      engine.dispatch("Dev2", "vote", { card: "5" });
+      engine.dispatch("Dev3", "vote", { card: "5" });
+      engine.dispatch("Facilitator", "reveal");
+      engine.dispatch("Facilitator", "recordEstimate", { estimate: "5" });
+      engine.dispatch("Facilitator", "resetForNextTask");
+
+      // End session from idle
+      engine.dispatch("Facilitator", "endSession");
+
+      expect(engine.getEngineState().finished).toBe(true);
+      const result = engine.getEngineState().result;
+      expect(result).toBeDefined();
+      expect(result!.reason).toBe("Session ended");
+      expect(result!.playerResults).toBeDefined();
+      expect(result!.playerResults!.Dev1.stats!.role).toBe("voter");
+      expect((result as any).taskEstimates.T1).toBeDefined();
+      expect((result as any).taskEstimates.T1.taskTitle).toBe("Login");
+      expect((result as any).totalTasks).toBe(1);
+      expect((result as any).totalRounds).toBe(1);
+    });
+
+    it("endSession works from any phase", () => {
+      const engine = createGame();
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Test" });
+      expect(engine.getEngineState().phase).toBe("discussion");
+
+      const result = engine.dispatch("Facilitator", "endSession");
+      expect(result.ok).toBe(true);
+      expect(engine.getEngineState().finished).toBe(true);
+    });
+  });
+
+  describe("getResult", () => {
+    it("returns live snapshot before session ends", () => {
+      const engine = createGame();
+
+      // Do one round
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Login" });
+      engine.dispatch("Facilitator", "startVoting");
+      engine.dispatch("Dev1", "vote", { card: "5" });
+      engine.dispatch("Dev2", "vote", { card: "8" });
+      engine.dispatch("Dev3", "vote", { card: "5" });
+      engine.dispatch("Facilitator", "reveal");
+
+      const result = engine.getResult();
+      expect(result).not.toBeNull();
+      expect(result!.reason).toBe("Session ended");
+      expect(result!.playerResults).toBeDefined();
+      expect((result as any).totalRounds).toBe(1);
+    });
+  });
+
+  describe("roundHistory taskTitle", () => {
+    it("stores taskTitle in round history", () => {
+      const engine = createGame();
+      engine.dispatch("Facilitator", "selectTask", { id: "T1", title: "Login feature" });
+      engine.dispatch("Facilitator", "startVoting");
+      engine.dispatch("Dev1", "vote", { card: "5" });
+      engine.dispatch("Dev2", "vote", { card: "5" });
+      engine.dispatch("Dev3", "vote", { card: "5" });
+      engine.dispatch("Facilitator", "reveal");
+
+      const state = engine.getState() as PlanningPokerState;
+      expect(state.roundHistory[0].taskTitle).toBe("Login feature");
+    });
+  });
+
   describe("full scenario", () => {
     it("plays through complete estimation session", () => {
       const engine = createGame();

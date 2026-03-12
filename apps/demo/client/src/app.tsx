@@ -160,7 +160,7 @@ export function App() {
             <span style={styles.headerInfo}>
               Room: {screen.roomId} | Game: {screen.gameId} | Player: {playerId}
             </span>
-            {["texas-holdem", "planning-poker", "values-card"].includes(screen.gameId) && (
+            {["texas-holdem", "planning-poker", "values-card", "digital-tcg"].includes(screen.gameId) && (
               <button
                 style={{
                   ...styles.backBtn,

@@ -6,6 +6,7 @@ import { GenericDisplay } from "./generic-display.js";
 import { HoldemRichUI } from "../games/texas-holdem/index.js";
 import { PlanningPokerRichUI } from "../games/planning-poker/index.js";
 import { ValuesCardRichUI } from "../games/values-card/index.js";
+import { TCGRichUI } from "../games/digital-tcg/index.js";
 import { TrustBankRichUI } from "../games/trust-bank/index.js";
 
 export type UIMode = "generic" | "rich";
@@ -53,6 +54,17 @@ export function GameBoard({
   if (uiMode === "rich" && gameId === "values-card") {
     return (
       <ValuesCardRichUI
+        gameState={gameState}
+        dispatch={dispatch}
+        lastError={lastError}
+        onLeave={onLeave}
+      />
+    );
+  }
+  // Rich UI for Digital TCG
+  if (uiMode === "rich" && gameId === "digital-tcg") {
+    return (
+      <TCGRichUI
         gameState={gameState}
         dispatch={dispatch}
         lastError={lastError}
