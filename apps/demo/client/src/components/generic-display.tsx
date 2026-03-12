@@ -373,6 +373,7 @@ export function GenericDisplay({ playerView, playerId }: GenericDisplayProps) {
       </Section>
 
       {/* Your Hand — my state */}
+      <div data-player-id={playerId}>
       <Section title="Your Hand" highlight>
         {Object.keys(myState).length > 0 ? (
           Object.entries(myState).map(([k, v]) => (
@@ -382,6 +383,7 @@ export function GenericDisplay({ playerView, playerId }: GenericDisplayProps) {
           <span style={s.dash}>—</span>
         )}
       </Section>
+      </div>
 
       {/* Other Players */}
       {others.length > 0 && (
@@ -393,7 +395,7 @@ export function GenericDisplay({ playerView, playerId }: GenericDisplayProps) {
               const isBot = pid.startsWith("bot:");
               const displayName = isBot ? pid.slice(4) : pid;
               return (
-                <div key={pid} style={s.otherPlayer}>
+                <div key={pid} data-player-id={pid} style={s.otherPlayer}>
                   <div style={s.otherName}>
                     {displayName}
                     {isBot && <span style={s.botBadge}>Bot</span>}

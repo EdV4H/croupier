@@ -109,6 +109,7 @@ export function ValuesCardRichUI({ gameState, dispatch, lastError, onLeave }: Va
         )}
 
         {/* My hand */}
+        <div data-player-id={playerId}>
         <PlayerHand
           playerId={playerId}
           hand={pv.players?.[playerId]?.hand ?? []}
@@ -117,6 +118,7 @@ export function ValuesCardRichUI({ gameState, dispatch, lastError, onLeave }: Va
           stage={stage}
           onDiscard={(cardId) => dispatch("discardCard", { cardId })}
         />
+        </div>
 
         {/* Action bar */}
         {!engineState.finished && isMyTurn && (
@@ -159,8 +161,8 @@ export function ValuesCardRichUI({ gameState, dispatch, lastError, onLeave }: Va
             .map((pid) => {
               const p = pv.players?.[pid];
               return (
+                <div key={pid} data-player-id={pid}>
                 <PlayerHand
-                  key={pid}
                   playerId={pid}
                   hand={p?.hand ?? []}
                   handCount={p?.handCount ?? 0}
@@ -168,6 +170,7 @@ export function ValuesCardRichUI({ gameState, dispatch, lastError, onLeave }: Va
                   isCurrentTurn={currentTurnPlayer === pid}
                   stage={stage}
                 />
+                </div>
               );
             })}
         </div>

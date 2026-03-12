@@ -303,6 +303,7 @@ export function PlanningPokerRichUI({ gameState, dispatch, lastError, onLeave }:
               return (
                 <div
                   key={pid}
+                  data-player-id={pid}
                   style={{
                     position: "absolute",
                     top: pos.top,
