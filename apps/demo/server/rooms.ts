@@ -182,6 +182,18 @@ export class RoomManager {
         break;
       }
 
+      case "emote": {
+        const { emoji, targetPlayerId } = msg as { emoji: string; targetPlayerId: string };
+        if (typeof emoji !== "string" || emoji.length > 8) break;
+        this.broadcastToRoom(conn.roomId, {
+          type: "emote",
+          fromPlayerId: conn.playerId,
+          targetPlayerId,
+          emoji,
+        });
+        break;
+      }
+
       default:
         ws.send(
           JSON.stringify({

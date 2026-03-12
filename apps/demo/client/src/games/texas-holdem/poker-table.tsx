@@ -118,6 +118,7 @@ export function PokerTable({ playerView, playerId, turnDeadline }: PokerTablePro
           return (
             <div
               key={pid}
+              data-player-id={pid}
               style={{
                 position: "absolute",
                 top: pos.top,

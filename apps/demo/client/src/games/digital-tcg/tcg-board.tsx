@@ -18,6 +18,8 @@ interface PlayerData {
 interface TCGBoardProps {
   myPlayer: PlayerData;
   opponent: PlayerData;
+  myPlayerId: string;
+  opponentId: string;
   isMyTurn: boolean;
   selectedAttacker: string | null;
   onSelectAttacker: (id: string | null) => void;
@@ -30,6 +32,8 @@ interface TCGBoardProps {
 export function TCGBoard({
   myPlayer,
   opponent,
+  myPlayerId,
+  opponentId,
   isMyTurn,
   selectedAttacker,
   onSelectAttacker,
@@ -51,7 +55,7 @@ export function TCGBoard({
       </div>
 
       {/* Opponent info row: grave + hero + mana */}
-      <div style={infoRow}>
+      <div style={infoRow} data-player-id={opponentId}>
         <div style={graveStyle}>Grave: {opponent.graveyard.length}</div>
         <HeroPortrait
           life={opponent.life}
@@ -115,7 +119,7 @@ export function TCGBoard({
       </div>
 
       {/* Player info row: grave + hero + mana */}
-      <div style={infoRow}>
+      <div style={infoRow} data-player-id={myPlayerId}>
         <div style={graveStyle}>Grave: {myPlayer.graveyard.length}</div>
         <HeroPortrait life={myPlayer.life} />
         <ManaBar current={myPlayer.currentMana} max={myPlayer.maxMana} />

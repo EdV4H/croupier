@@ -118,6 +118,8 @@ export function TCGRichUI({ gameState, dispatch, lastError, onLeave }: TCGRichUI
           <TCGBoard
             myPlayer={myPlayer}
             opponent={opponentPlayer}
+            myPlayerId={playerId}
+            opponentId={opponentId ?? ""}
             isMyTurn={isMyTurn}
             selectedAttacker={selectedAttacker}
             onSelectAttacker={setSelectedAttacker}

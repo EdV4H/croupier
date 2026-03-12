@@ -23,6 +23,14 @@ export interface GameStateData {
   turnDeadline?: number | null;
 }
 
+export interface EmoteEvent {
+  fromPlayerId: string;
+  targetPlayerId: string;
+  emoji: string;
+  id: string;
+  timestamp: number;
+}
+
 export interface UseGameStateReturn {
   connected: boolean;
   gameState: GameStateData | null;
@@ -30,6 +38,8 @@ export interface UseGameStateReturn {
   dispatch: (action: string, payload?: unknown) => void;
   lastError: string | null;
   lastActionResult: { ok: boolean; error?: string } | null;
+  emotes: EmoteEvent[];
+  sendEmote: (emoji: string, targetPlayerId: string) => void;
 }
 
 export function useGameState(
@@ -44,7 +54,9 @@ export function useGameState(
     ok: boolean;
     error?: string;
   } | null>(null);
+  const [emotes, setEmotes] = useState<EmoteEvent[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
+  const lastEmoteTimeRef = useRef(0);
 
   // Reset game state when roomId changes (e.g., leaving a game)
   useEffect(() => {
@@ -52,6 +64,7 @@ export function useGameState(
     setRoomDeleted(false);
     setLastError(null);
     setLastActionResult(null);
+    setEmotes([]);
   }, [roomId]);
 
   useEffect(() => {
@@ -95,6 +108,21 @@ export function useGameState(
             // Request latest state in case we missed a broadcast
             ws.send(JSON.stringify({ type: "getState" }));
             break;
+          case "emote": {
+            const emote: EmoteEvent = {
+              fromPlayerId: msg.fromPlayerId,
+              targetPlayerId: msg.targetPlayerId,
+              emoji: msg.emoji,
+              id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              timestamp: Date.now(),
+            };
+            setEmotes((prev) => [...prev, emote]);
+            // Auto-remove after 4 seconds
+            setTimeout(() => {
+              setEmotes((prev) => prev.filter((e) => e.id !== emote.id));
+            }, 4000);
+            break;
+          }
         }
       } catch {
         // Ignore parse errors
@@ -118,5 +146,19 @@ export function useGameState(
     [],
   );
 
-  return { connected, gameState, roomDeleted, dispatch, lastError, lastActionResult };
+  const sendEmote = useCallback(
+    (emoji: string, targetPlayerId: string) => {
+      const now = Date.now();
+      if (now - lastEmoteTimeRef.current < 500) return; // 500ms cooldown
+      lastEmoteTimeRef.current = now;
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(
+          JSON.stringify({ type: "emote", emoji, targetPlayerId }),
+        );
+      }
+    },
+    [],
+  );
+
+  return { connected, gameState, roomDeleted, dispatch, lastError, lastActionResult, emotes, sendEmote };
 }

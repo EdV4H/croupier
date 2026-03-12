@@ -3,6 +3,8 @@ import { GameBoard } from "./components/game-board.js";
 import type { UIMode } from "./components/game-board.js";
 import { GameSelector } from "./components/game-selector.js";
 import { useGameState } from "./hooks/use-game-state.js";
+import { EmotePicker } from "./components/emote-picker.js";
+import { EmoteOverlay } from "./components/emote-overlay.js";
 
 type Screen =
   | { type: "login" }
@@ -28,7 +30,7 @@ export function App() {
 
   const roomId = "roomId" in screen ? screen.roomId : null;
   const gameId = "gameId" in screen ? screen.gameId : null;
-  const { connected, gameState, roomDeleted, dispatch, lastError } = useGameState(
+  const { connected, gameState, roomDeleted, dispatch, lastError, emotes, sendEmote } = useGameState(
     roomId,
     playerId || null,
   );
@@ -174,15 +176,25 @@ export function App() {
                 {uiMode === "rich" ? "Rich UI" : "Generic UI"}
               </button>
             )}
+            {gameState && (
+              <EmotePicker
+                players={gameState.playerView.playerOrder ?? []}
+                currentPlayerId={playerId}
+                onSend={sendEmote}
+              />
+            )}
           </div>
-          <GameBoard
-            gameId={screen.gameId}
-            gameState={gameState}
-            dispatch={dispatch}
-            lastError={lastError}
-            uiMode={uiMode}
-            onLeave={() => setScreen({ type: "lobby" })}
-          />
+          <div style={{ position: "relative", flex: 1, minHeight: 0, overflow: "hidden" }}>
+            <GameBoard
+              gameId={screen.gameId}
+              gameState={gameState}
+              dispatch={dispatch}
+              lastError={lastError}
+              uiMode={uiMode}
+              onLeave={() => setScreen({ type: "lobby" })}
+            />
+            <EmoteOverlay emotes={emotes} />
+          </div>
         </div>
       );
   }
