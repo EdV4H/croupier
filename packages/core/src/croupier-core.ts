@@ -126,7 +126,6 @@ export class CroupierCore<S extends GameState = GameState> {
     if (actionConfig.endsTurn || !actionConfig.unrestricted) {
       this.advanceTurn(playerId);
     } else {
-      // For unrestricted actions that don't end turn, still check transitions
       this.checkCurrentTransitions();
     }
 

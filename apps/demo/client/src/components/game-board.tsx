@@ -7,6 +7,7 @@ import { HoldemRichUI } from "../games/texas-holdem/index.js";
 import { PlanningPokerRichUI } from "../games/planning-poker/index.js";
 import { ValuesCardRichUI } from "../games/values-card/index.js";
 import { TCGRichUI } from "../games/digital-tcg/index.js";
+import { TrustBankRichUI } from "../games/trust-bank/index.js";
 
 export type UIMode = "generic" | "rich";
 
@@ -64,6 +65,17 @@ export function GameBoard({
   if (uiMode === "rich" && gameId === "digital-tcg") {
     return (
       <TCGRichUI
+        gameState={gameState}
+        dispatch={dispatch}
+        lastError={lastError}
+        onLeave={onLeave}
+      />
+    );
+  }
+  // Rich UI for Trust Bank
+  if (uiMode === "rich" && gameId === "trust-bank") {
+    return (
+      <TrustBankRichUI
         gameState={gameState}
         dispatch={dispatch}
         lastError={lastError}
@@ -207,6 +219,8 @@ function ActionPanel({
       return <ValuesCardActions pv={playerView} dispatch={dispatch} pid={playerId} es={engineState} />;
     case "digital-tcg":
       return <TCGActions pv={playerView} dispatch={dispatch} pid={playerId} />;
+    case "trust-bank":
+      return <TrustBankActions pv={playerView} dispatch={dispatch} pid={playerId} es={engineState} />;
     default:
       return <p>No UI for this game</p>;
   }
@@ -490,6 +504,170 @@ function TCGActions({
       </button>
     </div>
   );
+}
+
+function TrustBankActions({
+  pv,
+  dispatch,
+  pid,
+  es,
+}: {
+  pv: any;
+  dispatch: (a: string, p?: unknown) => void;
+  pid: string;
+  es: GameStateData["engineState"];
+}) {
+  const me = pv.players?.[pid];
+  const hand = me?.hand ?? [];
+
+  const categoryColors: Record<string, string> = {
+    trust: "#22c55e",
+    crisis: "#f59e0b",
+    attack: "#ef4444",
+    repair: "#3b82f6",
+    relationship: "#a855f7",
+  };
+
+  // Stage: selectCard — pick a card from hand
+  if (es.stage === "selectCard") {
+    return (
+      <div style={styles.actionCol}>
+        <p style={{ color: "#94a3b8", marginBottom: "0.5rem" }}>手札からカードを選んでプレイ:</p>
+        <div style={styles.actionRow}>
+          {hand.map((card: any) => (
+            <button
+              key={card.id}
+              style={{
+                ...styles.actionBtn,
+                background: categoryColors[card.category] || "#3b82f6",
+              }}
+              onClick={() => dispatch("selectCard", { cardId: card.id })}
+            >
+              {card.name}
+              <span style={{ fontSize: "0.65rem", display: "block", opacity: 0.8 }}>
+                {card.description}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Stage: selectTarget — choose target player
+  if (es.stage === "selectTarget") {
+    const targets = (pv.playerOrder ?? []).filter(
+      (p: string) => p !== pid && !pv.players?.[p]?.eliminated,
+    );
+    return (
+      <div style={styles.actionCol}>
+        <p style={{ color: "#94a3b8", marginBottom: "0.5rem" }}>
+          対象プレイヤーを選択:
+          {pv.selectedCard && (
+            <span style={{ color: "#e2e8f0", marginLeft: "0.5rem" }}>
+              ({pv.selectedCard.name})
+            </span>
+          )}
+        </p>
+        <div style={styles.actionRow}>
+          {targets.map((t: string) => (
+            <button
+              key={t}
+              style={{ ...styles.actionBtn, background: "#ef4444" }}
+              onClick={() => dispatch("selectTarget", { targetPlayerId: t })}
+            >
+              {t} (信頼: {pv.players?.[t]?.trustPoints ?? "?"})
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Stage: resolveCard — confirm play (no target needed)
+  if (es.stage === "resolveCard") {
+    return (
+      <div style={styles.actionCol}>
+        <p style={{ color: "#94a3b8", marginBottom: "0.5rem" }}>
+          カードをプレイ:
+          {pv.selectedCard && (
+            <span style={{ color: "#e2e8f0", marginLeft: "0.5rem" }}>
+              {pv.selectedCard.name} — {pv.selectedCard.description}
+            </span>
+          )}
+        </p>
+        <div style={styles.actionRow}>
+          <button
+            style={{ ...styles.actionBtn, background: "#22c55e" }}
+            onClick={() => dispatch("confirmPlay")}
+          >
+            プレイ確定
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Stage: drawCard — draw from deck
+  if (es.stage === "drawCard") {
+    return (
+      <div style={styles.actionRow}>
+        <button
+          style={styles.actionBtn}
+          onClick={() => dispatch("drawCard")}
+          disabled={pv.deckCount === 0}
+        >
+          カードを引く (残り {pv.deckCount})
+        </button>
+      </div>
+    );
+  }
+
+  // Stage: withdrawalForced — must play the withdrawal card
+  if (es.stage === "withdrawalForced") {
+    const drawnCard = pv.drawnCard;
+    const requiresTarget = drawnCard?.requiresTarget;
+    const targets = (pv.playerOrder ?? []).filter(
+      (p: string) => p !== pid && !pv.players?.[p]?.eliminated,
+    );
+
+    return (
+      <div style={styles.actionCol}>
+        <p style={{ color: "#f59e0b", marginBottom: "0.5rem", fontWeight: 600 }}>
+          信頼危機カード発動！
+          {drawnCard && (
+            <span style={{ fontWeight: 400, marginLeft: "0.5rem" }}>
+              {drawnCard.name} — {drawnCard.description}
+            </span>
+          )}
+        </p>
+        {requiresTarget ? (
+          <div style={styles.actionRow}>
+            {targets.map((t: string) => (
+              <button
+                key={t}
+                style={{ ...styles.actionBtn, background: "#f59e0b" }}
+                onClick={() => dispatch("playWithdrawal", { targetPlayerId: t })}
+              >
+                {t} (信頼: {pv.players?.[t]?.trustPoints ?? "?"})
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div style={styles.actionRow}>
+            <button
+              style={{ ...styles.actionBtn, background: "#f59e0b" }}
+              onClick={() => dispatch("playWithdrawal")}
+            >
+              危機を受け入れる
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return <p style={{ color: "#94a3b8" }}>待機中...</p>;
 }
 
 // ============================================================

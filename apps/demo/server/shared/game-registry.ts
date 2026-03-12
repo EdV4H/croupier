@@ -3,6 +3,7 @@ import { createTexasHoldemConfig } from "@croupier/plugin-texas-holdem";
 import { createPlanningPokerConfig } from "@croupier/plugin-planning-poker";
 import { createValuesCardConfig } from "@croupier/plugin-values-card";
 import { createDigitalTCGConfig } from "@croupier/plugin-digital-tcg";
+import { createTrustBankConfig } from "@croupier/plugin-trust-bank";
 import type { GameInfo } from "./types.js";
 
 export const AVAILABLE_GAMES: GameInfo[] = [
@@ -34,6 +35,13 @@ export const AVAILABLE_GAMES: GameInfo[] = [
     minPlayers: 2,
     maxPlayers: 2,
   },
+  {
+    id: "trust-bank",
+    name: "Trust Bank",
+    description: "信頼貯金カードゲーム — 信頼ポイントを貯めて生き残れ",
+    minPlayers: 4,
+    maxPlayers: 4,
+  },
 ];
 
 export function createGameConfig(
@@ -52,6 +60,8 @@ export function createGameConfig(
       return createValuesCardConfig({ turnTimeoutMs: 60_000 });
     case "digital-tcg":
       return createDigitalTCGConfig({ turnTimeoutMs: 90_000 });
+    case "trust-bank":
+      return createTrustBankConfig({ turnTimeoutMs: 60_000 });
     default:
       throw new Error(`Unknown game: ${gameId}`);
   }
