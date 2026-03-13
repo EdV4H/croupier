@@ -199,7 +199,7 @@ export class GameRoomDO extends DurableObject<Env> {
     if (request.headers.get("Upgrade") === "websocket") {
       const match = path.match(/^\/ws\/(.+)$/);
       if (!match) return new Response("Bad Request", { status: 400 });
-      const playerId = match[1];
+      const playerId = decodeURIComponent(match[1]);
 
       const pair = new WebSocketPair();
       this.ctx.acceptWebSocket(pair[1], [playerId]);
@@ -264,8 +264,10 @@ export class GameRoomDO extends DurableObject<Env> {
 
     if (request.method === "POST" && path === "/join") {
       const { playerId } = (await request.json()) as { playerId: string };
-      if (this.players.includes(playerId))
-        return Response.json({ error: "Already in room" }, { status: 400 });
+      if (this.players.includes(playerId)) {
+        // Allow reconnect — player left UI but is still in players[]
+        return Response.json({ gameId: this.gameId, players: this.players });
+      }
 
       if (this.started && this.engine) {
         // Mid-game join: delegate to engine's addPlayer
