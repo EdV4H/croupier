@@ -59,7 +59,7 @@ export function useGameState(
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
-    const ws = new WebSocket(`${protocol}//${host}/ws/${roomId}/${playerId}`);
+    const ws = new WebSocket(`${protocol}//${host}/ws/${roomId}/${encodeURIComponent(playerId)}`);
     wsRef.current = ws;
 
     ws.onopen = () => setConnected(true);
@@ -74,12 +74,15 @@ export function useGameState(
         switch (msg.type) {
           case "gameState":
             setGameState(msg.data);
-            setLastError(null);
+            // Don't clear lastError on gameState — let it persist briefly
             break;
           case "actionResult":
             setLastActionResult(msg.data);
             if (!msg.data.ok) {
               setLastError(msg.data.error ?? "Action failed");
+              setTimeout(() => setLastError(null), 3000);
+            } else {
+              setLastError(null);
             }
             break;
           case "error":
