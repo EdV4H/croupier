@@ -135,6 +135,7 @@ export class RoomManager {
           action: string;
           payload?: unknown;
         };
+        console.log(`[ACTION] room=${conn.roomId} player=${conn.playerId} action=${action} payload=${JSON.stringify(payload)}`);
         try {
           const result = this.gameManager.dispatch(
             conn.roomId,
@@ -142,6 +143,7 @@ export class RoomManager {
             action,
             payload,
           );
+          console.log(`[ACTION RESULT] ${JSON.stringify(result)}`);
           ws.send(JSON.stringify({ type: "actionResult", data: result }));
 
           if (result.ok) {
