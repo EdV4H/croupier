@@ -169,8 +169,9 @@ app.get("/ws/:roomId/:playerId", async (c) => {
   const room = getGameRoom(c.env, roomId);
 
   // Forward the raw request to the DO so it can handle the WS upgrade
+  // Re-encode playerId since Hono auto-decodes route params
   return room.fetch(
-    new Request(`http://game-room/ws/${playerId}`, {
+    new Request(`http://game-room/ws/${encodeURIComponent(playerId)}`, {
       headers: c.req.raw.headers,
     }),
   );

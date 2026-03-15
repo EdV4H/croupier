@@ -76,7 +76,10 @@ export class GameManager {
   joinRoom(roomId: string, playerId: PlayerId): Room {
     const room = this.rooms.get(roomId);
     if (!room) throw new Error(`Room not found: ${roomId}`);
-    if (room.players.includes(playerId)) throw new Error("Already in room");
+    if (room.players.includes(playerId)) {
+      // Allow reconnect — player left UI but is still in room.players[]
+      return room;
+    }
 
     if (room.started && room.engine) {
       // Mid-game join: delegate to engine's addPlayer
