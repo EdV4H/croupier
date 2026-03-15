@@ -59,6 +59,8 @@ export function App() {
     try {
       const res = await fetch(`/api/rooms/${screen.roomId}/start`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId }),
       });
       const data = await res.json();
       if (data.started) {
@@ -71,7 +73,7 @@ export function App() {
     } catch (e: any) {
       console.error(e);
     }
-  }, [screen]);
+  }, [screen, playerId]);
 
   // Navigate to lobby when room is deleted (unless viewing game results)
   if (
@@ -254,13 +256,20 @@ function WaitingRoom({
           </p>
         )}
         <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
-          <button style={styles.button} onClick={onStart}>
-            Start Game
-          </button>
+          {roomData?.creatorId === playerId && (
+            <button style={styles.button} onClick={onStart}>
+              Start Game
+            </button>
+          )}
           <button style={{ ...styles.button, background: "#475569" }} onClick={onBack}>
             Back
           </button>
         </div>
+        {roomData && roomData.creatorId !== playerId && (
+          <p style={{ color: "#64748b", fontSize: "0.75rem", marginTop: "0.5rem" }}>
+            Waiting for the host to start...
+          </p>
+        )}
       </div>
     </div>
   );
