@@ -302,6 +302,10 @@ export class GameRoomDO extends DurableObject<Env> {
 
     if (request.method === "POST" && path === "/start") {
       if (this.started) return Response.json({ error: "Game already started" }, { status: 400 });
+      const startBody = await request.json().catch(() => ({})) as { playerId?: string };
+      if (startBody.playerId !== this.creatorId) {
+        return Response.json({ error: "Only the room creator can start the game" }, { status: 403 });
+      }
 
       const game = AVAILABLE_GAMES.find((g) => g.id === this.gameId)!;
 
@@ -365,6 +369,7 @@ export class GameRoomDO extends DurableObject<Env> {
         gameId: this.gameId,
         players: this.players,
         started: this.started,
+        creatorId: this.creatorId,
       });
     }
 

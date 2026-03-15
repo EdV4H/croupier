@@ -86,9 +86,15 @@ app.post("/api/rooms/:roomId/join", async (c) => {
   }
 });
 
-/** Start a game */
+/** Start a game (creator only) */
 app.post("/api/rooms/:roomId/start", async (c) => {
   const roomId = c.req.param("roomId");
+  const body = await c.req.json<{ playerId?: string }>().catch(() => ({}));
+  const room = gameManager.getRoom(roomId);
+  if (!room) return c.json({ error: "Room not found" }, 404);
+  if (body.playerId !== room.creatorId) {
+    return c.json({ error: "Only the room creator can start the game" }, 403);
+  }
   try {
     gameManager.startGame(roomId);
     roomManager.broadcastGameState(roomId);
@@ -122,6 +128,7 @@ app.get("/api/rooms/:roomId", (c) => {
     gameId: room.gameId,
     players: room.players,
     started: room.started,
+    creatorId: room.creatorId,
   });
 });
 

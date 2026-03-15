@@ -110,12 +110,17 @@ app.post("/api/rooms/:roomId/join", async (c) => {
   return c.json(data);
 });
 
-/** Start a game */
+/** Start a game (creator only) */
 app.post("/api/rooms/:roomId/start", async (c) => {
   const roomId = c.req.param("roomId");
+  const body = await c.req.json<{ playerId?: string }>().catch(() => ({}));
   const room = getGameRoom(c.env, roomId);
   const res = await room.fetch(
-    new Request("http://game-room/start", { method: "POST" }),
+    new Request("http://game-room/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId: body.playerId }),
+    }),
   );
   const data = await res.json();
   if (!res.ok) return c.json(data, res.status as any);
