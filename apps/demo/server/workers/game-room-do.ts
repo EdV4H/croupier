@@ -15,6 +15,9 @@ import {
   createGameConfig,
 } from "../shared/game-registry.js";
 import type { RoomSummary } from "../shared/types.js";
+import { createLogger, truncatePayload } from "../shared/logger.js";
+
+const log = createLogger("workers");
 
 interface Env {
   LOBBY: DurableObjectNamespace;
@@ -140,6 +143,7 @@ export class GameRoomDO extends DurableObject<Env> {
 
     // Auto-delete: schedule cleanup 30s after game finishes (clients see result screen first)
     if (engineState.finished) {
+      log.info("game.finish", { roomId: this.roomId, result: engineState.result });
       this.ctx.storage.setAlarm(Date.now() + 30_000);
     }
   }
@@ -150,10 +154,16 @@ export class GameRoomDO extends DurableObject<Env> {
     // Determine if this is a turn timeout or a cleanup alarm
     if (this.turnTimeoutDeadline && this.engine && !this.engine.getEngineState().finished) {
       // Turn timeout — bot takeover
+      const es = this.engine.getEngineState();
+      log.info("turn.timeout", {
+        roomId: this.roomId, currentPlayers: es.currentPlayers,
+        phase: es.phase, stage: es.stage,
+      });
       this.turnTimeoutDeadline = null;
       const config = this.engine.getConfig();
       if (config.bot) {
         await executeBotTakeover(this.engine, config.bot);
+        log.info("bot.takeover", { roomId: this.roomId, phase: es.phase, stage: es.stage });
         this.broadcastGameState();
         // Schedule next timeout if game is still going
         await this.scheduleTurnTimeout();
@@ -162,6 +172,7 @@ export class GameRoomDO extends DurableObject<Env> {
     }
 
     // Cleanup alarm — notify clients and remove from Lobby after game finished
+    log.info("room.cleanup", { roomId: this.roomId });
     const roomDeletedMsg = JSON.stringify({ type: "roomDeleted" });
     for (const ws of this.ctx.getWebSockets()) {
       try {
@@ -201,6 +212,7 @@ export class GameRoomDO extends DurableObject<Env> {
       if (!match) return new Response("Bad Request", { status: 400 });
       const playerId = decodeURIComponent(match[1]);
 
+      log.info("ws.connect", { roomId: this.roomId, playerId });
       const pair = new WebSocketPair();
       this.ctx.acceptWebSocket(pair[1], [playerId]);
 
@@ -256,6 +268,7 @@ export class GameRoomDO extends DurableObject<Env> {
 
       await this.saveState();
       await this.updateLobby();
+      log.info("room.create", { roomId: this.roomId, gameId: this.gameId, creatorId: playerId, botCount });
       return Response.json(
         { id: this.roomId, gameId: this.gameId, players: this.players },
         { status: 201 },
@@ -266,6 +279,7 @@ export class GameRoomDO extends DurableObject<Env> {
       const { playerId } = (await request.json()) as { playerId: string };
       if (this.players.includes(playerId)) {
         // Allow reconnect — player left UI but is still in players[]
+        log.info("room.join", { roomId: this.roomId, playerId, reconnect: true });
         return Response.json({ gameId: this.gameId, players: this.players });
       }
 
@@ -292,6 +306,7 @@ export class GameRoomDO extends DurableObject<Env> {
 
       this.players.push(playerId);
       await this.saveState();
+      log.info("room.join", { roomId: this.roomId, playerId });
       this.broadcastToRoom({
         type: "playerJoined",
         data: { playerId, players: this.players },
@@ -326,6 +341,7 @@ export class GameRoomDO extends DurableObject<Env> {
 
       // Start BotManager
       const botIds = this.players.filter(isBotPlayer);
+      log.info("game.start", { roomId: this.roomId, gameId: this.gameId, players: this.players, botIds });
       if (botIds.length > 0 && config.bot) {
         this.botManager = new BotManager(this.engine, botIds, { delayMs: 1000 });
         this.engine.on("stateChange", () => {
@@ -345,6 +361,7 @@ export class GameRoomDO extends DurableObject<Env> {
       if (playerId !== this.creatorId) {
         return Response.json({ error: "Only the room creator can delete it" }, { status: 403 });
       }
+      log.info("room.delete", { roomId: this.roomId, playerId });
       if (this.botManager) {
         this.botManager.stop();
         this.botManager = null;
@@ -380,6 +397,8 @@ export class GameRoomDO extends DurableObject<Env> {
     await this.loadState();
     if (!this.engine) {
       // Engine lost (DO was evicted) — notify client
+      const tags = this.ctx.getTags(ws);
+      log.warn("engine.expired", { roomId: this.roomId, playerId: tags[0] });
       ws.send(JSON.stringify({ type: "error", error: "Game session expired. Please rejoin." }));
       return;
     }
@@ -400,14 +419,25 @@ export class GameRoomDO extends DurableObject<Env> {
     switch (msg.type) {
       case "action": {
         const { action, payload } = msg as unknown as { action: string; payload?: unknown };
+        const es = this.engine.getEngineState();
+        log.info("action.dispatch", {
+          roomId: this.roomId, playerId, action,
+          payload: truncatePayload(payload),
+          phase: es.phase, stage: es.stage, currentPlayers: es.currentPlayers,
+        });
         try {
           const result = this.engine.dispatch(playerId, action, payload);
+          log.info("action.result", {
+            roomId: this.roomId, playerId, action,
+            ok: result.ok, error: result.ok ? undefined : result.error,
+          });
           ws.send(JSON.stringify({ type: "actionResult", data: result }));
           if (result.ok) {
             this.broadcastGameState();
             await this.scheduleTurnTimeout();
           }
         } catch (e: any) {
+          log.error("action.error", { roomId: this.roomId, playerId, action, error: e.message });
           ws.send(JSON.stringify({ type: "error", error: e.message }));
         }
         break;
@@ -438,10 +468,14 @@ export class GameRoomDO extends DurableObject<Env> {
   }
 
   async webSocketClose(ws: WebSocket, code: number, reason: string): Promise<void> {
+    const tags = this.ctx.getTags(ws);
+    log.info("ws.disconnect", { roomId: this.roomId, playerId: tags[0], code, reason });
     ws.close(code, reason);
   }
 
   async webSocketError(ws: WebSocket, error: unknown): Promise<void> {
+    const tags = this.ctx.getTags(ws);
+    log.error("ws.error", { roomId: this.roomId, playerId: tags[0], error: String(error) });
     ws.close(1011, "WebSocket error");
   }
 }

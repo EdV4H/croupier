@@ -13,6 +13,9 @@ export type { GameInfo } from "./shared/types.js";
 export { AVAILABLE_GAMES, createGameConfig } from "./shared/game-registry.js";
 import { AVAILABLE_GAMES, createGameConfig } from "./shared/game-registry.js";
 import { TurnTimeoutManager } from "./turn-timeout-manager.js";
+import { createLogger } from "./shared/logger.js";
+
+const log = createLogger("local");
 
 export interface Room {
   id: string;
@@ -125,6 +128,7 @@ export class GameManager {
 
       // Listen for state changes from bot actions to broadcast updates
       room.engine.on("stateChange", () => {
+        log.info("bot.action", { roomId });
         if (this.onBotAction) {
           this.onBotAction(roomId);
         }
