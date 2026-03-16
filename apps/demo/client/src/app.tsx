@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { GameBoard } from "./components/game-board.js";
 import type { UIMode } from "./components/game-board.js";
 import { GameSelector } from "./components/game-selector.js";
@@ -28,7 +28,7 @@ export function App() {
 
   const roomId = "roomId" in screen ? screen.roomId : null;
   const gameId = "gameId" in screen ? screen.gameId : null;
-  const { connected, gameState, roomDeleted, dispatch, lastError } = useGameState(
+  const { connected, gameState, roomDeleted, roomPlayers, dispatch, lastError } = useGameState(
     roomId,
     playerId || null,
   );
@@ -135,6 +135,7 @@ export function App() {
           gameId={screen.gameId}
           playerId={playerId}
           connected={connected}
+          roomPlayers={roomPlayers}
           onStart={handleStartGame}
           onBack={() => setScreen({ type: "lobby" })}
         />
@@ -195,6 +196,7 @@ function WaitingRoom({
   gameId,
   playerId,
   connected,
+  roomPlayers,
   onStart,
   onBack,
 }: {
@@ -202,17 +204,26 @@ function WaitingRoom({
   gameId: string;
   playerId: string;
   connected: boolean;
+  roomPlayers: string[] | null;
   onStart: () => void;
   onBack: () => void;
 }) {
   const [roomData, setRoomData] = useState<any>(null);
 
-  // Fetch room data
-  useState(() => {
-    fetch(`/api/rooms/${roomId}`)
-      .then((r) => r.json())
-      .then(setRoomData);
-  });
+  // Fetch room data and poll for updates (players joining)
+  useEffect(() => {
+    let active = true;
+    const fetchRoom = () =>
+      fetch(`/api/rooms/${roomId}`)
+        .then((r) => r.json())
+        .then((data) => { if (active) setRoomData(data); });
+    fetchRoom();
+    const interval = setInterval(fetchRoom, 3000);
+    return () => { active = false; clearInterval(interval); };
+  }, [roomId]);
+
+  // Prefer WebSocket-pushed players, fall back to polled data
+  const players: string[] | undefined = roomPlayers ?? roomData?.players;
 
   const copyRoomId = () => navigator.clipboard.writeText(roomId);
 
@@ -238,10 +249,10 @@ function WaitingRoom({
         <p style={{ color: "#94a3b8", fontSize: "0.85rem", marginTop: "1rem" }}>
           Game: {gameId} | {connected ? "Connected" : "Connecting..."}
         </p>
-        {roomData && (
+        {players ? (
           <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>
             Players:{" "}
-            {roomData.players?.map((p: string, i: number) => (
+            {players.map((p: string, i: number) => (
               <span key={p}>
                 {i > 0 && ", "}
                 {p.startsWith("bot:") ? (
@@ -252,8 +263,10 @@ function WaitingRoom({
                   p
                 )}
               </span>
-            )) ?? "Loading..."}
+            ))}
           </p>
+        ) : (
+          <p style={{ color: "#94a3b8", fontSize: "0.85rem" }}>Players: Loading...</p>
         )}
         <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
           {roomData?.creatorId === playerId && (
