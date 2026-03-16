@@ -1,6 +1,9 @@
 import type { WSContext } from "hono/ws";
 import type { PlayerId } from "@croupier/core";
 import type { GameManager } from "./game-manager.js";
+import { createLogger, truncatePayload } from "./shared/logger.js";
+
+const log = createLogger("local");
 
 interface ClientConnection {
   ws: WSContext;
@@ -77,7 +80,9 @@ export class RoomManager {
 
     // Auto-delete: clean up 30s after game finishes (clients see result screen first)
     if (engineState?.finished) {
+      log.info("game.finish", { roomId, result: engineState.result });
       setTimeout(() => {
+        log.info("room.cleanup", { roomId });
         this.closeRoom(roomId);
         this.gameManager.deleteRoom(roomId);
       }, 30_000);
@@ -135,7 +140,13 @@ export class RoomManager {
           action: string;
           payload?: unknown;
         };
-        console.log(`[ACTION] room=${conn.roomId} player=${conn.playerId} action=${action} payload=${JSON.stringify(payload)}`);
+        const engineState = this.gameManager.getEngineState(conn.roomId);
+        log.info("action.dispatch", {
+          roomId: conn.roomId, playerId: conn.playerId, action,
+          payload: truncatePayload(payload),
+          phase: engineState?.phase, stage: engineState?.stage,
+          currentPlayers: engineState?.currentPlayers,
+        });
         try {
           const result = this.gameManager.dispatch(
             conn.roomId,
@@ -143,13 +154,20 @@ export class RoomManager {
             action,
             payload,
           );
-          console.log(`[ACTION RESULT] ${JSON.stringify(result)}`);
+          log.info("action.result", {
+            roomId: conn.roomId, playerId: conn.playerId, action,
+            ok: result.ok, error: result.ok ? undefined : result.error,
+          });
           ws.send(JSON.stringify({ type: "actionResult", data: result }));
 
           if (result.ok) {
             this.broadcastGameState(conn.roomId);
           }
         } catch (e: any) {
+          log.error("action.error", {
+            roomId: conn.roomId, playerId: conn.playerId, action,
+            error: e.message,
+          });
           ws.send(
             JSON.stringify({ type: "error", error: e.message }),
           );

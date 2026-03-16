@@ -2,8 +2,12 @@ import { serve } from "@hono/node-server";
 import { createNodeWebSocket } from "@hono/node-ws";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { isBotPlayer } from "@croupier/core";
 import { AVAILABLE_GAMES, GameManager } from "./game-manager.js";
 import { RoomManager } from "./rooms.js";
+import { createLogger } from "./shared/logger.js";
+
+const log = createLogger("local");
 
 const app = new Hono();
 const gameManager = new GameManager();
@@ -57,6 +61,7 @@ app.post("/api/rooms", async (c) => {
   const body = await c.req.json<{ gameId: string; playerId: string; botCount?: number }>();
   try {
     const room = gameManager.createRoom(body.gameId, body.playerId, body.botCount);
+    log.info("room.create", { roomId: room.id, gameId: body.gameId, creatorId: body.playerId, botCount: body.botCount });
     return c.json(
       { id: room.id, gameId: room.gameId, players: room.players },
       201,
@@ -72,6 +77,7 @@ app.post("/api/rooms/:roomId/join", async (c) => {
   const body = await c.req.json<{ playerId: string }>();
   try {
     const room = gameManager.joinRoom(roomId, body.playerId);
+    log.info("room.join", { roomId, playerId: body.playerId });
     roomManager.broadcastToRoom(roomId, {
       type: "playerJoined",
       data: { playerId: body.playerId, players: room.players },
@@ -97,6 +103,9 @@ app.post("/api/rooms/:roomId/start", async (c) => {
   }
   try {
     gameManager.startGame(roomId);
+    const startedRoom = gameManager.getRoom(roomId)!;
+    const botIds = startedRoom.players.filter(isBotPlayer);
+    log.info("game.start", { roomId, gameId: startedRoom.gameId, players: startedRoom.players, botIds });
     roomManager.broadcastGameState(roomId);
     return c.json({ started: true });
   } catch (e: any) {
@@ -113,6 +122,7 @@ app.delete("/api/rooms/:roomId", (c) => {
   if (playerId !== room.creatorId) {
     return c.json({ error: "Only the room creator can delete it" }, 403);
   }
+  log.info("room.delete", { roomId });
   roomManager.closeRoom(roomId);
   gameManager.deleteRoom(roomId);
   return c.body(null, 204);
@@ -144,6 +154,7 @@ app.get(
 
     return {
       onOpen(evt, ws) {
+        log.info("ws.connect", { roomId, playerId });
         roomManager.addConnection(ws, playerId, roomId);
         // Send initial state if game is started
         const room = gameManager.getRoom(roomId);
@@ -175,6 +186,7 @@ app.get(
         roomManager.handleMessage(ws, data);
       },
       onClose(evt, ws) {
+        log.info("ws.disconnect", { roomId, playerId });
         roomManager.removeConnection(ws);
       },
     };

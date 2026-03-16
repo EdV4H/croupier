@@ -2,6 +2,9 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { AVAILABLE_GAMES, createGameConfig } from "../shared/game-registry.js";
 import { extractPhaseGraph } from "@croupier/core";
+import { createLogger } from "../shared/logger.js";
+
+const log = createLogger("workers");
 
 export { LobbyDO } from "./lobby-do.js";
 export { GameRoomDO } from "./game-room-do.js";
@@ -171,6 +174,7 @@ app.get("/api/rooms/:roomId", async (c) => {
 app.get("/ws/:roomId/:playerId", async (c) => {
   const roomId = c.req.param("roomId");
   const playerId = c.req.param("playerId");
+  log.info("ws.connect", { roomId, playerId });
   const room = getGameRoom(c.env, roomId);
 
   // Forward the raw request to the DO so it can handle the WS upgrade

@@ -5,6 +5,9 @@ import {
   executeBotTakeover,
   isBotPlayer,
 } from "@croupier/core";
+import { createLogger } from "./shared/logger.js";
+
+const log = createLogger("local");
 
 /**
  * Manages turn timeouts for a game instance using Node.js setTimeout.
@@ -61,10 +64,16 @@ export class TurnTimeoutManager {
     this.timer = setTimeout(async () => {
       if (this.disposed) return;
 
+      const es = this.engine.getEngineState();
+      log.info("turn.timeout", {
+        currentPlayers: es.currentPlayers, phase: es.phase, stage: es.stage,
+      });
+
       const strategy = config.bot;
       if (!strategy) return;
 
       await executeBotTakeover(this.engine, strategy);
+      log.info("bot.takeover", { phase: es.phase, stage: es.stage });
       this.onTimeout();
     }, timeoutMs);
   }
