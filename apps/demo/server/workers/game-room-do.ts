@@ -377,7 +377,12 @@ export class GameRoomDO extends DurableObject<Env> {
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
-    if (!this.engine) return;
+    await this.loadState();
+    if (!this.engine) {
+      // Engine lost (DO was evicted) — notify client
+      ws.send(JSON.stringify({ type: "error", error: "Game session expired. Please rejoin." }));
+      return;
+    }
 
     const raw = typeof message === "string" ? message : new TextDecoder().decode(message);
     const tags = this.ctx.getTags(ws);
