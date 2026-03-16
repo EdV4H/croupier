@@ -27,6 +27,7 @@ export interface UseGameStateReturn {
   connected: boolean;
   gameState: GameStateData | null;
   roomDeleted: boolean;
+  roomPlayers: string[] | null;
   dispatch: (action: string, payload?: unknown) => void;
   lastError: string | null;
   lastActionResult: { ok: boolean; error?: string } | null;
@@ -38,6 +39,7 @@ export function useGameState(
 ): UseGameStateReturn {
   const [connected, setConnected] = useState(false);
   const [gameState, setGameState] = useState<GameStateData | null>(null);
+  const [roomPlayers, setRoomPlayers] = useState<string[] | null>(null);
   const [roomDeleted, setRoomDeleted] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
   const [lastActionResult, setLastActionResult] = useState<{
@@ -92,7 +94,7 @@ export function useGameState(
             setRoomDeleted(true);
             break;
           case "playerJoined":
-            // Could handle player join notifications
+            setRoomPlayers(msg.data?.players ?? null);
             break;
           case "connected":
             // Request latest state in case we missed a broadcast
@@ -121,5 +123,5 @@ export function useGameState(
     [],
   );
 
-  return { connected, gameState, roomDeleted, dispatch, lastError, lastActionResult };
+  return { connected, gameState, roomDeleted, roomPlayers, dispatch, lastError, lastActionResult };
 }
