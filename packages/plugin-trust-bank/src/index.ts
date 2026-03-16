@@ -354,11 +354,13 @@ export function createTrustBankConfig(
               {
                 target: "__done__",
                 guard: (ctx) => {
+                  if (ctx.game.drawnCard !== null) return false;
+                  // Turn done if hand is full or deck is empty (can't draw)
                   const currentPlayer =
                     ctx.game.playerOrder[ctx.game.currentPlayerIndex];
                   return (
-                    ctx.game.drawnCard === null &&
-                    ctx.game.players[currentPlayer].hand.length === HAND_SIZE
+                    ctx.game.players[currentPlayer].hand.length === HAND_SIZE ||
+                    ctx.game.deck.length === 0
                   );
                 },
               },
