@@ -21,7 +21,7 @@ import {
   updateMissionProgress,
   updateMissionProgressForAttackReceived,
 } from "./missions.js";
-import type { Card, TrustBankState } from "./types.js";
+import type { Card, CardDefinition, TrustBankState } from "./types.js";
 
 export type {
   Card,
@@ -42,13 +42,14 @@ const INITIAL_TRUST_POINTS = 10;
 const HAND_SIZE = 3;
 
 export interface TrustBankOptions {
+  cards?: CardDefinition[];
   turnTimeoutMs?: number;
 }
 
 export function createTrustBankConfig(
   options: TrustBankOptions = {},
 ): CroupierConfig<TrustBankState> {
-  const { turnTimeoutMs } = options;
+  const { cards, turnTimeoutMs } = options;
 
   const trustBankTurnOrder = custom<TrustBankState>({
     first: (ctx) => {
@@ -63,7 +64,7 @@ export function createTrustBankConfig(
     name: "trust-bank",
 
     setup: (ctx) => {
-      const deck = ctx.random.shuffle(createDeck());
+      const deck = ctx.random.shuffle(createDeck(cards));
       const missionDeckShuffled = ctx.random.shuffle(createMissionDeck());
       const players: TrustBankState["players"] = {};
       const playerOrder = [...ctx.players];

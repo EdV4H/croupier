@@ -259,9 +259,10 @@ export function getCardDefinition(id: number): CardDefinition {
   return def;
 }
 
-/** Create a shuffled deck of 28 cards (one per definition) */
-export function createDeck(): Card[] {
-  return CARD_DEFINITIONS.map((def) => ({
+/** Create a deck of cards (one per definition). Uses custom definitions if provided. */
+export function createDeck(defs?: CardDefinition[]): Card[] {
+  const definitions = defs ?? CARD_DEFINITIONS;
+  return definitions.map((def) => ({
     id: `card-${def.id}`,
     definitionId: def.id,
   }));

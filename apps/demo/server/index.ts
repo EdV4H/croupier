@@ -58,10 +58,10 @@ app.get("/api/rooms", (c) => {
 
 /** Create a room */
 app.post("/api/rooms", async (c) => {
-  const body = await c.req.json<{ gameId: string; playerId: string; botCount?: number }>();
+  const body = await c.req.json<{ gameId: string; playerId: string; botCount?: number; gameOptions?: Record<string, unknown> }>();
   try {
-    const room = gameManager.createRoom(body.gameId, body.playerId, body.botCount);
-    log.info("room.create", { roomId: room.id, gameId: body.gameId, creatorId: body.playerId, botCount: body.botCount });
+    const room = gameManager.createRoom(body.gameId, body.playerId, body.botCount, body.gameOptions);
+    log.info("room.create", { roomId: room.id, gameId: body.gameId, creatorId: body.playerId, botCount: body.botCount, gameOptions: !!body.gameOptions });
     return c.json(
       { id: room.id, gameId: room.gameId, players: room.players },
       201,

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { DeckCustomizer } from "./deck-customizer.js";
 
 interface GameInfo {
   id: string;
@@ -33,6 +34,8 @@ export function GameSelector({ playerId, onJoinRoom, onChangeName }: GameSelecto
   const [joinError, setJoinError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(playerId);
+  const [gameOptions, setGameOptions] = useState<Record<string, Record<string, unknown>>>({});
+  const [customizingGameId, setCustomizingGameId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -55,12 +58,15 @@ export function GameSelector({ playerId, onJoinRoom, onChangeName }: GameSelecto
     fetchData();
   }, [fetchData]);
 
+  const CUSTOMIZABLE_GAMES = ["values-card", "trust-bank", "digital-tcg"];
+
   const createRoom = async (gameId: string) => {
     const botCount = botCounts[gameId] ?? 0;
+    const opts = gameOptions[gameId];
     const res = await fetch("/api/rooms", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gameId, playerId, botCount }),
+      body: JSON.stringify({ gameId, playerId, botCount, ...(opts ? { gameOptions: opts } : {}) }),
     });
     const data = await res.json();
     if (data.id) {
@@ -256,6 +262,14 @@ export function GameSelector({ playerId, onJoinRoom, onChangeName }: GameSelecto
                 +
               </button>
             </div>
+            {CUSTOMIZABLE_GAMES.includes(game.id) && (
+              <button
+                style={styles.customizeBtn}
+                onClick={() => setCustomizingGameId(game.id)}
+              >
+                {gameOptions[game.id] ? "Deck Customized" : "Customize Deck"}
+              </button>
+            )}
             <button
               style={styles.button}
               onClick={() => createRoom(game.id)}
@@ -265,6 +279,19 @@ export function GameSelector({ playerId, onJoinRoom, onChangeName }: GameSelecto
           </div>
         ))}
       </div>
+
+      {/* Deck Customizer Modal */}
+      {customizingGameId && (
+        <DeckCustomizer
+          gameId={customizingGameId}
+          onSave={(opts) => {
+            const gid = customizingGameId;
+            if (gid) setGameOptions((prev) => ({ ...prev, [gid]: opts }));
+            setCustomizingGameId(null);
+          }}
+          onClose={() => setCustomizingGameId(null)}
+        />
+      )}
 
       {rooms.filter((r) => r.started && r.players.includes(playerId)).length > 0 && (
         <>
@@ -331,6 +358,10 @@ const styles: Record<string, React.CSSProperties> = {
   button: {
     background: "#3b82f6", color: "#fff", border: "none", borderRadius: 8,
     padding: "0.6rem 1rem", cursor: "pointer", fontSize: "0.9rem", fontWeight: 500,
+  },
+  customizeBtn: {
+    background: "transparent", color: "#94a3b8", border: "1px solid #475569", borderRadius: 8,
+    padding: "0.4rem 0.8rem", cursor: "pointer", fontSize: "0.8rem",
   },
   roomList: { display: "flex", flexDirection: "column", gap: "0.5rem" },
   roomCard: {

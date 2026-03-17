@@ -44,9 +44,14 @@ export const AVAILABLE_GAMES: GameInfo[] = [
   },
 ];
 
+function validateCardArray(value: unknown): boolean {
+  return Array.isArray(value) && value.length > 0 && value.length <= 200;
+}
+
 export function createGameConfig(
   gameId: string,
   players: PlayerId[],
+  gameOptions?: Record<string, unknown>,
 ): CroupierConfig<any> {
   switch (gameId) {
     case "texas-holdem":
@@ -57,11 +62,21 @@ export function createGameConfig(
         facilitatorCanVote: true,
       });
     case "values-card":
-      return createValuesCardConfig({ turnTimeoutMs: 60_000 });
+      return createValuesCardConfig({
+        turnTimeoutMs: 60_000,
+        ...(validateCardArray(gameOptions?.cards) ? { cards: gameOptions!.cards as any } : {}),
+      });
     case "digital-tcg":
-      return createDigitalTCGConfig({ turnTimeoutMs: 90_000 });
+      return createDigitalTCGConfig({
+        turnTimeoutMs: 90_000,
+        ...(validateCardArray(gameOptions?.deck1) ? { deck1: gameOptions!.deck1 as any } : {}),
+        ...(validateCardArray(gameOptions?.deck2) ? { deck2: gameOptions!.deck2 as any } : {}),
+      });
     case "trust-bank":
-      return createTrustBankConfig({ turnTimeoutMs: 60_000 });
+      return createTrustBankConfig({
+        turnTimeoutMs: 60_000,
+        ...(validateCardArray(gameOptions?.cards) ? { cards: gameOptions!.cards as any } : {}),
+      });
     default:
       throw new Error(`Unknown game: ${gameId}`);
   }
