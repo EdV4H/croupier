@@ -22,6 +22,7 @@ export interface Room {
   gameId: string;
   creatorId: PlayerId;
   players: PlayerId[];
+  gameOptions?: Record<string, unknown>;
   engine: CroupierCore | null;
   botManager: BotManager | null;
   turnTimeoutManager: TurnTimeoutManager | null;
@@ -46,7 +47,7 @@ export class GameManager {
     throw new Error("Failed to generate unique room ID");
   }
 
-  createRoom(gameId: string, creatorId: PlayerId, botCount?: number): Room {
+  createRoom(gameId: string, creatorId: PlayerId, botCount?: number, gameOptions?: Record<string, unknown>): Room {
     const game = AVAILABLE_GAMES.find((g) => g.id === gameId);
     if (!game) throw new Error(`Unknown game: ${gameId}`);
 
@@ -56,6 +57,7 @@ export class GameManager {
       gameId,
       creatorId,
       players: [creatorId],
+      gameOptions,
       engine: null,
       botManager: null,
       turnTimeoutManager: null,
@@ -117,7 +119,7 @@ export class GameManager {
       botIdx++;
     }
 
-    const config = createGameConfig(room.gameId, room.players);
+    const config = createGameConfig(room.gameId, room.players, room.gameOptions);
     room.engine = new CroupierCore(config, room.players);
     room.started = true;
 
