@@ -7,7 +7,7 @@
 // Values Card Presets
 // ============================================================
 
-interface ValuesCard {
+export interface ValuesCard {
   id: string;
   name: string;
 }

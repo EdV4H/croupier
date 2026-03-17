@@ -285,7 +285,8 @@ export function GameSelector({ playerId, onJoinRoom, onChangeName }: GameSelecto
         <DeckCustomizer
           gameId={customizingGameId}
           onSave={(opts) => {
-            setGameOptions((prev) => ({ ...prev, [customizingGameId]: opts }));
+            const gid = customizingGameId;
+            if (gid) setGameOptions((prev) => ({ ...prev, [gid]: opts }));
             setCustomizingGameId(null);
           }}
           onClose={() => setCustomizingGameId(null)}

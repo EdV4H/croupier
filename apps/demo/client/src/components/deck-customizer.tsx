@@ -7,12 +7,8 @@ import {
   ALL_TRUST_BANK_CARDS,
   ALL_TCG_CARDS,
   type ValuesCard,
-  type TrustBankCardDef,
   type TCGCard,
 } from "../games/deck-presets.js";
-
-// Re-export a simpler type alias for the preset types used internally
-type ValuesCard_ = { id: string; name: string };
 
 interface DeckCustomizerProps {
   gameId: string;
@@ -47,7 +43,7 @@ export function DeckCustomizer({ gameId, onSave, onClose }: DeckCustomizerProps)
 function ValuesCardCustomizer({ onSave, onClose }: { onSave: (o: Record<string, unknown>) => void; onClose: () => void }) {
   const [presetId, setPresetId] = useState("default");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(ALL_VALUES_CARDS.map((c) => c.id)));
-  const [customCards, setCustomCards] = useState<ValuesCard_[]>([]);
+  const [customCards, setCustomCards] = useState<ValuesCard[]>([]);
   const [newCardName, setNewCardName] = useState("");
 
   const applyPreset = (id: string) => {
@@ -139,7 +135,7 @@ function ValuesCardCustomizer({ onSave, onClose }: { onSave: (o: Record<string, 
                 onChange={() => toggleCard(card.id)}
               />
               <span style={{ ...styles.cardName, color: "#22d3ee" }}>{card.name}</span>
-              <button style={styles.removeBtn} onClick={() => removeCustomCard(card.id)}>x</button>
+              <button style={styles.removeBtn} onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeCustomCard(card.id); }}>x</button>
             </label>
           ))}
         </div>
@@ -183,8 +179,6 @@ const TRUST_BANK_CATEGORIES: { key: string; label: string }[] = [
 function TrustBankCustomizer({ onSave, onClose }: { onSave: (o: Record<string, unknown>) => void; onClose: () => void }) {
   const [presetId, setPresetId] = useState("default");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set(ALL_TRUST_BANK_CARDS.map((c) => c.id)));
-  const [customCards, setCustomCards] = useState<TrustBankCardDef[]>([]);
-  const [newCard, setNewCard] = useState({ name: "", category: "trust", points: 3, target: "self" });
 
   const applyPreset = (id: string) => {
     setPresetId(id);
@@ -204,36 +198,8 @@ function TrustBankCustomizer({ onSave, onClose }: { onSave: (o: Record<string, u
     setPresetId("custom");
   };
 
-  const addCustomCard = () => {
-    const name = newCard.name.trim();
-    if (!name) return;
-    const id = 1000 + Date.now() % 10000;
-    const card: TrustBankCardDef = {
-      id,
-      name,
-      category: newCard.category,
-      effects: [{ target: newCard.target, points: newCard.points }],
-      requiresTarget: newCard.target === "target",
-      description: `${newCard.target === "self" ? "自分" : newCard.target === "target" ? "対象" : "全員"}${newCard.points >= 0 ? "+" : ""}${newCard.points}`,
-    };
-    setCustomCards((prev) => [...prev, card]);
-    setSelectedIds((prev) => new Set(prev).add(id));
-    setNewCard({ name: "", category: "trust", points: 3, target: "self" });
-    setPresetId("custom");
-  };
-
-  const removeCustomCard = (id: number) => {
-    setCustomCards((prev) => prev.filter((c) => c.id !== id));
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-  };
-
   const handleSave = () => {
-    const allCards = [...ALL_TRUST_BANK_CARDS, ...customCards];
-    const cards = allCards.filter((c) => selectedIds.has(c.id));
+    const cards = ALL_TRUST_BANK_CARDS.filter((c) => selectedIds.has(c.id));
     if (cards.length < 8) {
       alert("最低8枚のカードが必要です");
       return;
@@ -242,7 +208,7 @@ function TrustBankCustomizer({ onSave, onClose }: { onSave: (o: Record<string, u
   };
 
   const selectedCount = [...selectedIds].filter((id) =>
-    ALL_TRUST_BANK_CARDS.some((c) => c.id === id) || customCards.some((c) => c.id === id)
+    ALL_TRUST_BANK_CARDS.some((c) => c.id === id)
   ).length;
 
   return (
@@ -283,41 +249,6 @@ function TrustBankCustomizer({ onSave, onClose }: { onSave: (o: Record<string, u
               </div>
             );
           })}
-          {customCards.length > 0 && (
-            <div>
-              <h4 style={styles.catHeader}>Custom</h4>
-              {customCards.map((card) => (
-                <label key={card.id} style={styles.cardItem}>
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(card.id)}
-                    onChange={() => toggleCard(card.id)}
-                  />
-                  <span style={{ ...styles.cardName, color: "#22d3ee" }}>{card.name}</span>
-                  <span style={styles.cardDesc}>{card.description}</span>
-                  <button style={styles.removeBtn} onClick={() => removeCustomCard(card.id)}>x</button>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Add custom card form */}
-        <div style={styles.addForm}>
-          <input style={styles.input} type="text" placeholder="カード名" value={newCard.name} onChange={(e) => setNewCard((p) => ({ ...p, name: e.target.value }))} />
-          <select style={styles.selectSmall} value={newCard.category} onChange={(e) => setNewCard((p) => ({ ...p, category: e.target.value }))}>
-            <option value="trust">Trust</option>
-            <option value="attack">Attack</option>
-            <option value="repair">Repair</option>
-            <option value="relationship">Relationship</option>
-          </select>
-          <select style={styles.selectSmall} value={newCard.target} onChange={(e) => setNewCard((p) => ({ ...p, target: e.target.value }))}>
-            <option value="self">Self</option>
-            <option value="target">Target</option>
-            <option value="all">All</option>
-          </select>
-          <input style={{ ...styles.input, width: 60 }} type="number" value={newCard.points} onChange={(e) => setNewCard((p) => ({ ...p, points: Number(e.target.value) }))} />
-          <button style={styles.smallBtn} onClick={addCustomCard}>Add</button>
         </div>
 
         <div style={styles.actions}>
@@ -415,7 +346,7 @@ function TCGCustomizer({ onSave, onClose }: { onSave: (o: Record<string, unknown
             <span style={styles.tcgStat}>Cost:{card.cost}</span>
             <span style={styles.tcgStat}>ATK:{card.attack}</span>
             <span style={styles.tcgStat}>HP:{card.health}</span>
-            <button style={styles.removeBtn} onClick={() => removeCard(player, i)}>x</button>
+            <button style={styles.removeBtn} onClick={(e) => { e.stopPropagation(); removeCard(player, i); }}>x</button>
           </div>
         ))}
       </div>
