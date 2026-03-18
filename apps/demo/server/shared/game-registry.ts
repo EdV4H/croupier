@@ -86,11 +86,18 @@ export function createGameConfig(
         ...(validateCardArray(gameOptions?.deck2, 5, ["id", "name", "cost", "attack", "health"])
           ? { deck2: gameOptions!.deck2 as any } : {}),
       });
-    case "daifugo":
+    case "daifugo": {
+      const rulesOpt = gameOptions?.rules;
+      const validRules = rulesOpt && typeof rulesOpt === "object" && !Array.isArray(rulesOpt)
+        ? Object.fromEntries(
+            Object.entries(rulesOpt).filter(([, v]) => typeof v === "boolean"),
+          )
+        : undefined;
       return createDaifugoConfig({
         turnTimeoutMs: 30_000,
-        ...(gameOptions?.rules ? { rules: gameOptions.rules as any } : {}),
+        ...(validRules ? { rules: validRules } : {}),
       });
+    }
     case "trust-bank":
       return createTrustBankConfig({
         turnTimeoutMs: 60_000,

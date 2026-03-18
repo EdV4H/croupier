@@ -310,42 +310,40 @@ describe("Daifugo", () => {
 
   describe("finish detection", () => {
     it("playing last card sets finishOrder", () => {
-      // Directly test the playCards action logic for finish detection
-      // Create a game and verify the endConditions/transitions work
-      const config = createDaifugoConfig({ maxRounds: 1 });
-      expect(config.actions.playCards).toBeDefined();
-      expect(config.actions.playCards.execute).toBeDefined();
-
-      // The finish detection is tested implicitly: when a player plays their last card,
-      // execute() sets finishOrder. This is verified by checking the action config exists
-      // and by verifying isRoundOver triggers roundEnd transition.
       const engine = createGame(4, { maxRounds: 1 });
-      const es = engine.getEngineState();
-      expect(es.phase).toBe("playRound");
+      const currentPid = getCurrentPlayer(engine);
+      // Use mutable engine state to set hand to 1 card
+      const game = (engine as any).ctx.game;
+      const lastCard = game.players[currentPid].hand[0];
+      game.players[currentPid].hand = [lastCard];
 
-      // Verify transitions exist
-      expect(config.phases.playRound.transitions).toBeDefined();
-      expect(config.phases.playRound.transitions!.length).toBeGreaterThan(0);
+      engine.dispatch(currentPid, "playCards", { cardIds: [lastCard.id] });
+      const state = getState(engine);
+      expect(state.players[currentPid].hand).toHaveLength(0);
+      expect(state.finishedPlayers).toContain(currentPid);
+      // finishOrder is set (may be -1 sentinel if restrictedFinish, but should be non-null)
+      expect(state.players[currentPid].finishOrder).not.toBeNull();
     });
   });
 
   describe("round end & ranks", () => {
     it("assigns ranks when round ends", () => {
       const engine = createGame(3);
-      const state = getState(engine);
+      const game = (engine as any).ctx.game;
 
       // Force round end by making all but one player finish
-      // Set P1 and P2 hand to 1 card each, leave P3 with cards
+      // Use mutable state to set P1 and P2 hand to 1 card each
       for (const pid of ["P1", "P2"]) {
-        state.players[pid].hand = [state.players[pid].hand[0]];
+        game.players[pid].hand = [game.players[pid].hand[0]];
       }
 
       // Play until round ends or bail
       let iterations = 0;
       while (engine.getEngineState().phase === "playRound" && iterations < 200) {
         const current = getCurrentPlayer(engine);
-        const hand = getState(engine).players[current].hand;
-        if (hand.length === 0) break;
+        if (!current) break;
+        const hand = getState(engine).players[current]?.hand;
+        if (!hand || hand.length === 0) break;
 
         const pile = getState(engine).currentPile;
         const playable = findPlayableCard(hand, pile, getState(engine).isRevolution);

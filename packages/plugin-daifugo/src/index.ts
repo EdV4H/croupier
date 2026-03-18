@@ -174,12 +174,12 @@ export function createDaifugoConfig(
 
       // Check if all active players except lastPlayedBy passed (trick ends)
       if (ctx.game.currentPile) {
-        const others = active.filter((pid) => pid !== ctx.game.lastPlayedBy);
+        const lastPid = ctx.game.lastPlayedBy; // capture before clearTrick nullifies it
+        const others = active.filter((pid) => pid !== lastPid);
         const allOthersPassed = others.every((pid) => ctx.game.passedPlayers.includes(pid));
-        if (allOthersPassed && others.length > 0 && ctx.game.lastPlayedBy) {
+        if (allOthersPassed && others.length > 0 && lastPid) {
           clearTrick(ctx.game);
           // If lastPlayedBy already finished, pick next active player instead
-          const lastPid = ctx.game.lastPlayedBy;
           const lastFinished = ctx.game.players[lastPid]?.finishOrder !== null;
           if (lastFinished) {
             const lastIdx = ctx.game.playerOrder.indexOf(lastPid);
@@ -680,18 +680,13 @@ export function createDaifugoConfig(
 
           game.roundNumber++;
 
-          // Re-deal for next round (if not over)
+          // Re-deal for next round (if not over) — use fresh 54-card deck
           if (game.roundNumber <= game.maxRounds) {
-            const deck: Card[] = [];
-            // Collect all cards
             for (const pid of game.playerOrder) {
-              deck.push(...game.players[pid].hand);
               game.players[pid].hand = [];
             }
-            deck.push(...game.extraCards);
-            // Shuffle and re-deal
-            const shuffled = shuffleArray(deck);
-            dealCards(game, shuffled);
+            const freshDeck = shuffleArray(createDeck());
+            dealCards(game, freshDeck);
           }
         },
         always: [
