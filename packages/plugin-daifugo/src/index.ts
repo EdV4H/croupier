@@ -1,4 +1,5 @@
 import {
+  type BotDecision,
   type BotStrategy,
   type CroupierConfig,
   type EngineState,
@@ -768,6 +769,20 @@ function shuffleArray<T>(arr: T[]): T[] {
   return a;
 }
 
+/**
+ * Safe fallback: if the field has cards → pass, otherwise play weakest single.
+ * Used when the main bot logic fails or produces an invalid play.
+ */
+function botFallback(hand: Card[], currentPile: PlayedCards | null, isRevolution: boolean): BotDecision {
+  if (currentPile) {
+    return { action: "pass" };
+  }
+  const sorted = [...hand].sort(
+    (a, b) => getCardStrength(a.rank, isRevolution) - getCardStrength(b.rank, isRevolution),
+  );
+  return { action: "playCards", payload: { cardIds: [sorted[0].id] } };
+}
+
 const daifugoBotStrategy: BotStrategy<DaifugoState> = {
   decide(playerId: PlayerId, playerView: unknown, engineState: EngineState) {
     const view = playerView as any;
@@ -777,85 +792,98 @@ const daifugoBotStrategy: BotStrategy<DaifugoState> = {
     const hand = me.hand as Card[] | undefined;
     if (!hand || !Array.isArray(hand) || hand.length === 0) return null;
 
-    // Card exchange phase
-    if (engineState.phase === "cardExchange") {
-      if (!view.exchangePending) return null;
-      const previousRanks = view.previousRanks;
-      const rank = me.rank;
-
-      // Determine how many cards to give
-      let count = 0;
-      if (rank === "daifugo" || rank === "daihinmin") count = 2;
-      else if (rank === "fugo" || rank === "hinmin") count = 1;
-      if (count === 0) return null;
-
-      const effectiveRevolution = view.isRevolution;
-      if (rank === "daihinmin" || rank === "hinmin") {
-        // Must give best cards
-        const best = getBestCards(hand, count, effectiveRevolution);
-        return { action: "giveCards", payload: { cardIds: best.map((c: Card) => c.id) } };
-      } else {
-        // Give weakest cards
-        const sorted = [...hand].sort(
-          (a: Card, b: Card) => getCardStrength(a.rank, effectiveRevolution) - getCardStrength(b.rank, effectiveRevolution),
-        );
-        const weakest = sorted.slice(0, count);
-        return { action: "giveCards", payload: { cardIds: weakest.map((c: Card) => c.id) } };
-      }
+    try {
+      return botDecideInner(playerId, view, engineState, hand);
+    } catch {
+      // Any unexpected error → safe fallback to avoid stall
+      return botFallback(hand, view.currentPile, !!view.isRevolution);
     }
+  },
 
-    // 7-pass pending
-    if (view.pendingAction?.type === "sevenPass" && view.pendingAction.playerId === playerId) {
-      const count = view.pendingAction.count;
-      const toPass = hand.slice(0, Math.min(count, hand.length));
-      return { action: "selectCardsToPass", payload: { cardIds: toPass.map((c: Card) => c.id) } };
-    }
-
-    // 10-discard pending
-    if (view.pendingAction?.type === "tenDiscard" && view.pendingAction.playerId === playerId) {
-      const count = view.pendingAction.count;
-      const toDiscard = hand.slice(0, Math.min(count, hand.length));
-      return { action: "selectCardsToDiscard", payload: { cardIds: toDiscard.map((c: Card) => c.id) } };
-    }
-
-    // Play round
-    const currentPile = view.currentPile as PlayedCards | null;
-    const baseRevolution = view.isRevolution as boolean;
-    const trickElevenBack = view.trickElevenBack as boolean;
-    const effectiveRevolution = trickElevenBack ? !baseRevolution : baseRevolution;
-    const rulesConfig = view.rules as DaifugoRules;
-    const suitLock = view.trickSuitLock as string | null;
-
-    // Find all valid plays (considering suit lock and effective revolution)
-    const validPlays = findAllValidPlays(hand, currentPile, effectiveRevolution, rulesConfig.sequence, suitLock);
-
-    if (validPlays.length === 0) {
-      if (currentPile) {
-        return { action: "pass" };
-      }
-      // Empty field — must play something (play weakest single)
-      const sorted = [...hand].sort(
-        (a, b) => getCardStrength(a.rank, effectiveRevolution) - getCardStrength(b.rank, effectiveRevolution),
-      );
-      return { action: "playCards", payload: { cardIds: [sorted[0].id] } };
-    }
-
-    // Prefer 8-cut if available
-    if (rulesConfig.eightCut) {
-      const eightPlay = validPlays.find((cards) => cards.some((c) => c.rank === 8));
-      if (eightPlay) {
-        return { action: "playCards", payload: { cardIds: eightPlay.map((c) => c.id) } };
-      }
-    }
-
-    // Play weakest valid hand
-    const sorted = validPlays.sort((a, b) => {
-      const aStrength = Math.min(...a.map((c) => getCardStrength(c.rank, effectiveRevolution)));
-      const bStrength = Math.min(...b.map((c) => getCardStrength(c.rank, effectiveRevolution)));
-      return aStrength - bStrength;
-    });
-
-    const chosen = sorted[0];
-    return { action: "playCards", payload: { cardIds: chosen.map((c) => c.id) } };
+  fallback(playerId: PlayerId, playerView: unknown, _engineState: EngineState) {
+    const view = playerView as any;
+    const me = view.players?.[playerId];
+    const hand = me?.hand as Card[] | undefined;
+    if (!hand || !Array.isArray(hand) || hand.length === 0) return null;
+    return botFallback(hand, view.currentPile, !!view.isRevolution);
   },
 };
+
+function botDecideInner(
+  playerId: PlayerId,
+  view: any,
+  engineState: EngineState,
+  hand: Card[],
+): BotDecision | null {
+  const me = view.players?.[playerId];
+
+  // Card exchange phase
+  if (engineState.phase === "cardExchange") {
+    if (!view.exchangePending) return null;
+    const rank = me.rank;
+
+    let count = 0;
+    if (rank === "daifugo" || rank === "daihinmin") count = 2;
+    else if (rank === "fugo" || rank === "hinmin") count = 1;
+    if (count === 0) return null;
+
+    const effectiveRevolution = view.isRevolution;
+    if (rank === "daihinmin" || rank === "hinmin") {
+      const best = getBestCards(hand, count, effectiveRevolution);
+      return { action: "giveCards", payload: { cardIds: best.map((c: Card) => c.id) } };
+    } else {
+      const sorted = [...hand].sort(
+        (a: Card, b: Card) => getCardStrength(a.rank, effectiveRevolution) - getCardStrength(b.rank, effectiveRevolution),
+      );
+      const weakest = sorted.slice(0, count);
+      return { action: "giveCards", payload: { cardIds: weakest.map((c: Card) => c.id) } };
+    }
+  }
+
+  // 7-pass pending
+  if (view.pendingAction?.type === "sevenPass" && view.pendingAction.playerId === playerId) {
+    const count = view.pendingAction.count;
+    const toPass = hand.slice(0, Math.min(count, hand.length));
+    return { action: "selectCardsToPass", payload: { cardIds: toPass.map((c: Card) => c.id) } };
+  }
+
+  // 10-discard pending
+  if (view.pendingAction?.type === "tenDiscard" && view.pendingAction.playerId === playerId) {
+    const count = view.pendingAction.count;
+    const toDiscard = hand.slice(0, Math.min(count, hand.length));
+    return { action: "selectCardsToDiscard", payload: { cardIds: toDiscard.map((c: Card) => c.id) } };
+  }
+
+  // Play round
+  const currentPile = view.currentPile as PlayedCards | null;
+  const baseRevolution = view.isRevolution as boolean;
+  const trickElevenBack = view.trickElevenBack as boolean;
+  const effectiveRevolution = trickElevenBack ? !baseRevolution : baseRevolution;
+  const rulesConfig = view.rules as DaifugoRules;
+  const suitLock = view.trickSuitLock as string | null;
+
+  // Find all valid plays (considering suit lock and effective revolution)
+  const validPlays = findAllValidPlays(hand, currentPile, effectiveRevolution, rulesConfig.sequence, suitLock);
+
+  if (validPlays.length === 0) {
+    return botFallback(hand, currentPile, effectiveRevolution);
+  }
+
+  // Prefer 8-cut if available
+  if (rulesConfig.eightCut) {
+    const eightPlay = validPlays.find((cards) => cards.some((c) => c.rank === 8));
+    if (eightPlay) {
+      return { action: "playCards", payload: { cardIds: eightPlay.map((c) => c.id) } };
+    }
+  }
+
+  // Play weakest valid hand
+  const sorted = validPlays.sort((a, b) => {
+    const aStrength = Math.min(...a.map((c) => getCardStrength(c.rank, effectiveRevolution)));
+    const bStrength = Math.min(...b.map((c) => getCardStrength(c.rank, effectiveRevolution)));
+    return aStrength - bStrength;
+  });
+
+  const chosen = sorted[0];
+  return { action: "playCards", payload: { cardIds: chosen.map((c) => c.id) } };
+}
