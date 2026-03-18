@@ -1,5 +1,5 @@
 import type { PlayerId } from "@croupier/core";
-import type { Card, DaifugoRank, DaifugoRules, PlayedCards } from "./types.js";
+import type { Card, DaifugoRank, DaifugoRules, PlayedCards, Suit } from "./types.js";
 import { isJoker } from "./cards.js";
 
 /** Check if the play triggers 8-cut. */
@@ -39,8 +39,6 @@ export function checkSuitLock(
   }
   return null;
 }
-
-type Suit = "spades" | "hearts" | "diamonds" | "clubs";
 
 /** Check if play triggers 11-back. */
 export function checkElevenBack(cards: Card[], rules: DaifugoRules): boolean {

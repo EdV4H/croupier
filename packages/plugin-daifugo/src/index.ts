@@ -178,9 +178,18 @@ export function createDaifugoConfig(
         const allOthersPassed = others.every((pid) => ctx.game.passedPlayers.includes(pid));
         if (allOthersPassed && others.length > 0 && ctx.game.lastPlayedBy) {
           clearTrick(ctx.game);
-          const lastIdx = ctx.game.playerOrder.indexOf(ctx.game.lastPlayedBy);
+          // If lastPlayedBy already finished, pick next active player instead
+          const lastPid = ctx.game.lastPlayedBy;
+          const lastFinished = ctx.game.players[lastPid]?.finishOrder !== null;
+          if (lastFinished) {
+            const lastIdx = ctx.game.playerOrder.indexOf(lastPid);
+            const newIdx = nextActiveIndex(ctx.game, lastIdx);
+            ctx.game.currentPlayerIndex = newIdx;
+            return ctx.game.playerOrder[newIdx];
+          }
+          const lastIdx = ctx.game.playerOrder.indexOf(lastPid);
           ctx.game.currentPlayerIndex = lastIdx;
-          return ctx.game.lastPlayedBy;
+          return lastPid;
         }
       }
 
@@ -336,16 +345,19 @@ export function createDaifugoConfig(
           const sevenCount = checkSevenPass(cards, game.rules);
           if (sevenCount > 0 && player.hand.length > 0) {
             game.pendingAction = { type: "sevenPass", count: sevenCount, playerId };
+            game.samePlayerNext = true;
           }
 
           // 12. 10-discard
           const tenCount = checkTenDiscard(cards, game.rules);
           if (tenCount > 0 && player.hand.length > 0) {
             game.pendingAction = { type: "tenDiscard", count: tenCount, playerId };
+            game.samePlayerNext = true;
           }
         },
 
         validate: (game, playerId, payload) => {
+          if (game.pendingAction) return "Must resolve pending action first";
           const { cardIds } = payload as { cardIds: string[] };
           if (!cardIds || cardIds.length === 0) return "Must play at least one card";
           if (new Set(cardIds).size !== cardIds.length) return "Duplicate card IDs";
@@ -390,6 +402,7 @@ export function createDaifugoConfig(
         },
 
         validate: (game, _playerId) => {
+          if (game.pendingAction) return "Must resolve pending action first";
           if (game.currentPile === null) return "Cannot pass on empty field";
           return true;
         },
@@ -488,6 +501,7 @@ export function createDaifugoConfig(
           if (!game.pendingAction || game.pendingAction.type !== "sevenPass") {
             return "No seven-pass pending";
           }
+          if (game.pendingAction.playerId !== playerId) return "Not your pending action";
           if (cardIds.length !== game.pendingAction.count) {
             return `Must pass exactly ${game.pendingAction.count} card(s)`;
           }
@@ -523,6 +537,7 @@ export function createDaifugoConfig(
           if (!game.pendingAction || game.pendingAction.type !== "tenDiscard") {
             return "No ten-discard pending";
           }
+          if (game.pendingAction.playerId !== playerId) return "Not your pending action";
           if (cardIds.length !== game.pendingAction.count) {
             return `Must discard exactly ${game.pendingAction.count} card(s)`;
           }

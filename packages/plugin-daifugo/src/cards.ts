@@ -40,7 +40,7 @@ export function isJoker(card: Card): boolean {
  * Classify a set of cards into a PlayedCards, or null if invalid.
  * Handles joker as wildcard for pair/triple/sequence.
  */
-export function classifyCards(cards: Card[], isRevolution: boolean, sequenceEnabled: boolean): PlayedCards | null {
+export function classifyCards(cards: Card[], _isRevolution: boolean, sequenceEnabled: boolean): PlayedCards | null {
   if (cards.length === 0) return null;
 
   const jokers = cards.filter(isJoker);
@@ -50,7 +50,7 @@ export function classifyCards(cards: Card[], isRevolution: boolean, sequenceEnab
   // Single
   if (cards.length === 1) {
     if (isJoker(cards[0])) {
-      return { cards, type: "single", rank: 0 as CardRank };
+      return { cards, type: "single", rank: 0 };
     }
     return { cards, type: "single", rank: cards[0].rank as CardRank };
   }
@@ -249,13 +249,16 @@ export function findAllValidPlays(
   return validPlays;
 }
 
+/**
+ * Sliding-window sequence enumeration. For each suit, sort ranks and try
+ * consecutive windows of length 3..N, using jokers to fill gaps.
+ */
 function findSequencePlays(
   hand: Card[],
   currentPile: PlayedCards | null,
   isRevolution: boolean,
   results: Card[][],
 ): void {
-  // Group by suit (including jokers)
   const jokers = hand.filter(isJoker);
   const bySuit: Record<string, Card[]> = {};
   for (const card of hand) {
@@ -266,38 +269,53 @@ function findSequencePlays(
     }
   }
 
+  const seen = new Set<string>();
+
   for (const suit of SUITS) {
     const suitCards = bySuit[suit] || [];
     if (suitCards.length + jokers.length < 3) continue;
 
-    // Try all possible sequence starts and lengths
-    const allCards = [...suitCards, ...jokers];
-    for (let len = 3; len <= allCards.length; len++) {
-      // Generate combinations of len cards from allCards
-      const combos = combinations(allCards, len);
-      for (const combo of combos) {
-        const play = isValidPlay(combo, currentPile, isRevolution, true);
+    // Build rank→card map for this suit
+    const rankMap = new Map<number, Card>();
+    for (const c of suitCards) {
+      rankMap.set(c.rank as number, c);
+    }
+    const ranks = [...rankMap.keys()].sort((a, b) => a - b);
+    if (ranks.length === 0) continue;
+
+    const minRank = 3;
+    const maxRank = 15;
+
+    // Try every start rank and length
+    for (let start = minRank; start <= maxRank; start++) {
+      for (let len = 3; start + len - 1 <= maxRank; len++) {
+        let jokersNeeded = 0;
+        const cards: Card[] = [];
+
+        for (let r = start; r < start + len; r++) {
+          const card = rankMap.get(r);
+          if (card) {
+            cards.push(card);
+          } else {
+            jokersNeeded++;
+          }
+        }
+
+        if (jokersNeeded > jokers.length) break; // longer sequences need even more jokers
+        // Add jokers
+        for (let j = 0; j < jokersNeeded; j++) {
+          cards.push(jokers[j]);
+        }
+
+        const play = isValidPlay(cards, currentPile, isRevolution, true);
         if (play && play.type === "sequence") {
-          // Avoid duplicates with same card IDs
-          const ids = combo.map((c) => c.id).sort().join(",");
-          if (!results.some((r) => r.map((c) => c.id).sort().join(",") === ids)) {
-            results.push(combo);
+          const key = cards.map((c) => c.id).sort().join(",");
+          if (!seen.has(key)) {
+            seen.add(key);
+            results.push(cards);
           }
         }
       }
     }
   }
-}
-
-function combinations<T>(arr: T[], len: number): T[][] {
-  if (len === 0) return [[]];
-  if (arr.length < len) return [];
-  const result: T[][] = [];
-  for (let i = 0; i <= arr.length - len; i++) {
-    const rest = combinations(arr.slice(i + 1), len - 1);
-    for (const combo of rest) {
-      result.push([arr[i], ...combo]);
-    }
-  }
-  return result;
 }
