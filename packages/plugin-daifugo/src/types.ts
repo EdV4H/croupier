@@ -27,7 +27,6 @@ export interface PlayerState {
   hand: Card[];
   rank: DaifugoRank | null;
   finishOrder: number | null;
-  passed: boolean;
   score: number;
 }
 

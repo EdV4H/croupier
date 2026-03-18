@@ -219,7 +219,6 @@ export function createDaifugoConfig(
           hand: [],
           rank: null,
           finishOrder: null,
-          passed: false,
           score: 0,
         };
       }
@@ -440,6 +439,7 @@ export function createDaifugoConfig(
         validate: (game, playerId, payload) => {
           const { cardIds } = payload as { cardIds: string[] };
           if (new Set(cardIds).size !== cardIds.length) return "Duplicate card IDs";
+          if (game.exchangeGiven[playerId]) return "Already submitted exchange cards";
           if (!game.previousRanks) return "No exchange needed";
 
           const rank = game.previousRanks[playerId];
@@ -596,7 +596,6 @@ export function createDaifugoConfig(
           // Reset player states
           for (const pid of game.playerOrder) {
             game.players[pid].finishOrder = null;
-            game.players[pid].passed = false;
           }
 
           // Determine first player

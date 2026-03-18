@@ -82,6 +82,7 @@ export function classifyCards(cards: Card[], _isRevolution: boolean, sequenceEna
 }
 
 /** Detect a valid sequence (same suit, 3+ consecutive, jokers fill gaps). */
+/** Detect a valid sequence. Tries all feasible start ranks (jokers can fill gaps at start/end). */
 function detectSequence(cards: Card[]): PlayedCards | null {
   const jokers = cards.filter(isJoker);
   const normals = cards.filter((c) => !isJoker(c)) as (Card & { suit: Suit; rank: CardRank })[];
@@ -93,41 +94,43 @@ function detectSequence(cards: Card[]): PlayedCards | null {
   if (suits.size !== 1) return null;
   const suit = normals[0].suit as Suit;
 
-  // Sort by rank
   const sortedRanks = normals.map((c) => c.rank as number).sort((a, b) => a - b);
-
-  // Check for consecutive with joker gaps
-  let jokersUsed = 0;
   const totalLength = cards.length;
-  const startRank = sortedRanks[0];
+  const minNormal = sortedRanks[0];
+  const maxNormal = sortedRanks[sortedRanks.length - 1];
 
-  // Build expected sequence
-  const expectedRanks: number[] = [];
-  for (let i = 0; i < totalLength; i++) {
-    expectedRanks.push(startRank + i);
-  }
+  // Try all feasible start ranks: from (maxNormal - totalLength + 1) up to minNormal
+  const earliest = Math.max(3, maxNormal - totalLength + 1);
+  const latest = Math.min(minNormal, 15 - totalLength + 1);
 
-  // Verify all expected ranks are covered (by normals or jokers)
-  let normalIdx = 0;
-  for (const expected of expectedRanks) {
-    if (expected > 15) return null; // exceeds rank 2(15)
-    if (normalIdx < sortedRanks.length && sortedRanks[normalIdx] === expected) {
-      normalIdx++;
-    } else {
-      jokersUsed++;
+  for (let startRank = earliest; startRank <= latest; startRank++) {
+    if (startRank + totalLength - 1 > 15) continue;
+
+    let jokersUsed = 0;
+    let normalIdx = 0;
+    let valid = true;
+
+    for (let i = 0; i < totalLength; i++) {
+      const expected = startRank + i;
+      if (normalIdx < sortedRanks.length && sortedRanks[normalIdx] === expected) {
+        normalIdx++;
+      } else {
+        jokersUsed++;
+      }
+    }
+
+    if (jokersUsed <= jokers.length && normalIdx === sortedRanks.length) {
+      return {
+        cards,
+        type: "sequence",
+        rank: startRank as CardRank,
+        sequenceLength: totalLength,
+        sequenceSuit: suit,
+      };
     }
   }
 
-  if (jokersUsed > jokers.length) return null;
-  if (normalIdx !== sortedRanks.length) return null;
-
-  return {
-    cards,
-    type: "sequence",
-    rank: startRank as CardRank,
-    sequenceLength: totalLength,
-    sequenceSuit: suit,
-  };
+  return null;
 }
 
 /** Check if a play beats the current pile. */

@@ -87,15 +87,20 @@ export function createGameConfig(
           ? { deck2: gameOptions!.deck2 as any } : {}),
       });
     case "daifugo": {
+      const KNOWN_RULES = new Set([
+        "revolution", "eightCut", "capitalFall", "sequence", "suitLock",
+        "elevenBack", "spadeThreeReturn", "sevenPass", "tenDiscard",
+        "fiveSkip", "nineReverse", "restrictedFinish",
+      ]);
       const rulesOpt = gameOptions?.rules;
       const validRules = rulesOpt && typeof rulesOpt === "object" && !Array.isArray(rulesOpt)
         ? Object.fromEntries(
-            Object.entries(rulesOpt).filter(([, v]) => typeof v === "boolean"),
+            Object.entries(rulesOpt).filter(([k, v]) => KNOWN_RULES.has(k) && typeof v === "boolean"),
           )
         : undefined;
       return createDaifugoConfig({
         turnTimeoutMs: 30_000,
-        ...(validRules ? { rules: validRules } : {}),
+        ...(validRules && Object.keys(validRules).length > 0 ? { rules: validRules } : {}),
       });
     }
     case "trust-bank":
