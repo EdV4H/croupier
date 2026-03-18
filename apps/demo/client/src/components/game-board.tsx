@@ -8,6 +8,7 @@ import { PlanningPokerRichUI } from "../games/planning-poker/index.js";
 import { ValuesCardRichUI } from "../games/values-card/index.js";
 import { TCGRichUI } from "../games/digital-tcg/index.js";
 import { TrustBankRichUI } from "../games/trust-bank/index.js";
+import { DaifugoRichUI } from "../games/daifugo/index.js";
 
 export type UIMode = "generic" | "rich";
 
@@ -65,6 +66,17 @@ export function GameBoard({
   if (uiMode === "rich" && gameId === "digital-tcg") {
     return (
       <TCGRichUI
+        gameState={gameState}
+        dispatch={dispatch}
+        lastError={lastError}
+        onLeave={onLeave}
+      />
+    );
+  }
+  // Rich UI for Daifugo
+  if (uiMode === "rich" && gameId === "daifugo") {
+    return (
+      <DaifugoRichUI
         gameState={gameState}
         dispatch={dispatch}
         lastError={lastError}
