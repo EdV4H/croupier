@@ -936,9 +936,10 @@ export function EventLog({ entries, currentPlayerId }: { entries: ActionLogEntry
       lastStage = e.stage ?? "";
     }
 
-    const isBot = e.playerId.startsWith("bot:");
-    const isMe = e.playerId === currentPlayerId;
-    const displayName = isBot ? e.playerId.slice(4) : e.playerId;
+    const pid = e.playerId ?? "";
+    const isBot = pid.startsWith("bot:");
+    const isMe = pid === currentPlayerId;
+    const displayName = isBot ? pid.slice(4) : pid;
     const payloadStr = formatPayload(e.payload);
 
     rows.push(
