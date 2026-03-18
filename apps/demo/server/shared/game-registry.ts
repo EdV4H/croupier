@@ -44,8 +44,11 @@ export const AVAILABLE_GAMES: GameInfo[] = [
   },
 ];
 
-function validateCardArray(value: unknown): boolean {
-  return Array.isArray(value) && value.length > 0 && value.length <= 200;
+function validateCardArray(value: unknown, minLength: number, requiredFields: string[]): boolean {
+  if (!Array.isArray(value) || value.length < minLength || value.length > 200) return false;
+  return value.every(
+    (item) => item != null && typeof item === "object" && requiredFields.every((f) => f in item),
+  );
 }
 
 export function createGameConfig(
@@ -64,18 +67,22 @@ export function createGameConfig(
     case "values-card":
       return createValuesCardConfig({
         turnTimeoutMs: 60_000,
-        ...(validateCardArray(gameOptions?.cards) ? { cards: gameOptions!.cards as any } : {}),
+        ...(validateCardArray(gameOptions?.cards, 5 * players.length, ["id", "name"])
+          ? { cards: gameOptions!.cards as any } : {}),
       });
     case "digital-tcg":
       return createDigitalTCGConfig({
         turnTimeoutMs: 90_000,
-        ...(validateCardArray(gameOptions?.deck1) ? { deck1: gameOptions!.deck1 as any } : {}),
-        ...(validateCardArray(gameOptions?.deck2) ? { deck2: gameOptions!.deck2 as any } : {}),
+        ...(validateCardArray(gameOptions?.deck1, 5, ["id", "name", "cost", "attack", "health"])
+          ? { deck1: gameOptions!.deck1 as any } : {}),
+        ...(validateCardArray(gameOptions?.deck2, 5, ["id", "name", "cost", "attack", "health"])
+          ? { deck2: gameOptions!.deck2 as any } : {}),
       });
     case "trust-bank":
       return createTrustBankConfig({
         turnTimeoutMs: 60_000,
-        ...(validateCardArray(gameOptions?.cards) ? { cards: gameOptions!.cards as any } : {}),
+        ...(validateCardArray(gameOptions?.cards, 3 * players.length, ["id", "name", "category", "effects"])
+          ? { cards: gameOptions!.cards as any } : {}),
       });
     default:
       throw new Error(`Unknown game: ${gameId}`);
