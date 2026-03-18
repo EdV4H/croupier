@@ -58,7 +58,7 @@ export function GameSelector({ playerId, onJoinRoom, onChangeName }: GameSelecto
     fetchData();
   }, [fetchData]);
 
-  const CUSTOMIZABLE_GAMES = ["values-card", "trust-bank", "digital-tcg"];
+  const CUSTOMIZABLE_GAMES = ["values-card", "trust-bank", "digital-tcg", "daifugo"];
 
   const createRoom = async (gameId: string) => {
     const botCount = botCounts[gameId] ?? 0;
@@ -267,7 +267,9 @@ export function GameSelector({ playerId, onJoinRoom, onChangeName }: GameSelecto
                 style={styles.customizeBtn}
                 onClick={() => setCustomizingGameId(game.id)}
               >
-                {gameOptions[game.id] ? "Deck Customized" : "Customize Deck"}
+                {gameOptions[game.id]
+                  ? (game.id === "daifugo" ? "Rules Customized" : "Deck Customized")
+                  : (game.id === "daifugo" ? "Customize Rules" : "Customize Deck")}
               </button>
             )}
             <button

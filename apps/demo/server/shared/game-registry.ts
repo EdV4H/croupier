@@ -3,6 +3,7 @@ import { createTexasHoldemConfig } from "@croupier/plugin-texas-holdem";
 import { createPlanningPokerConfig } from "@croupier/plugin-planning-poker";
 import { createValuesCardConfig } from "@croupier/plugin-values-card";
 import { createDigitalTCGConfig } from "@croupier/plugin-digital-tcg";
+import { createDaifugoConfig } from "@croupier/plugin-daifugo";
 import { createTrustBankConfig } from "@croupier/plugin-trust-bank";
 import type { GameInfo } from "./types.js";
 
@@ -34,6 +35,13 @@ export const AVAILABLE_GAMES: GameInfo[] = [
     description: "Turn-based trading card game",
     minPlayers: 2,
     maxPlayers: 2,
+  },
+  {
+    id: "daifugo",
+    name: "大富豪",
+    description: "手札を最速で使い切れ！日本の定番カードゲーム",
+    minPlayers: 3,
+    maxPlayers: 6,
   },
   {
     id: "trust-bank",
@@ -78,6 +86,23 @@ export function createGameConfig(
         ...(validateCardArray(gameOptions?.deck2, 5, ["id", "name", "cost", "attack", "health"])
           ? { deck2: gameOptions!.deck2 as any } : {}),
       });
+    case "daifugo": {
+      const KNOWN_RULES = new Set([
+        "revolution", "eightCut", "capitalFall", "sequence", "suitLock",
+        "elevenBack", "spadeThreeReturn", "sevenPass", "tenDiscard",
+        "fiveSkip", "nineReverse", "restrictedFinish",
+      ]);
+      const rulesOpt = gameOptions?.rules;
+      const validRules = rulesOpt && typeof rulesOpt === "object" && !Array.isArray(rulesOpt)
+        ? Object.fromEntries(
+            Object.entries(rulesOpt).filter(([k, v]) => KNOWN_RULES.has(k) && typeof v === "boolean"),
+          )
+        : undefined;
+      return createDaifugoConfig({
+        turnTimeoutMs: 30_000,
+        ...(validRules && Object.keys(validRules).length > 0 ? { rules: validRules } : {}),
+      });
+    }
     case "trust-bank":
       return createTrustBankConfig({
         turnTimeoutMs: 60_000,

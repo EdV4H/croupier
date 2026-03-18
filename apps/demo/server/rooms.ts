@@ -177,11 +177,15 @@ export class RoomManager {
 
       case "getState": {
         try {
+          const engineState = this.gameManager.getEngineState(conn.roomId);
+          if (!engineState) {
+            // Game not started yet — silently ignore instead of sending error
+            break;
+          }
           const playerView = this.gameManager.getPlayerView(
             conn.roomId,
             conn.playerId,
           );
-          const engineState = this.gameManager.getEngineState(conn.roomId);
           const actionLog = this.gameManager.getPlayerLog(conn.roomId, conn.playerId);
           ws.send(
             JSON.stringify({
