@@ -85,11 +85,14 @@ export const VALUES_CARD_PRESETS: ValuesCardPreset[] = [
 // Trust Bank Presets
 // ============================================================
 
+export type TrustBankCategory = "trust" | "crisis" | "attack" | "repair" | "relationship";
+export type EffectTarget = "self" | "target" | "all";
+
 export interface TrustBankCardDef {
   id: number;
   name: string;
-  category: string;
-  effects: { target: string; points: number; coinFlip?: boolean }[];
+  category: TrustBankCategory;
+  effects: { target: EffectTarget; points: number; coinFlip?: boolean }[];
   requiresTarget: boolean;
   special?: string;
   description: string;
@@ -172,7 +175,7 @@ export interface TCGCard {
   cost: number;
   attack: number;
   health: number;
-  type: string;
+  type: "creature" | "spell";
 }
 
 export interface TCGPreset {
