@@ -18,6 +18,7 @@
     "@croupier/plugin-digital-tcg": "workspace:*",
     "@croupier/plugin-planning-poker": "workspace:*",
     "@croupier/plugin-texas-holdem": "workspace:*",
+    "@croupier/plugin-daifugo": "workspace:*",
     "@croupier/plugin-trust-bank": "workspace:*",
     "@croupier/plugin-values-card": "workspace:*",
     "@hono/node-server": "^1.13.0",
