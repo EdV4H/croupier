@@ -820,11 +820,14 @@ const daifugoBotStrategy: BotStrategy<DaifugoState> = {
 
     // Play round
     const currentPile = view.currentPile as PlayedCards | null;
-    const isRevolution = view.isRevolution as boolean;
+    const baseRevolution = view.isRevolution as boolean;
+    const trickElevenBack = view.trickElevenBack as boolean;
+    const effectiveRevolution = trickElevenBack ? !baseRevolution : baseRevolution;
     const rulesConfig = view.rules as DaifugoRules;
+    const suitLock = view.trickSuitLock as string | null;
 
-    // Find all valid plays
-    const validPlays = findAllValidPlays(hand, currentPile, isRevolution, rulesConfig.sequence);
+    // Find all valid plays (considering suit lock and effective revolution)
+    const validPlays = findAllValidPlays(hand, currentPile, effectiveRevolution, rulesConfig.sequence, suitLock);
 
     if (validPlays.length === 0) {
       if (currentPile) {
@@ -832,7 +835,7 @@ const daifugoBotStrategy: BotStrategy<DaifugoState> = {
       }
       // Empty field — must play something (play weakest single)
       const sorted = [...hand].sort(
-        (a, b) => getCardStrength(a.rank, isRevolution) - getCardStrength(b.rank, isRevolution),
+        (a, b) => getCardStrength(a.rank, effectiveRevolution) - getCardStrength(b.rank, effectiveRevolution),
       );
       return { action: "playCards", payload: { cardIds: [sorted[0].id] } };
     }
@@ -847,8 +850,8 @@ const daifugoBotStrategy: BotStrategy<DaifugoState> = {
 
     // Play weakest valid hand
     const sorted = validPlays.sort((a, b) => {
-      const aStrength = Math.min(...a.map((c) => getCardStrength(c.rank, isRevolution)));
-      const bStrength = Math.min(...b.map((c) => getCardStrength(c.rank, isRevolution)));
+      const aStrength = Math.min(...a.map((c) => getCardStrength(c.rank, effectiveRevolution)));
+      const bStrength = Math.min(...b.map((c) => getCardStrength(c.rank, effectiveRevolution)));
       return aStrength - bStrength;
     });
 

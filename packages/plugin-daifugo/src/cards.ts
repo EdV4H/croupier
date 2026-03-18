@@ -186,21 +186,27 @@ export function findAllValidPlays(
   currentPile: PlayedCards | null,
   isRevolution: boolean,
   sequenceEnabled: boolean,
+  suitLock?: string | null,
 ): Card[][] {
   const validPlays: Card[][] = [];
-  const handSize = hand.length;
+
+  // Filter hand by suit lock (only matching suit + jokers allowed)
+  const filteredHand = suitLock
+    ? hand.filter((c) => c.suit === suitLock || isJoker(c))
+    : hand;
+  const handSize = filteredHand.length;
 
   // Singles
   for (let i = 0; i < handSize; i++) {
-    if (isValidPlay([hand[i]], currentPile, isRevolution, sequenceEnabled)) {
-      validPlays.push([hand[i]]);
+    if (isValidPlay([filteredHand[i]], currentPile, isRevolution, sequenceEnabled)) {
+      validPlays.push([filteredHand[i]]);
     }
   }
 
   // Pairs
   for (let i = 0; i < handSize; i++) {
     for (let j = i + 1; j < handSize; j++) {
-      const combo = [hand[i], hand[j]];
+      const combo = [filteredHand[i], filteredHand[j]];
       if (isValidPlay(combo, currentPile, isRevolution, sequenceEnabled)) {
         validPlays.push(combo);
       }
@@ -211,7 +217,7 @@ export function findAllValidPlays(
   for (let i = 0; i < handSize; i++) {
     for (let j = i + 1; j < handSize; j++) {
       for (let k = j + 1; k < handSize; k++) {
-        const combo = [hand[i], hand[j], hand[k]];
+        const combo = [filteredHand[i], filteredHand[j], filteredHand[k]];
         if (isValidPlay(combo, currentPile, isRevolution, sequenceEnabled)) {
           validPlays.push(combo);
         }
@@ -219,12 +225,14 @@ export function findAllValidPlays(
     }
   }
 
-  // Quads
-  for (let i = 0; i < handSize; i++) {
-    for (let j = i + 1; j < handSize; j++) {
-      for (let k = j + 1; k < handSize; k++) {
-        for (let l = k + 1; l < handSize; l++) {
-          const combo = [hand[i], hand[j], hand[k], hand[l]];
+  // Quads — use full hand (quads ignore suit lock since they're all same rank)
+  const quadHand = suitLock ? hand : filteredHand;
+  const quadSize = quadHand.length;
+  for (let i = 0; i < quadSize; i++) {
+    for (let j = i + 1; j < quadSize; j++) {
+      for (let k = j + 1; k < quadSize; k++) {
+        for (let l = k + 1; l < quadSize; l++) {
+          const combo = [quadHand[i], quadHand[j], quadHand[k], quadHand[l]];
           if (isValidPlay(combo, currentPile, isRevolution, sequenceEnabled)) {
             validPlays.push(combo);
           }
@@ -233,9 +241,9 @@ export function findAllValidPlays(
     }
   }
 
-  // Sequences (3+ cards, same suit)
+  // Sequences (3+ cards, same suit) — sequences are inherently single-suit, so suit lock is compatible
   if (sequenceEnabled) {
-    findSequencePlays(hand, currentPile, isRevolution, validPlays);
+    findSequencePlays(suitLock ? filteredHand : hand, currentPile, isRevolution, validPlays);
   }
 
   return validPlays;
