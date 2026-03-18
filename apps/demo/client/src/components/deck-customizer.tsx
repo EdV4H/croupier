@@ -40,6 +40,8 @@ export function DeckCustomizer({ gameId, onSave, onClose }: DeckCustomizerProps)
 // Values Card Customizer
 // ============================================================
 
+let valuesCardNextId = 0;
+
 function ValuesCardCustomizer({ onSave, onClose }: { onSave: (o: Record<string, unknown>) => void; onClose: () => void }) {
   const [presetId, setPresetId] = useState("default");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(ALL_VALUES_CARDS.map((c) => c.id)));
@@ -67,7 +69,7 @@ function ValuesCardCustomizer({ onSave, onClose }: { onSave: (o: Record<string, 
   const addCustomCard = () => {
     const name = newCardName.trim();
     if (!name) return;
-    const id = `custom-${Date.now()}`;
+    const id = `custom-${++valuesCardNextId}`;
     setCustomCards((prev) => [...prev, { id, name }]);
     setSelectedIds((prev) => new Set(prev).add(id));
     setNewCardName("");
@@ -200,8 +202,8 @@ function TrustBankCustomizer({ onSave, onClose }: { onSave: (o: Record<string, u
 
   const handleSave = () => {
     const cards = ALL_TRUST_BANK_CARDS.filter((c) => selectedIds.has(c.id));
-    if (cards.length < 8) {
-      alert("最低8枚のカードが必要です");
+    if (cards.length < 12) {
+      alert("最低12枚のカードが必要です（3枚×4人分）");
       return;
     }
     onSave({ cards });
@@ -265,6 +267,8 @@ function TrustBankCustomizer({ onSave, onClose }: { onSave: (o: Record<string, u
 // Digital TCG Customizer (Player 1 & Player 2 decks)
 // ============================================================
 
+let tcgNextId = 0;
+
 function TCGCustomizer({ onSave, onClose }: { onSave: (o: Record<string, unknown>) => void; onClose: () => void }) {
   const [p1PresetId, setP1PresetId] = useState("default");
   const [p2PresetId, setP2PresetId] = useState("default");
@@ -298,7 +302,7 @@ function TCGCustomizer({ onSave, onClose }: { onSave: (o: Record<string, unknown
     const name = newCard.name.trim();
     if (!name) return;
     const card: TCGCard = {
-      id: `custom-${Date.now()}`,
+      id: `custom-${++tcgNextId}`,
       name,
       cost: newCard.cost,
       attack: newCard.attack,

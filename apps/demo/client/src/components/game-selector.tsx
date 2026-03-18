@@ -34,7 +34,7 @@ export function GameSelector({ playerId, onJoinRoom, onChangeName }: GameSelecto
   const [joinError, setJoinError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [nameInput, setNameInput] = useState(playerId);
-  const [gameOptions, setGameOptions] = useState<Record<string, Record<string, unknown>>>({});
+  const [gameOptions, setGameOptions] = useState<Partial<Record<string, Record<string, unknown>>>>({});
   const [customizingGameId, setCustomizingGameId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
