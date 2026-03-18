@@ -24,6 +24,8 @@ export function DeckCustomizer({ gameId, onSave, onClose }: DeckCustomizerProps)
       return <TrustBankCustomizer onSave={onSave} onClose={onClose} />;
     case "digital-tcg":
       return <TCGCustomizer onSave={onSave} onClose={onClose} />;
+    case "daifugo":
+      return <DaifugoRulesCustomizer onSave={onSave} onClose={onClose} />;
     default:
       return (
         <div style={styles.overlay} onClick={onClose}>
@@ -380,6 +382,101 @@ function TCGCustomizer({ onSave, onClose }: { onSave: (o: Record<string, unknown
           <button style={styles.button} onClick={handleSave}>Save</button>
           <button style={styles.resetBtn} onClick={() => { applyPreset(1, "default"); applyPreset(2, "default"); }}>Reset</button>
           <button style={styles.cancelBtn} onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Daifugo Rules Customizer
+// ============================================================
+
+const DAIFUGO_RULES_CONFIG = [
+  { key: "revolution", label: "革命", desc: "4枚同ランクでカード強さ反転", defaultOn: true },
+  { key: "eightCut", label: "8切り", desc: "8を含む出し方でトリック即終了", defaultOn: true },
+  { key: "capitalFall", label: "都落ち", desc: "前ラウンド大富豪が上位に入れなければ大貧民に降格", defaultOn: true },
+  { key: "sequence", label: "階段", desc: "同スート3枚以上連番を出せる", defaultOn: true },
+  { key: "suitLock", label: "縛り", desc: "連続で同スートが出されたらそのトリック中は同スートのみ", defaultOn: true },
+  { key: "elevenBack", label: "11バック", desc: "Jを出すとそのトリック中のみカード強さ反転", defaultOn: false },
+  { key: "spadeThreeReturn", label: "スペ3返し", desc: "単体ジョーカーに対してスペード3で返せる", defaultOn: false },
+  { key: "sevenPass", label: "7渡し", desc: "7を出した枚数分、次のプレイヤーに手札を渡せる", defaultOn: false },
+  { key: "tenDiscard", label: "10捨て", desc: "10を出した枚数分、手札から任意のカードを捨てられる", defaultOn: false },
+  { key: "fiveSkip", label: "5スキップ", desc: "5を出した枚数分、次のプレイヤーをスキップ", defaultOn: false },
+  { key: "nineReverse", label: "9リバース", desc: "9を出すとプレイ順が逆転する", defaultOn: false },
+  { key: "restrictedFinish", label: "禁止上がり", desc: "2/8/ジョーカーで上がれない", defaultOn: false },
+] as const;
+
+function DaifugoRulesCustomizer({ onSave, onClose }: { onSave: (o: Record<string, unknown>) => void; onClose: () => void }) {
+  const [rules, setRules] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    for (const r of DAIFUGO_RULES_CONFIG) {
+      init[r.key] = r.defaultOn;
+    }
+    return init;
+  });
+
+  const toggleRule = (key: string) => {
+    setRules((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const resetDefaults = () => {
+    const init: Record<string, boolean> = {};
+    for (const r of DAIFUGO_RULES_CONFIG) {
+      init[r.key] = r.defaultOn;
+    }
+    setRules(init);
+  };
+
+  return (
+    <div style={styles.overlay} onClick={onClose}>
+      <div style={{ ...styles.modal, maxWidth: 520, maxHeight: "80vh", overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+        <h2 style={{ color: "#f1f5f9", marginBottom: "0.5rem" }}>大富豪ルール設定</h2>
+        <p style={{ color: "#64748b", fontSize: "0.8rem", marginBottom: "1rem" }}>
+          各ルールのON/OFFを切り替えてカスタマイズできます
+        </p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+          {DAIFUGO_RULES_CONFIG.map((r) => (
+            <div
+              key={r.key}
+              style={{
+                display: "flex", alignItems: "center", gap: "0.8rem",
+                padding: "0.5rem 0.8rem", borderRadius: 8,
+                background: rules[r.key] ? "#1e3a5f" : "#1e293b",
+                border: `1px solid ${rules[r.key] ? "#3b82f6" : "#334155"}`,
+                cursor: "pointer",
+              }}
+              onClick={() => toggleRule(r.key)}
+            >
+              <div style={{
+                width: 40, height: 22, borderRadius: 11,
+                background: rules[r.key] ? "#3b82f6" : "#475569",
+                position: "relative", transition: "background 0.2s",
+                flexShrink: 0,
+              }}>
+                <div style={{
+                  width: 18, height: 18, borderRadius: 9,
+                  background: "#fff", position: "absolute", top: 2,
+                  left: rules[r.key] ? 20 : 2, transition: "left 0.2s",
+                }} />
+              </div>
+              <div>
+                <div style={{ color: "#f1f5f9", fontSize: "0.9rem", fontWeight: 600 }}>{r.label}</div>
+                <div style={{ color: "#94a3b8", fontSize: "0.75rem" }}>{r.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+          <button style={styles.button} onClick={() => onSave({ rules })}>
+            保存
+          </button>
+          <button style={{ ...styles.button, background: "#475569" }} onClick={resetDefaults}>
+            デフォルトに戻す
+          </button>
+          <button style={{ ...styles.button, background: "#334155" }} onClick={onClose}>
+            キャンセル
+          </button>
         </div>
       </div>
     </div>

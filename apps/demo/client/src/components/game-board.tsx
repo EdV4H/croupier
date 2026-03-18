@@ -221,6 +221,8 @@ function ActionPanel({
       return <TCGActions pv={playerView} dispatch={dispatch} pid={playerId} />;
     case "trust-bank":
       return <TrustBankActions pv={playerView} dispatch={dispatch} pid={playerId} es={engineState} />;
+    case "daifugo":
+      return <DaifugoActions pv={playerView} dispatch={dispatch} pid={playerId} es={engineState} />;
     default:
       return <p>No UI for this game</p>;
   }
@@ -668,6 +670,210 @@ function TrustBankActions({
   }
 
   return <p style={{ color: "#94a3b8" }}>待機中...</p>;
+}
+
+function DaifugoActions({
+  pv,
+  dispatch,
+  pid,
+  es,
+}: {
+  pv: any;
+  dispatch: (a: string, p?: unknown) => void;
+  pid: string;
+  es: GameStateData["engineState"];
+}) {
+  const me = pv.players?.[pid];
+  const hand = me?.hand ?? [];
+  const [selectedCards, setSelectedCards] = useState<string[]>([]);
+
+  const toggleCard = (cardId: string) => {
+    setSelectedCards((prev) =>
+      prev.includes(cardId) ? prev.filter((id) => id !== cardId) : [...prev, cardId],
+    );
+  };
+
+  const clearSelection = () => setSelectedCards([]);
+
+  // Card exchange phase
+  if (es.phase === "cardExchange" && pv.exchangePending) {
+    return (
+      <div style={styles.actionCol}>
+        <p style={{ color: "#94a3b8", marginBottom: "0.5rem" }}>
+          カード交換 — 渡すカードを選択:
+        </p>
+        <div style={styles.actionRow}>
+          {hand.map((card: any) => (
+            <button
+              key={card.id}
+              style={{
+                ...styles.actionBtn,
+                background: selectedCards.includes(card.id) ? "#22c55e" : "#334155",
+                border: selectedCards.includes(card.id) ? "2px solid #4ade80" : "2px solid transparent",
+              }}
+              onClick={() => toggleCard(card.id)}
+            >
+              {formatCard(card)}
+            </button>
+          ))}
+        </div>
+        <div style={{ ...styles.actionRow, marginTop: "0.5rem" }}>
+          <button
+            style={{ ...styles.actionBtn, background: "#3b82f6" }}
+            onClick={() => { dispatch("giveCards", { cardIds: selectedCards }); clearSelection(); }}
+            disabled={selectedCards.length === 0}
+          >
+            渡す ({selectedCards.length}枚)
+          </button>
+          <button
+            style={{ ...styles.actionBtn, background: "#475569" }}
+            onClick={clearSelection}
+          >
+            選択解除
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 7-pass pending
+  if (pv.pendingAction?.type === "sevenPass" && pv.pendingAction?.playerId === pid) {
+    return (
+      <div style={styles.actionCol}>
+        <p style={{ color: "#f59e0b", marginBottom: "0.5rem" }}>
+          7渡し — {pv.pendingAction.count}枚選んで次のプレイヤーに渡す:
+        </p>
+        <div style={styles.actionRow}>
+          {hand.map((card: any) => (
+            <button
+              key={card.id}
+              style={{
+                ...styles.actionBtn,
+                background: selectedCards.includes(card.id) ? "#f59e0b" : "#334155",
+              }}
+              onClick={() => toggleCard(card.id)}
+            >
+              {formatCard(card)}
+            </button>
+          ))}
+        </div>
+        <button
+          style={{ ...styles.actionBtn, background: "#f59e0b", marginTop: "0.5rem" }}
+          onClick={() => { dispatch("selectCardsToPass", { cardIds: selectedCards }); clearSelection(); }}
+          disabled={selectedCards.length !== pv.pendingAction.count}
+        >
+          渡す ({selectedCards.length}/{pv.pendingAction.count})
+        </button>
+      </div>
+    );
+  }
+
+  // 10-discard pending
+  if (pv.pendingAction?.type === "tenDiscard" && pv.pendingAction?.playerId === pid) {
+    return (
+      <div style={styles.actionCol}>
+        <p style={{ color: "#ef4444", marginBottom: "0.5rem" }}>
+          10捨て — {pv.pendingAction.count}枚選んで捨てる:
+        </p>
+        <div style={styles.actionRow}>
+          {hand.map((card: any) => (
+            <button
+              key={card.id}
+              style={{
+                ...styles.actionBtn,
+                background: selectedCards.includes(card.id) ? "#ef4444" : "#334155",
+              }}
+              onClick={() => toggleCard(card.id)}
+            >
+              {formatCard(card)}
+            </button>
+          ))}
+        </div>
+        <button
+          style={{ ...styles.actionBtn, background: "#ef4444", marginTop: "0.5rem" }}
+          onClick={() => { dispatch("selectCardsToDiscard", { cardIds: selectedCards }); clearSelection(); }}
+          disabled={selectedCards.length !== pv.pendingAction.count}
+        >
+          捨てる ({selectedCards.length}/{pv.pendingAction.count})
+        </button>
+      </div>
+    );
+  }
+
+  // Normal play phase
+  const currentPile = pv.currentPile;
+  const isEmptyField = !currentPile;
+
+  return (
+    <div style={styles.actionCol}>
+      <p style={{ color: "#94a3b8", marginBottom: "0.5rem", fontSize: "0.85rem" }}>
+        {isEmptyField ? "場は空 — カードを出してください" : "場のカードより強いカードを出すかパス"}
+        {pv.isRevolution && <span style={{ color: "#f59e0b", marginLeft: "0.5rem" }}>【革命中】</span>}
+        {pv.trickSuitLock && <span style={{ color: "#a855f7", marginLeft: "0.5rem" }}>【{pv.trickSuitLock}縛り】</span>}
+      </p>
+      <div style={styles.actionRow}>
+        {hand.map((card: any) => (
+          <button
+            key={card.id}
+            style={{
+              ...styles.actionBtn,
+              background: selectedCards.includes(card.id) ? "#22c55e" : suitColor(card.suit),
+              border: selectedCards.includes(card.id) ? "2px solid #4ade80" : "2px solid transparent",
+              minWidth: 48,
+            }}
+            onClick={() => toggleCard(card.id)}
+          >
+            {formatCard(card)}
+          </button>
+        ))}
+      </div>
+      <div style={{ ...styles.actionRow, marginTop: "0.5rem" }}>
+        <button
+          style={{ ...styles.actionBtn, background: "#3b82f6" }}
+          onClick={() => { dispatch("playCards", { cardIds: selectedCards }); clearSelection(); }}
+          disabled={selectedCards.length === 0}
+        >
+          出す ({selectedCards.length}枚)
+        </button>
+        {!isEmptyField && (
+          <button
+            style={{ ...styles.actionBtn, background: "#64748b" }}
+            onClick={() => { dispatch("pass"); clearSelection(); }}
+          >
+            パス
+          </button>
+        )}
+        <button
+          style={{ ...styles.actionBtn, background: "#475569" }}
+          onClick={clearSelection}
+        >
+          選択解除
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function formatCard(card: any): string {
+  if (card.suit === "joker") return "JK";
+  const suitSymbol: Record<string, string> = {
+    spades: "♠", hearts: "♥", diamonds: "♦", clubs: "♣",
+  };
+  const rankName: Record<number, string> = {
+    11: "J", 12: "Q", 13: "K", 14: "A", 15: "2",
+  };
+  const s = suitSymbol[card.suit] ?? card.suit;
+  const r = rankName[card.rank] ?? String(card.rank);
+  return `${s}${r}`;
+}
+
+function suitColor(suit: string): string {
+  switch (suit) {
+    case "hearts": case "diamonds": return "#dc2626";
+    case "spades": case "clubs": return "#334155";
+    case "joker": return "#6366f1";
+    default: return "#334155";
+  }
 }
 
 // ============================================================
