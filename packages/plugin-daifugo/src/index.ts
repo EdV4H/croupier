@@ -310,9 +310,9 @@ export function createDaifugoConfig(
           if (player.hand.length === 0) {
             // Restricted finish check
             if (checkRestrictedFinish(cards, game.rules)) {
-              // Penalty: force to last place
-              player.finishOrder = game.playerOrder.length;
+              // Penalty: mark as restricted-finish (placed last during roundEnd)
               game.finishCount++;
+              player.finishOrder = -1; // sentinel: penalized, resolved in roundEnd
               game.finishedPlayers.push(playerId);
             } else {
               game.finishCount++;
@@ -348,6 +348,7 @@ export function createDaifugoConfig(
         validate: (game, playerId, payload) => {
           const { cardIds } = payload as { cardIds: string[] };
           if (!cardIds || cardIds.length === 0) return "Must play at least one card";
+          if (new Set(cardIds).size !== cardIds.length) return "Duplicate card IDs";
 
           const player = game.players[playerId];
 
@@ -359,18 +360,19 @@ export function createDaifugoConfig(
           const cards = cardIds.map((id) => player.hand.find((c) => c.id === id)!);
           const effectiveRevolution = game.trickElevenBack ? !game.isRevolution : game.isRevolution;
 
+          const classified = classifyCards(cards, effectiveRevolution, game.rules.sequence);
+          if (!classified) return "Invalid card combination";
+
+          // Spade-3 return: early accept (♠3 single vs joker single, bypasses normal strength/suit checks)
+          if (game.currentPile && checkSpadeThreeReturn(classified, game.currentPile, game.rules)) {
+            return true;
+          }
+
           // Suit lock validation
           if (game.trickSuitLock && game.currentPile) {
             const nonJokers = cards.filter((c) => !isJoker(c));
             if (nonJokers.length > 0 && nonJokers.some((c) => c.suit !== game.trickSuitLock)) {
-              // Allow spade-3 return even under suit lock
-              if (!checkSpadeThreeReturn(
-                classifyCards(cards, effectiveRevolution, game.rules.sequence)!,
-                game.currentPile,
-                game.rules,
-              )) {
-                return `Suit lock active: must play ${game.trickSuitLock}`;
-              }
+              return `Suit lock active: must play ${game.trickSuitLock}`;
             }
           }
 
@@ -424,6 +426,7 @@ export function createDaifugoConfig(
 
         validate: (game, playerId, payload) => {
           const { cardIds } = payload as { cardIds: string[] };
+          if (new Set(cardIds).size !== cardIds.length) return "Duplicate card IDs";
           if (!game.previousRanks) return "No exchange needed";
 
           const rank = game.previousRanks[playerId];
@@ -481,6 +484,7 @@ export function createDaifugoConfig(
 
         validate: (game, playerId, payload) => {
           const { cardIds } = payload as { cardIds: string[] };
+          if (new Set(cardIds).size !== cardIds.length) return "Duplicate card IDs";
           if (!game.pendingAction || game.pendingAction.type !== "sevenPass") {
             return "No seven-pass pending";
           }
@@ -515,6 +519,7 @@ export function createDaifugoConfig(
 
         validate: (game, playerId, payload) => {
           const { cardIds } = payload as { cardIds: string[] };
+          if (new Set(cardIds).size !== cardIds.length) return "Duplicate card IDs";
           if (!game.pendingAction || game.pendingAction.type !== "tenDiscard") {
             return "No ten-discard pending";
           }
@@ -612,6 +617,15 @@ export function createDaifugoConfig(
             game.finishCount++;
             game.players[pid].finishOrder = game.finishCount;
             game.finishedPlayers.push(pid);
+          }
+
+          // Resolve penalized players (restrictedFinish: finishOrder === -1 → move to end)
+          const penalized = game.finishedPlayers.filter((pid) => game.players[pid].finishOrder === -1);
+          const nonPenalized = game.finishedPlayers.filter((pid) => game.players[pid].finishOrder !== -1);
+          game.finishedPlayers = [...nonPenalized, ...penalized];
+          // Reassign finishOrder sequentially
+          for (let i = 0; i < game.finishedPlayers.length; i++) {
+            game.players[game.finishedPlayers[i]].finishOrder = i + 1;
           }
 
           // Assign ranks

@@ -141,27 +141,33 @@ describe("Daifugo", () => {
     });
 
     it("accepts a valid pair", () => {
-      const engine = createGame(4);
-      const state = getState(engine);
-      const currentPid = getCurrentPlayer(engine);
-      const hand = state.players[currentPid].hand;
+      // Try multiple seeds to find a hand with a pair
+      let pairAccepted = false;
+      for (let seed = 1; seed <= 20 && !pairAccepted; seed++) {
+        const players = ["P1", "P2", "P3", "P4"];
+        const config = createDaifugoConfig();
+        const engine = new CroupierCore(config, players, { seed });
+        const currentPid = getCurrentPlayer(engine);
+        const hand = getState(engine).players[currentPid].hand;
 
-      // Find a pair in hand
-      const rankMap: Record<number, Card[]> = {};
-      for (const c of hand) {
-        if (c.suit !== "joker") {
-          if (!rankMap[c.rank]) rankMap[c.rank] = [];
-          rankMap[c.rank].push(c);
+        const rankMap: Record<number, Card[]> = {};
+        for (const c of hand) {
+          if (c.suit !== "joker") {
+            if (!rankMap[c.rank]) rankMap[c.rank] = [];
+            rankMap[c.rank].push(c);
+          }
         }
-      }
-      const pair = Object.values(rankMap).find((cards) => cards.length >= 2);
-      if (pair) {
+        const pair = Object.values(rankMap).find((cards) => cards.length >= 2);
+        if (!pair) continue;
+
         const result = engine.dispatch(currentPid, "playCards", {
           cardIds: [pair[0].id, pair[1].id],
         });
         expect(result.ok).toBe(true);
         expect(getState(engine).currentPile!.type).toBe("pair");
+        pairAccepted = true;
       }
+      expect(pairAccepted).toBe(true);
     });
   });
 
@@ -213,47 +219,55 @@ describe("Daifugo", () => {
 
   describe("eight-cut", () => {
     it("clears the field when 8 is played (rule ON)", () => {
-      const engine = createGame(4, { rules: { eightCut: true } });
-      const state = getState(engine);
-      const currentPid = getCurrentPlayer(engine);
-      const hand = state.players[currentPid].hand;
+      let eightCutTriggered = false;
+      for (let seed = 1; seed <= 20 && !eightCutTriggered; seed++) {
+        const players = ["P1", "P2", "P3", "P4"];
+        const config = createDaifugoConfig({ rules: { eightCut: true } });
+        const engine = new CroupierCore(config, players, { seed });
+        const currentPid = getCurrentPlayer(engine);
+        const hand = getState(engine).players[currentPid].hand;
 
-      // Find an 8 in hand
-      const eight = hand.find((c) => c.rank === 8);
-      if (eight) {
+        const eight = hand.find((c: Card) => c.rank === 8);
+        if (!eight) continue;
+
         engine.dispatch(currentPid, "playCards", { cardIds: [eight.id] });
         const newState = getState(engine);
-        // 8-cut clears the field
         expect(newState.currentPile).toBeNull();
-        // Same player continues
         expect(getCurrentPlayer(engine)).toBe(currentPid);
+        eightCutTriggered = true;
       }
+      expect(eightCutTriggered).toBe(true);
     });
   });
 
   describe("revolution", () => {
     it("toggles isRevolution on pure quad", () => {
-      const engine = createGame(4, { rules: { revolution: true } });
-      const state = getState(engine);
-      const currentPid = getCurrentPlayer(engine);
-      const hand = state.players[currentPid].hand;
+      let revolutionTriggered = false;
+      for (let seed = 1; seed <= 50 && !revolutionTriggered; seed++) {
+        const players = ["P1", "P2", "P3", "P4"];
+        const config = createDaifugoConfig({ rules: { revolution: true } });
+        const engine = new CroupierCore(config, players, { seed });
+        const currentPid = getCurrentPlayer(engine);
+        const hand = getState(engine).players[currentPid].hand;
 
-      // Find a quad in hand
-      const rankMap: Record<number, Card[]> = {};
-      for (const c of hand) {
-        if (c.suit !== "joker") {
-          if (!rankMap[c.rank]) rankMap[c.rank] = [];
-          rankMap[c.rank].push(c);
+        const rankMap: Record<number, Card[]> = {};
+        for (const c of hand) {
+          if (c.suit !== "joker") {
+            if (!rankMap[c.rank]) rankMap[c.rank] = [];
+            rankMap[c.rank].push(c);
+          }
         }
-      }
-      const quad = Object.values(rankMap).find((cards) => cards.length >= 4);
-      if (quad) {
-        expect(state.isRevolution).toBe(false);
+        const quad = Object.values(rankMap).find((cards) => cards.length >= 4);
+        if (!quad) continue;
+
+        expect(getState(engine).isRevolution).toBe(false);
         engine.dispatch(currentPid, "playCards", {
-          cardIds: quad.slice(0, 4).map((c) => c.id),
+          cardIds: quad.slice(0, 4).map((c: Card) => c.id),
         });
         expect(getState(engine).isRevolution).toBe(true);
+        revolutionTriggered = true;
       }
+      expect(revolutionTriggered).toBe(true);
     });
   });
 
