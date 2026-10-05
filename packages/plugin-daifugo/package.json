@@ -1,16 +1,29 @@
 {
   "name": "@croupier/plugin-daifugo",
   "version": "0.1.0",
+  "description": "Daifugo (大富豪) plugin for @croupier/core",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EdV4H/croupier.git",
+    "directory": "packages/plugin-daifugo"
+  },
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
-    }
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist"
@@ -20,7 +33,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@croupier/core": "workspace:*"
+    "@croupier/core": "workspace:^"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

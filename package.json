@@ -5,9 +5,13 @@
     "build": "turbo build",
     "test": "turbo test",
     "lint": "turbo lint",
-    "dev": "turbo dev"
+    "dev": "turbo dev",
+    "changeset": "changeset",
+    "version-packages": "changeset version && pnpm install --lockfile-only",
+    "release": "turbo build --filter=./packages/* && changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "^3.0.3",
     "turbo": "^2.4.0",
     "typescript": "^5.7.0"
   },
