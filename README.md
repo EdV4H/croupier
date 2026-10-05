@@ -164,4 +164,4 @@ Publishing uses npm [trusted publishing](https://docs.npmjs.com/trusted-publishe
 
 ## License
 
-Private
+[MIT](./LICENSE)

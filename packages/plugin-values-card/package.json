@@ -2,6 +2,7 @@
   "name": "@edv4h/croupier-plugin-values-card",
   "version": "0.1.0",
   "description": "Wevox Values Card plugin for @edv4h/croupier-core",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EdV4H/croupier.git",

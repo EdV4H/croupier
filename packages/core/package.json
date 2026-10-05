@@ -2,6 +2,7 @@
   "name": "@edv4h/croupier-core",
   "version": "0.1.0",
   "description": "Universal game engine for turn-based multiplayer games — phases, turn orders, view masking, bots and snapshots",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EdV4H/croupier.git",

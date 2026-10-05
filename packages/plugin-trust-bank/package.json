@@ -2,6 +2,7 @@
   "name": "@edv4h/croupier-plugin-trust-bank",
   "version": "0.1.0",
   "description": "Trust Bank card game plugin for @edv4h/croupier-core",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/EdV4H/croupier.git",
