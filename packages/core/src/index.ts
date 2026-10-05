@@ -12,6 +12,7 @@ export type {
   CroupierConfig,
   CroupierContext,
   CroupierEvents,
+  CroupierSnapshot,
   DispatchResult,
   EngineState,
   GameEndCondition,
@@ -23,10 +24,12 @@ export type {
   PlayerResult,
   RoleConfig,
   SetupContext,
+  SnapshotOptions,
   StageConfig,
   TurnOrder,
   ViewConfig,
 } from "./types.js";
+export { SNAPSHOT_FORMAT_VERSION } from "./types.js";
 
 // Turn Orders
 export { ALTERNATING, ROUND_ROBIN, SIMULTANEOUS, custom } from "./turn-orders.js";
@@ -46,7 +49,8 @@ export {
 
 // Utilities
 export { countOnly, deepClone, maskArray } from "./util/clone.js";
-export { createRandom, SeededRandom } from "./util/random.js";
+export { createRandom, createRandomApi, SeededRandom } from "./util/random.js";
+export type { GameRandom } from "./util/random.js";
 
 // Phase Graph
 export { extractPhaseGraph } from "./phase-graph.js";

@@ -36,16 +36,43 @@ export class SeededRandom {
   pick<T>(arr: T[]): T {
     return arr[this.integer(0, arr.length - 1)];
   }
+
+  /** Get the internal PRNG state (a 32-bit integer, JSON-serializable). */
+  getState(): number {
+    return this.state;
+  }
+
+  /** Restore the internal PRNG state captured by getState(). */
+  setState(state: number): void {
+    this.state = state;
+  }
+}
+
+/** Random API exposed to setup(), actions and hooks. */
+export interface GameRandom {
+  /** Return a shuffled copy of the array (the input is not mutated). */
+  shuffle: <T>(arr: T[]) => T[];
+  /** Integer in [min, max] (inclusive). */
+  integer: (min: number, max: number) => number;
+  /** Pick a random element from the array. */
+  pick: <T>(arr: T[]) => T;
 }
 
 /**
- * Create a SetupContext-compatible random object.
+ * Wrap a SeededRandom instance as a GameRandom.
+ * All calls advance the same underlying PRNG state.
  */
-export function createRandom(seed?: number) {
-  const rng = new SeededRandom(seed ?? Date.now());
+export function createRandomApi(rng: SeededRandom): GameRandom {
   return {
     shuffle: <T>(arr: T[]) => rng.shuffle([...arr]),
     integer: (min: number, max: number) => rng.integer(min, max),
     pick: <T>(arr: T[]) => rng.pick(arr),
   };
+}
+
+/**
+ * Create a SetupContext-compatible random object.
+ */
+export function createRandom(seed?: number): GameRandom {
+  return createRandomApi(new SeededRandom(seed ?? Date.now()));
 }

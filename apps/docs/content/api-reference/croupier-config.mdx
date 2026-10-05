@@ -146,8 +146,11 @@ interface CroupierContext<S extends GameState = GameState> {
   actionCount: number;          // Actions taken in current phase
   result: GameResult | null;    // Game result (set when game ends)
   log: ActionLogEntry[];        // Complete action history
+  random: GameRandom;           // Seeded random (same stream as setup())
 }
 ```
+
+Use `ctx.random` instead of `Math.random()` inside actions and hooks (e.g. reshuffling a deck mid-game). It shares the seeded stream with `setup()`, so games stay reproducible and its state is captured by [`toSnapshot()`](./croupier-core#snapshots).
 
 ### PhaseConfig
 

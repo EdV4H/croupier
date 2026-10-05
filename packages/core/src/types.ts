@@ -2,6 +2,8 @@
 // @croupier/core — Type Definitions (XState v5 Native Design)
 // ============================================================
 
+import type { GameRandom } from "./util/random.js";
+
 /** Player identifier */
 export type PlayerId = string;
 
@@ -32,11 +34,7 @@ export interface GameResult {
 export interface SetupContext {
   numPlayers: number;
   players: PlayerId[];
-  random: {
-    shuffle: <T>(arr: T[]) => T[];
-    integer: (min: number, max: number) => number;
-    pick: <T>(arr: T[]) => T;
-  };
+  random: GameRandom;
 }
 
 // ============================================================
@@ -51,6 +49,9 @@ export interface CroupierContext<S extends GameState = GameState> {
   actionCount: number;
   result: GameResult | null;
   log: ActionLogEntry[];
+  /** Seeded random shared with setup(). Use this instead of Math.random in
+   *  actions and hooks so games stay reproducible and snapshot-safe. */
+  random: GameRandom;
 }
 
 // ============================================================
@@ -261,6 +262,45 @@ export interface CroupierEvents<S extends GameState = GameState> {
   action: ActionLogEntry;
   playerJoin: { playerId: PlayerId };
   gameEnd: { result: GameResult; state: S };
+}
+
+// ============================================================
+// Snapshot
+// ============================================================
+
+/** Current snapshot format version. Bumped on breaking format changes. */
+export const SNAPSHOT_FORMAT_VERSION = 1;
+
+/** JSON-serializable snapshot of a CroupierCore engine. */
+export interface CroupierSnapshot<S extends GameState = GameState> {
+  /** Snapshot format version (see SNAPSHOT_FORMAT_VERSION) */
+  formatVersion: number;
+  /** config.name of the game that produced this snapshot */
+  gameName: string;
+  /** Monotonic revision, incremented on every state mutation.
+   *  Use for optimistic locking when persisting snapshots. */
+  revision: number;
+  game: S;
+  players: PlayerId[];
+  currentPlayers: PlayerId[];
+  lastPlayer: PlayerId | null;
+  actionCount: number;
+  phase: string;
+  stage: string | null;
+  finished: boolean;
+  result: GameResult | null;
+  /** Internal PRNG state */
+  randomState: number;
+  /** Action log. Omitted when exported with `log: false`;
+   *  may be truncated to the most recent entries with `logLimit`. */
+  log?: ActionLogEntry[];
+}
+
+export interface SnapshotOptions {
+  /** Include the action log (default: true) */
+  log?: boolean;
+  /** Keep only the most recent N log entries */
+  logLimit?: number;
 }
 
 // ============================================================

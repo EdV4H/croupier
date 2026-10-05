@@ -131,6 +131,56 @@ on<K extends keyof CroupierEvents>(
 ): void
 ```
 
+### `getRevision()`
+
+Returns a monotonic revision number, incremented on every state mutation (successful `dispatch`, `addPlayer`, `endSession`). Use it for optimistic locking when persisting snapshots.
+
+## Snapshots
+
+The engine state can be exported as a JSON-serializable snapshot and restored later — for example on another server instance. This lets you keep game state in an external store (Redis, Durable Object storage, …) and process any room's messages on any instance.
+
+### `toSnapshot(options?)`
+
+```typescript
+toSnapshot(options?: { log?: boolean; logLimit?: number }): CroupierSnapshot<S>
+```
+
+- **`log`** — Include the action log (default: `true`)
+- **`logLimit`** — Keep only the most recent N log entries
+
+The snapshot contains the game state, players, current players, last player, action count, phase, stage, finished flag, result, PRNG state, `revision`, the game name and a `formatVersion`.
+
+### `CroupierCore.fromSnapshot(config, snapshot)`
+
+```typescript
+static fromSnapshot<S>(config: CroupierConfig<S>, snapshot: CroupierSnapshot<S>): CroupierCore<S>
+```
+
+Restores an engine. `setup()` and `onEnter` hooks are **not** re-run, and no events are emitted. Throws if `formatVersion` is not `SNAPSHOT_FORMAT_VERSION`, if the snapshot belongs to a different game (`config.name`), or if its phase/stage does not exist in `config`.
+
+Event listeners are not part of the snapshot — subscribe again on the restored engine.
+
+### Example: optimistic locking
+
+```typescript
+import { CroupierCore } from "@croupier/core";
+
+async function handleAction(roomId: string, playerId: string, action: string, payload: unknown) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const stored = JSON.parse(await redis.get(roomId));
+    const engine = CroupierCore.fromSnapshot(config, stored);
+
+    const result = engine.dispatch(playerId, action, payload);
+    if (!result.ok) return result;
+
+    // Save only if nobody else wrote in the meantime
+    const saved = await compareAndSet(roomId, stored.revision, JSON.stringify(engine.toSnapshot()));
+    if (saved) return result;
+  }
+  throw new Error("Too many concurrent updates");
+}
+```
+
 ## Events
 
 ```typescript
