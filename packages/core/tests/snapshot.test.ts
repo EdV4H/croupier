@@ -191,7 +191,10 @@ describe("snapshot", () => {
 
     expect(original.getEngineState().finished).toBe(true);
     expect(restored.getResult()).toEqual(original.getResult());
-    expect(restored.getLog()).toEqual(original.getLog());
+    // Timestamps differ (separate dispatches); compare everything else
+    const strip = (log: ReturnType<typeof original.getLog>) =>
+      log.map(({ timestamp: _t, ...rest }) => rest);
+    expect(strip(restored.getLog())).toEqual(strip(original.getLog()));
   });
 
   it("does not re-run setup() or onEnter hooks on restore", () => {
