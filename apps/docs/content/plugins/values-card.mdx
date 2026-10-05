@@ -15,51 +15,103 @@ import { CroupierCore } from "@croupier/core";
 import { createValuesCardConfig } from "@croupier/plugin-values-card";
 
 const game = new CroupierCore(
-  createValuesCardConfig(),
-  { players: ["alice", "bob", "charlie"] }
+  createValuesCardConfig({ theme: "人生で大事な5つの価値観" }),
+  ["alice", "bob", "charlie"],
 );
 ```
 
 ## How It Works
 
-Players take turns drawing and discarding value cards. Each card represents a personal value (e.g., "Integrity", "Creativity", "Growth"). The goal is to build a hand of values that represent what matters most to you, sparking team discussion.
+Each player is dealt 5 value cards. On their turn a player draws one card (from the deck or the discard pool) and then discards one card, keeping 5 in hand. The goal is to end with the 5 values that matter most to you, sparking team discussion.
+
+## Options
+
+```typescript
+interface ValuesCardOptions<C extends BaseCard = Card> {
+  theme?: string;                      // Decided before the game (e.g. by the host)
+  cards?: C[];                         // Card master (default: DEFAULT_VALUES_CARDS, 70 demo cards)
+  turnTimeoutMs?: number;              // Turn timeout → auto play
+  endMode?: "deckEmpty" | "lastRound"; // Default: "deckEmpty"
+  maxTurns?: number;                   // End after N completed turns
+  shouldEnd?: (game: ValuesCardState<C>) => boolean; // Extra end condition
+  bot?: BotStrategy;                   // Default: valuesCardAutoPlayStrategy
+}
+```
+
+### Custom card masters
+
+Cards are generic. Any object with an `id` (string or number) and a `name` works, and extra attributes are kept as-is in hands, the discard pool and the result:
+
+```typescript
+interface MasterCard {
+  id: number;
+  name: string;
+  imageUrl: string;
+}
+
+const config = createValuesCardConfig<MasterCard>({ cards: masterCards, theme });
+game.dispatch("alice", "discardCard", { cardId: 12 });
+```
 
 ## Phases & Stages
 
-The game has a single phase `play` with two alternating stages:
+The game has a single phase `playerTurn` with two alternating stages:
 
 | Stage | Description |
 |-------|-------------|
 | `waitingForDraw` | Current player draws a card from the deck or discard pool |
 | `waitingForDiscard` | Current player discards a card from their hand |
 
-The stages cycle: draw → discard → (next player) → draw → discard → ...
-
 ## Actions
 
 | Action | Stage | Description |
 |--------|-------|-------------|
 | `drawFromDeck` | waitingForDraw | Draw the top card from the deck |
-| `drawFromDiscard` | waitingForDraw | Pick a card from the discard pool. Payload: `{ cardId: string }` |
-| `discardCard` | waitingForDiscard | Discard a card from hand. Payload: `{ cardId: string }` |
+| `drawFromDiscard` | waitingForDraw | Pick any card from the discard pool. Payload: `{ cardId }` |
+| `discardCard` | waitingForDiscard | Discard a card from hand (may be the one just drawn). Payload: `{ cardId }` |
 
-## Turn Order
-
-Sequential round-robin. Each player completes a full draw-discard cycle before play passes to the next player.
+The card drawn this turn is tracked in `state.drawnCard` (`{ cardId, source: "deck" | "discard" }`).
 
 ## Game End
 
-The game ends when the deck is empty and the current round completes.
+| `endReason` | When |
+|-------------|------|
+| `deckEmpty` (default `endMode`) | On the discard of the turn in which the deck ran out |
+| `lastRound` | After the deck runs out, every player gets one more turn |
+| `maxTurns` | `maxTurns` completed turns reached |
+| `custom` | `shouldEnd(game)` returned true (checked after every completed turn) |
+
+If every player keeps drawing from the discard pool the deck never shrinks — use `maxTurns` or `shouldEnd` to bound the game.
+
+### Result
+
+```typescript
+interface ValuesCardResult<C> {
+  reason: string;
+  endReason: "deckEmpty" | "lastRound" | "maxTurns" | "custom";
+  theme: string;
+  finalHands: Record<PlayerId, C[]>; // in hand order
+  turnCount: number;
+  playerResults: Record<PlayerId, { stats: { finalHand: string[]; finalHandCardIds: CardId[] } }>;
+  summary: Record<PlayerId, string[]>; // card names (backward compatibility)
+}
+```
+
+## Auto Play & Bots
+
+`valuesCardAutoPlayStrategy` (the default `bot`) is used for turn-timeout / disconnect takeover:
+
+- With 5 cards: draw from the **deck** (never from the discard pool)
+- With 6 cards: discard **the card drawn this turn**
+
+Hands therefore never change under auto play. In `lastRound` mode, when the deck is empty, it takes back the latest discard and discards it again.
+
+`valuesCardRandomBotStrategy` is a livelier bot for demos (random discards). Pass it with `bot`.
 
 ## State Masking
 
-- Players see their own hand
-- Opponent hands are hidden
+- Players see their own hand; opponent hands are shown as counts
+- All hands are revealed once the game is over
 - The discard pool is visible (shows card and who discarded it)
-- Deck is shown as a count
-
-## Value Cards
-
-The default deck includes 25 value cards:
-
-Integrity, Creativity, Growth, Empathy, Courage, Respect, Fairness, Gratitude, Resilience, Collaboration, Curiosity, Authenticity, Kindness, Accountability, Optimism, Patience, Loyalty, Humility, Passion, Wisdom, Balance, Freedom, Trust, Compassion, Innovation
+- The deck is shown as a count
+- `drawnCard` is visible only to the player who drew it
