@@ -29,7 +29,7 @@ croupier/
   architecture.md            # 本ドキュメント
 
   packages/
-    core/                    # @croupier/core - エンジン本体
+    core/                    # @edv4h/croupier-core - エンジン本体
       package.json
       tsconfig.json
       tsup.config.ts
@@ -52,7 +52,7 @@ croupier/
         interrupts.test.ts
         masking.test.ts
 
-    plugin-texas-holdem/     # @croupier/plugin-texas-holdem
+    plugin-texas-holdem/     # @edv4h/croupier-plugin-texas-holdem
       package.json
       tsconfig.json
       tsup.config.ts
@@ -64,7 +64,7 @@ croupier/
         texas-holdem.test.ts
         hands.test.ts
 
-    plugin-planning-poker/   # @croupier/plugin-planning-poker
+    plugin-planning-poker/   # @edv4h/croupier-plugin-planning-poker
       package.json
       tsconfig.json
       tsup.config.ts
@@ -74,7 +74,7 @@ croupier/
       tests/
         planning-poker.test.ts
 
-    plugin-values-card/      # @croupier/plugin-values-card
+    plugin-values-card/      # @edv4h/croupier-plugin-values-card
       package.json
       tsconfig.json
       tsup.config.ts
@@ -84,7 +84,7 @@ croupier/
       tests/
         values-card.test.ts
 
-    plugin-digital-tcg/      # @croupier/plugin-digital-tcg
+    plugin-digital-tcg/      # @edv4h/croupier-plugin-digital-tcg
       package.json
       tsconfig.json
       tsup.config.ts
@@ -156,10 +156,10 @@ croupier/
 ## パッケージ依存関係
 
 ```
-@croupier/core              ← 依存なし（純粋ロジック）
-@croupier/plugin-*          ← @croupier/core に依存
+@edv4h/croupier-core              ← 依存なし（純粋ロジック）
+@edv4h/croupier-plugin-*          ← @edv4h/croupier-core に依存
 apps/docs                   ← Nextra, 全パッケージの型情報参照
-apps/demo/server            ← @croupier/core, 全plugin, hono
+apps/demo/server            ← @edv4h/croupier-core, 全plugin, hono
 apps/demo/client            ← React（coreは直接参照しない、サーバー経由）
 ```
 
@@ -198,7 +198,7 @@ apps/demo/client            ← React（coreは直接参照しない、サーバ
 
 ---
 
-## @croupier/core アーキテクチャ
+## @edv4h/croupier-core アーキテクチャ
 
 ### コアインターフェース（types.ts）
 
@@ -350,7 +350,7 @@ class CroupierCore<S extends GameState> {
 
 ## 各ゲームプラグインのマッピング
 
-### テキサスホールデム（@croupier/plugin-texas-holdem）
+### テキサスホールデム（@edv4h/croupier-plugin-texas-holdem）
 
 | 要素 | 実装方法 |
 |------|----------|
@@ -361,7 +361,7 @@ class CroupierCore<S extends GameState> {
 | 割り込み | `interrupts` — 全員Fold → 即座にPot分配 |
 | Masking | Deck非公開、相手のHoleCards非公開 |
 
-### プランニングポーカー（@croupier/plugin-planning-poker）
+### プランニングポーカー（@edv4h/croupier-plugin-planning-poker）
 
 | 要素 | 実装方法 |
 |------|----------|
@@ -372,7 +372,7 @@ class CroupierCore<S extends GameState> {
 | ロール | `unrestricted: true` + `validate()`でFacilitator制限 |
 | Masking | Voting中は他プレイヤーのSelectedCard非公開 |
 
-### Wevox Values Card（@croupier/plugin-values-card）
+### Wevox Values Card（@edv4h/croupier-plugin-values-card）
 
 | 要素 | 実装方法 |
 |------|----------|
@@ -383,7 +383,7 @@ class CroupierCore<S extends GameState> {
 | 終了 | Phase `next()` — 山札0枚→Presentation |
 | Masking | Deck非公開（枚数のみ）、他は全て公開 |
 
-### デジタルTCG（@croupier/plugin-digital-tcg）
+### デジタルTCG（@edv4h/croupier-plugin-digital-tcg）
 
 | 要素 | 実装方法 |
 |------|----------|
@@ -432,7 +432,7 @@ React SPA
 |------|------|
 | Turborepo モノレポ | core, plugins, docs, demo を統一管理。ビルド・テストの依存キャッシュ |
 | ゲームを plugin-* パッケージに | 独立して開発・公開可能。サードパーティ製プラグインも可能 |
-| @croupier/core は純粋ロジック（DOM/IO依存なし） | サーバー/ブラウザ/テスト どこでも動作 |
+| @edv4h/croupier-core は純粋ロジック（DOM/IO依存なし） | サーバー/ブラウザ/テスト どこでも動作 |
 | 2階層（Phase+Stage）、任意ネストなし | 4ゲーム全て2階層で表現可能。複雑さを避ける |
 | TurnOrderを`first()`/`next()`戦略オブジェクトに | 逐次・交互・同時の3パターンを最小インターフェースで統一 |
 | `endsTurn`フラグ | プレイヤー起動の遷移（EndTurn、StartVoting）を特殊化せず処理 |

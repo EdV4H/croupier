@@ -25,8 +25,8 @@ interface CroupierCoreOptions {
 ### Example
 
 ```typescript
-import { CroupierCore } from "@croupier/core";
-import { createValuesCardConfig } from "@croupier/plugin-values-card";
+import { CroupierCore } from "@edv4h/croupier-core";
+import { createValuesCardConfig } from "@edv4h/croupier-plugin-values-card";
 
 const game = new CroupierCore(
   createValuesCardConfig(),
@@ -163,7 +163,7 @@ Event listeners are not part of the snapshot — subscribe again on the restored
 ### Example: optimistic locking
 
 ```typescript
-import { CroupierCore } from "@croupier/core";
+import { CroupierCore } from "@edv4h/croupier-core";
 
 async function handleAction(roomId: string, playerId: string, action: string, payload: unknown) {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -218,7 +218,7 @@ Emitted when the game ends (via end conditions).
 Use `BotManager` to run automated players:
 
 ```typescript
-import { CroupierCore, BotManager, createBotId } from "@croupier/core";
+import { CroupierCore, BotManager, createBotId } from "@edv4h/croupier-core";
 
 const botIds = ["bot:Alice", "bot:Bob"];
 const game = new CroupierCore(config, ["player1", ...botIds]);

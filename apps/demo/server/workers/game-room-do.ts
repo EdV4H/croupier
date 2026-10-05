@@ -9,7 +9,7 @@ import {
   isBotPlayer,
   getActiveTimeoutMs,
   executeBotTakeover,
-} from "@croupier/core";
+} from "@edv4h/croupier-core";
 import {
   AVAILABLE_GAMES,
   createGameConfig,

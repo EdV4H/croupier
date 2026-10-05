@@ -1,13 +1,12 @@
 name: Release
 
 # Opens a "Version Packages" PR from pending changesets, and publishes
-# @croupier/* to the registry once that PR is merged.
+# @edv4h/croupier-* to npm once that PR is merged.
 #
-# Inert until configured. Repository settings:
-#   vars.RELEASE_ENABLED   "true" to enable this workflow
-#   vars.NPM_REGISTRY_URL  registry URL (default: https://registry.npmjs.org)
-#                          e.g. https://npm.pkg.github.com for GitHub Packages
-#   secrets.NPM_TOKEN      publish token (falls back to GITHUB_TOKEN for GitHub Packages)
+# Auth: npm trusted publishing (OIDC). Register this repository + workflow
+# (release.yml) as a trusted publisher for each package on npmjs.com.
+# For the very first publish (before the packages exist on npm), set
+# secrets.NPM_TOKEN; it can be removed once trusted publishing is configured.
 
 on:
   push:
@@ -19,20 +18,21 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 permissions:
   contents: write
   pull-requests: write
-  packages: write
+  id-token: write
 
 jobs:
   release:
-    if: vars.RELEASE_ENABLED == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
-          registry-url: ${{ vars.NPM_REGISTRY_URL || 'https://registry.npmjs.org' }}
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm >= 11.5.1 (pnpm publish delegates to npm)
+      - run: npm install -g npm@latest
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo build --filter="./packages/*"
       - run: pnpm turbo test --filter="./packages/*"
@@ -44,4 +44,4 @@ jobs:
           commit: "chore: release packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

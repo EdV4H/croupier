@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from "react";
-import type { PhaseGraph } from "@croupier/core";
+import type { PhaseGraph } from "@edv4h/croupier-core";
 import type { ActionLogEntry, GameStateData } from "../hooks/use-game-state.js";
 import { useInspector } from "../hooks/use-inspector.js";
 import { GenericDisplay } from "./generic-display.js";

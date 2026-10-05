@@ -1,5 +1,5 @@
 {
-  "name": "@croupier/core",
+  "name": "@edv4h/croupier-core",
   "version": "0.1.0",
   "description": "Universal game engine for turn-based multiplayer games — phases, turn orders, view masking, bots and snapshots",
   "repository": {
@@ -28,6 +28,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "test": "vitest run",

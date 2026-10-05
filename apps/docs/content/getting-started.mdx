@@ -6,13 +6,13 @@ Install the core package and any game plugins you need:
 
 ```bash
 # Core engine
-pnpm add @croupier/core
+pnpm add @edv4h/croupier-core
 
 # Game plugins (pick what you need)
-pnpm add @croupier/plugin-texas-holdem
-pnpm add @croupier/plugin-planning-poker
-pnpm add @croupier/plugin-values-card
-pnpm add @croupier/plugin-digital-tcg
+pnpm add @edv4h/croupier-plugin-texas-holdem
+pnpm add @edv4h/croupier-plugin-planning-poker
+pnpm add @edv4h/croupier-plugin-values-card
+pnpm add @edv4h/croupier-plugin-digital-tcg
 ```
 
 ## Basic Usage
@@ -20,8 +20,8 @@ pnpm add @croupier/plugin-digital-tcg
 ### 1. Create a game instance
 
 ```typescript
-import { CroupierCore } from "@croupier/core";
-import { createDigitalTCGConfig } from "@croupier/plugin-digital-tcg";
+import { CroupierCore } from "@edv4h/croupier-core";
+import { createDigitalTCGConfig } from "@edv4h/croupier-plugin-digital-tcg";
 
 const config = createDigitalTCGConfig();
 
@@ -73,11 +73,11 @@ Croupier uses a monorepo structure:
 
 ```
 packages/
-  core/                    # @croupier/core — Engine
-  plugin-texas-holdem/     # @croupier/plugin-texas-holdem
-  plugin-planning-poker/   # @croupier/plugin-planning-poker
-  plugin-values-card/      # @croupier/plugin-values-card
-  plugin-digital-tcg/      # @croupier/plugin-digital-tcg
+  core/                    # @edv4h/croupier-core — Engine
+  plugin-texas-holdem/     # @edv4h/croupier-plugin-texas-holdem
+  plugin-planning-poker/   # @edv4h/croupier-plugin-planning-poker
+  plugin-values-card/      # @edv4h/croupier-plugin-values-card
+  plugin-digital-tcg/      # @edv4h/croupier-plugin-digital-tcg
 apps/
   demo/                    # Demo app (Hono.js + React)
   docs/                    # This documentation site

@@ -4,7 +4,7 @@ import {
   SeededRandom,
   type CroupierConfig,
   type GameState,
-} from "@croupier/core";
+} from "@edv4h/croupier-core";
 import { createDaifugoConfig } from "../src/index.js";
 
 function roundTrip<S extends GameState>(

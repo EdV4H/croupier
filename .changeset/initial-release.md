@@ -1,11 +1,11 @@
 ---
-"@croupier/core": minor
-"@croupier/plugin-values-card": minor
-"@croupier/plugin-texas-holdem": patch
-"@croupier/plugin-daifugo": patch
-"@croupier/plugin-digital-tcg": patch
-"@croupier/plugin-planning-poker": patch
-"@croupier/plugin-trust-bank": patch
+"@edv4h/croupier-core": minor
+"@edv4h/croupier-plugin-values-card": minor
+"@edv4h/croupier-plugin-texas-holdem": patch
+"@edv4h/croupier-plugin-daifugo": patch
+"@edv4h/croupier-plugin-digital-tcg": patch
+"@edv4h/croupier-plugin-planning-poker": patch
+"@edv4h/croupier-plugin-trust-bank": patch
 ---
 
 Initial public release.

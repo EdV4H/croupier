@@ -20,25 +20,25 @@ importers:
 
   apps/demo:
     dependencies:
-      '@croupier/core':
+      '@edv4h/croupier-core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@croupier/plugin-daifugo':
+      '@edv4h/croupier-plugin-daifugo':
         specifier: workspace:*
         version: link:../../packages/plugin-daifugo
-      '@croupier/plugin-digital-tcg':
+      '@edv4h/croupier-plugin-digital-tcg':
         specifier: workspace:*
         version: link:../../packages/plugin-digital-tcg
-      '@croupier/plugin-planning-poker':
+      '@edv4h/croupier-plugin-planning-poker':
         specifier: workspace:*
         version: link:../../packages/plugin-planning-poker
-      '@croupier/plugin-texas-holdem':
+      '@edv4h/croupier-plugin-texas-holdem':
         specifier: workspace:*
         version: link:../../packages/plugin-texas-holdem
-      '@croupier/plugin-trust-bank':
+      '@edv4h/croupier-plugin-trust-bank':
         specifier: workspace:*
         version: link:../../packages/plugin-trust-bank
-      '@croupier/plugin-values-card':
+      '@edv4h/croupier-plugin-values-card':
         specifier: workspace:*
         version: link:../../packages/plugin-values-card
       '@hono/node-server':
@@ -140,7 +140,7 @@ importers:
 
   packages/plugin-daifugo:
     dependencies:
-      '@croupier/core':
+      '@edv4h/croupier-core':
         specifier: workspace:^
         version: link:../core
     devDependencies:
@@ -156,7 +156,7 @@ importers:
 
   packages/plugin-digital-tcg:
     dependencies:
-      '@croupier/core':
+      '@edv4h/croupier-core':
         specifier: workspace:^
         version: link:../core
     devDependencies:
@@ -172,7 +172,7 @@ importers:
 
   packages/plugin-planning-poker:
     dependencies:
-      '@croupier/core':
+      '@edv4h/croupier-core':
         specifier: workspace:^
         version: link:../core
     devDependencies:
@@ -188,7 +188,7 @@ importers:
 
   packages/plugin-texas-holdem:
     dependencies:
-      '@croupier/core':
+      '@edv4h/croupier-core':
         specifier: workspace:^
         version: link:../core
     devDependencies:
@@ -204,7 +204,7 @@ importers:
 
   packages/plugin-trust-bank:
     dependencies:
-      '@croupier/core':
+      '@edv4h/croupier-core':
         specifier: workspace:^
         version: link:../core
     devDependencies:
@@ -220,7 +220,7 @@ importers:
 
   packages/plugin-values-card:
     dependencies:
-      '@croupier/core':
+      '@edv4h/croupier-core':
         specifier: workspace:^
         version: link:../core
     devDependencies:

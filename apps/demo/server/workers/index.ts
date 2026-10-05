@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { AVAILABLE_GAMES, createGameConfig } from "../shared/game-registry.js";
-import { extractPhaseGraph } from "@croupier/core";
+import { extractPhaseGraph } from "@edv4h/croupier-core";
 import { createLogger } from "../shared/logger.js";
 
 const log = createLogger("workers");

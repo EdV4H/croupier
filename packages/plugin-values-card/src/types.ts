@@ -1,4 +1,4 @@
-import type { GameState, PlayerId } from "@croupier/core";
+import type { GameState, PlayerId } from "@edv4h/croupier-core";
 
 /** Card identifier. Strings for the demo deck, numbers for DB-backed masters. */
 export type CardId = string | number;

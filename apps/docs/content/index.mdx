@@ -15,7 +15,7 @@ Croupier is a **framework for building turn-based and real-time multiplayer game
 
 ## Design Philosophy
 
-Croupier follows a **plugin architecture**. The core engine (`@croupier/core`) provides the state machine, turn management, and action dispatch. Each game is a plugin that exports a `CroupierConfig` object describing:
+Croupier follows a **plugin architecture**. The core engine (`@edv4h/croupier-core`) provides the state machine, turn management, and action dispatch. Each game is a plugin that exports a `CroupierConfig` object describing:
 
 - How to **set up** initial state
 - What **actions** players can take
@@ -29,16 +29,16 @@ The engine is **pure logic** — no DOM, no I/O, no framework dependencies. It r
 
 | Plugin | Description | Turn Model |
 |--------|-------------|------------|
-| `@croupier/plugin-texas-holdem` | No-Limit Texas Hold'em poker | Sequential round-robin |
-| `@croupier/plugin-planning-poker` | Agile estimation with story points | Simultaneous (barrier sync) |
-| `@croupier/plugin-values-card` | Wevox Values Card game | Sequential round-robin |
-| `@croupier/plugin-digital-tcg` | Hearthstone-style trading card game | Alternating turns |
+| `@edv4h/croupier-plugin-texas-holdem` | No-Limit Texas Hold'em poker | Sequential round-robin |
+| `@edv4h/croupier-plugin-planning-poker` | Agile estimation with story points | Simultaneous (barrier sync) |
+| `@edv4h/croupier-plugin-values-card` | Wevox Values Card game | Sequential round-robin |
+| `@edv4h/croupier-plugin-digital-tcg` | Hearthstone-style trading card game | Alternating turns |
 
 ## Quick Example
 
 ```typescript
-import { CroupierCore } from "@croupier/core";
-import { createValuesCardConfig } from "@croupier/plugin-values-card";
+import { CroupierCore } from "@edv4h/croupier-core";
+import { createValuesCardConfig } from "@edv4h/croupier-plugin-values-card";
 
 const game = new CroupierCore(
   createValuesCardConfig(),

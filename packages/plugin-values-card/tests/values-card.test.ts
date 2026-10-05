@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CroupierCore, executeBotTakeover } from "@croupier/core";
+import { CroupierCore, executeBotTakeover } from "@edv4h/croupier-core";
 import {
   DEFAULT_VALUES_CARDS,
   HAND_SIZE,

@@ -6,7 +6,7 @@ import {
   type PlayerId,
   countOnly,
   custom,
-} from "@croupier/core";
+} from "@edv4h/croupier-core";
 import type {
   BaseCard,
   Card,

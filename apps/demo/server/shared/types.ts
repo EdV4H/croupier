@@ -1,4 +1,4 @@
-import type { PlayerId } from "@croupier/core";
+import type { PlayerId } from "@edv4h/croupier-core";
 
 export interface GameInfo {
   id: string;
