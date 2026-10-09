@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CroupierCore } from "@croupier/core";
+import { CroupierCore } from "@edv4h/croupier-core";
 import { createPlanningPokerConfig } from "../src/index.js";
 import type { PlanningPokerState } from "../src/types.js";
 

@@ -6,7 +6,7 @@ import {
   countOnly,
   custom,
   maskArray,
-} from "@croupier/core";
+} from "@edv4h/croupier-core";
 import { STARTER_DECK, createDeck } from "./cards.js";
 import type { Card, Entity, TCGState } from "./types.js";
 

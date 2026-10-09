@@ -49,7 +49,7 @@ The core provides helpers for common masking patterns:
 Replaces each element with `{ hidden: true }`. Useful for showing that cards exist without revealing their values:
 
 ```typescript
-import { maskArray } from "@croupier/core";
+import { maskArray } from "@edv4h/croupier-core";
 
 playerView(state, playerId) {
   return {
@@ -71,7 +71,7 @@ playerView(state, playerId) {
 Returns the length of an array. Useful for hiding deck contents:
 
 ```typescript
-import { countOnly } from "@croupier/core";
+import { countOnly } from "@edv4h/croupier-core";
 
 playerView(state, playerId) {
   return {
@@ -86,7 +86,7 @@ playerView(state, playerId) {
 Creates a deep copy of the state before masking, ensuring mutations in the view function don't affect the real state:
 
 ```typescript
-import { deepClone } from "@croupier/core";
+import { deepClone } from "@edv4h/croupier-core";
 
 playerView(state, playerId) {
   const view = deepClone(state);

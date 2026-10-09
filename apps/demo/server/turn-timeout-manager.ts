@@ -4,7 +4,7 @@ import {
   getActiveTimeoutMs,
   executeBotTakeover,
   isBotPlayer,
-} from "@croupier/core";
+} from "@edv4h/croupier-core";
 import { createLogger } from "./shared/logger.js";
 
 const log = createLogger("local");

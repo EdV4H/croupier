@@ -1,4 +1,4 @@
-import type { PlayerId } from "@croupier/core";
+import type { PlayerId } from "@edv4h/croupier-core";
 import type { Card, DaifugoRank, DaifugoRules, PlayedCards, Suit } from "./types.js";
 import { isJoker } from "./cards.js";
 

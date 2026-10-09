@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CroupierCore } from "@croupier/core";
+import { CroupierCore } from "@edv4h/croupier-core";
 import { createDaifugoConfig } from "../src/index.js";
 import type { Card, DaifugoState } from "../src/types.js";
 

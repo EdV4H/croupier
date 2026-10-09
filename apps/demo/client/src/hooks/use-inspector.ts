@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { createActor, type AnyStateMachine, type AnyActorRef } from "xstate";
 import { createBrowserInspector } from "@statelyai/inspect";
-import type { PhaseGraph } from "@croupier/core";
+import type { PhaseGraph } from "@edv4h/croupier-core";
 import type { GameStateData } from "./use-game-state.js";
 import { buildShadowMachine } from "../lib/shadow-machine.js";
 
