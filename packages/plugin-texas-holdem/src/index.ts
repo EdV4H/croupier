@@ -7,7 +7,7 @@ import {
   countOnly,
   custom,
   maskArray,
-} from "@croupier/core";
+} from "@edv4h/croupier-core";
 import { compareHands, createDeck, evaluateBestHand } from "./hands.js";
 import type { HoldemState, PlayerStatus } from "./types.js";
 

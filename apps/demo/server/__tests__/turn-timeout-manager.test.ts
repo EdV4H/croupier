@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { CroupierCore, ROUND_ROBIN, SIMULTANEOUS } from "@croupier/core";
-import type { BotStrategy, CroupierConfig, GameState } from "@croupier/core";
+import { CroupierCore, ROUND_ROBIN, SIMULTANEOUS } from "@edv4h/croupier-core";
+import type { BotStrategy, CroupierConfig, GameState } from "@edv4h/croupier-core";
 import { TurnTimeoutManager } from "../turn-timeout-manager.js";
 
 // ====================

@@ -18,7 +18,7 @@ Universal game engine framework for turn-based and real-time multiplayer games.
 │  │Hold'em   │ │TCG       │ │Poker   │ │Card      │ │
 │  └──────────┘ └──────────┘ └────────┘ └──────────┘ │
 ├─────────────────────────────────────────────────────┤
-│                  @croupier/core                      │
+│                  @edv4h/croupier-core                      │
 │  State Machine · Turn Orders · Actions · Bot System  │
 │  End Conditions · Events · View Masking              │
 │                  (XState v5)                         │
@@ -60,7 +60,7 @@ pnpm dev --filter @croupier/docs
 ```
 croupier/
 ├── packages/
-│   ├── core/                    # @croupier/core — Engine, types, turn orders
+│   ├── core/                    # @edv4h/croupier-core — Engine, types, turn orders
 │   ├── plugin-texas-holdem/     # Texas Hold'em with hand evaluation
 │   ├── plugin-digital-tcg/      # Hearthstone-style TCG
 │   ├── plugin-planning-poker/   # Agile estimation game
@@ -77,8 +77,8 @@ croupier/
 A game is a `CroupierConfig` object that defines state, actions, phases, and end conditions:
 
 ```typescript
-import { CroupierCore, SIMULTANEOUS } from "@croupier/core";
-import type { CroupierConfig, GameState } from "@croupier/core";
+import { CroupierCore, SIMULTANEOUS } from "@edv4h/croupier-core";
+import type { CroupierConfig, GameState } from "@edv4h/croupier-core";
 
 interface MyState extends GameState {
   scores: Record<string, number>;
@@ -140,10 +140,10 @@ See the [Create Your Own Game](apps/docs/content/guides/create-your-own-game.mdx
 
 | Plugin | Description | Players |
 |--------|-------------|---------|
-| `@croupier/plugin-texas-holdem` | Texas Hold'em poker with hand evaluation, blinds, and betting rounds | 2–10 |
-| `@croupier/plugin-digital-tcg` | Hearthstone-style TCG with mana, deck, and board management | 2 |
-| `@croupier/plugin-planning-poker` | Agile estimation with facilitator/voter roles and Fibonacci deck | 2+ |
-| `@croupier/plugin-values-card` | Wevox Values Card — choose values that matter most to you | 3+ |
+| `@edv4h/croupier-plugin-texas-holdem` | Texas Hold'em poker with hand evaluation, blinds, and betting rounds | 2–10 |
+| `@edv4h/croupier-plugin-digital-tcg` | Hearthstone-style TCG with mana, deck, and board management | 2 |
+| `@edv4h/croupier-plugin-planning-poker` | Agile estimation with facilitator/voter roles and Fibonacci deck | 2+ |
+| `@edv4h/croupier-plugin-values-card` | Wevox Values Card — choose values that matter most to you | 3+ |
 
 ## License
 

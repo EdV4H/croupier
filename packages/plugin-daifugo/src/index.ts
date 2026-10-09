@@ -8,7 +8,7 @@ import {
   countOnly,
   custom,
   maskArray,
-} from "@croupier/core";
+} from "@edv4h/croupier-core";
 import {
   beatsCurrentPile,
   classifyCards,
