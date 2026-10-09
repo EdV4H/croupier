@@ -143,7 +143,7 @@ describe("Values Card", () => {
     });
   });
 
-  describe("full game scenario", () => {
+  describe("full game scenario (lastRound rule)", () => {
     it("plays through until deck is empty", () => {
       // Use only 2 players with a small deck for a quicker test
       const smallCards = Array.from({ length: 12 }, (_, i) => ({
@@ -153,6 +153,7 @@ describe("Values Card", () => {
       const config = createValuesCardConfig({
         theme: "Test",
         cards: smallCards,
+        endRule: "lastRound",
       });
       const engine = new CroupierCore(config, ["P1", "P2"], { seed: 1 });
 
@@ -221,7 +222,7 @@ describe("Values Card", () => {
         { id: "c10", name: "J" },
         { id: "c11", name: "K" },
       ];
-      const config = createValuesCardConfig({ cards: tinyCards });
+      const config = createValuesCardConfig({ cards: tinyCards, endRule: "lastRound" });
       const engine = new CroupierCore(config, ["P1", "P2"], { seed: 42 });
 
       // Play until finished (11 cards: 5+5 dealt, 1 in deck → exhausts on turn 1)

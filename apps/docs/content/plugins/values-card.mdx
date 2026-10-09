@@ -15,10 +15,24 @@ import { CroupierCore } from "@croupier/core";
 import { createValuesCardConfig } from "@croupier/plugin-values-card";
 
 const game = new CroupierCore(
-  createValuesCardConfig(),
-  { players: ["alice", "bob", "charlie"] }
+  createValuesCardConfig({ theme: "チームで大事にしたいこと" }),
+  ["alice", "bob", "charlie"],
 );
 ```
+
+### Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `theme` | `"人生で大事な5つの価値観"` | Theme decided before the game (e.g. by the host). Included in the result. |
+| `cards` | `DEFAULT_VALUES_CARDS` | Card master. Any `{ id: string \| number }` objects; extra attributes (image, effect type, ...) are kept as-is. |
+| `endRule` | `"deckEmpty"` | `"deckEmpty"`: ends on the discard of the turn the deck ran out. `"lastRound"`: every player gets one more turn after that. |
+| `maxTurns` | — | End after this many turns (safety cap). |
+| `shouldEnd` | — | `(game) => boolean` checked after each discard to add other end conditions. |
+| `turnTimeoutMs` | — | Turn timeout; idle players are taken over by `bot`. |
+| `bot` | `valuesCardAutoPlayStrategy` | Strategy for bots and timeout takeover. `valuesCardRandomBotStrategy` is also exported. |
+
+Card types are generic: `createValuesCardConfig<MyCard>({ cards: master })`.
 
 ## How It Works
 
@@ -40,8 +54,8 @@ The stages cycle: draw → discard → (next player) → draw → discard → ..
 | Action | Stage | Description |
 |--------|-------|-------------|
 | `drawFromDeck` | waitingForDraw | Draw the top card from the deck |
-| `drawFromDiscard` | waitingForDraw | Pick a card from the discard pool. Payload: `{ cardId: string }` |
-| `discardCard` | waitingForDiscard | Discard a card from hand. Payload: `{ cardId: string }` |
+| `drawFromDiscard` | waitingForDraw | Pick a card from the discard pool. Payload: `{ cardId: string \| number }` |
+| `discardCard` | waitingForDiscard | Discard a card from hand. Payload: `{ cardId: string \| number }` |
 
 ## Turn Order
 
@@ -49,7 +63,13 @@ Sequential round-robin. Each player completes a full draw-discard cycle before p
 
 ## Game End
 
-The game ends when the deck is empty and the current round completes.
+By default (`endRule: "deckEmpty"`) the game ends as soon as the player who drew the last card from the deck discards. With `endRule: "lastRound"`, every player gets one more turn after that.
+
+The result contains `theme`, `endReason`, `finalHands` (each player's final hand in hand order), `playerResults[pid].stats.finalHand` and `turnCount`.
+
+## Auto-play
+
+`valuesCardAutoPlayStrategy` (the default `bot`) is used when a player is disconnected or idle: with 5 cards it draws from the deck, then discards the card it just drew. It never draws from the discard pool while the deck has cards. If the player had already drawn before going idle, that card is discarded.
 
 ## State Masking
 
