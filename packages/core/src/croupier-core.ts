@@ -5,6 +5,7 @@ import type {
   CroupierConfig,
   CroupierContext,
   CroupierEvents,
+  CroupierSnapshot,
   DispatchResult,
   EngineState,
   GameEndCondition,
@@ -12,14 +13,22 @@ import type {
   GameState,
   PhaseConfig,
   PlayerId,
+  SnapshotOptions,
   StageConfig,
 } from "./types.js";
+import { SNAPSHOT_FORMAT, SNAPSHOT_VERSION } from "./types.js";
 import { deepClone } from "./util/clone.js";
-import { createRandom } from "./util/random.js";
+import { SeededRandom, wrapRandom } from "./util/random.js";
 import { validateAction, validateConfig } from "./validation.js";
 
 export interface CroupierCoreOptions {
   seed?: number;
+}
+
+/** Internal constructor option used by fromSnapshot() */
+const RESTORE = Symbol("croupier.restore");
+interface InternalOptions extends CroupierCoreOptions {
+  [RESTORE]?: CroupierSnapshot<any>;
 }
 
 export class CroupierCore<S extends GameState = GameState> {
@@ -30,6 +39,8 @@ export class CroupierCore<S extends GameState = GameState> {
   private stage: string | undefined;
   private endConditions: GameEndCondition<S>[];
   private finished = false;
+  private rng: SeededRandom;
+  private revision = 0;
 
   constructor(
     config: CroupierConfig<S>,
@@ -39,8 +50,35 @@ export class CroupierCore<S extends GameState = GameState> {
     validateConfig(config);
     this.config = config;
 
+    // Sort end conditions by priority
+    this.endConditions = [...(config.endConditions ?? [])].sort(
+      (a, b) => (a.priority ?? 100) - (b.priority ?? 100),
+    );
+
+    // Restore from snapshot: no setup(), no onEnter
+    const snapshot = (options as InternalOptions | undefined)?.[RESTORE];
+    if (snapshot) {
+      this.rng = new SeededRandom(snapshot.randomState);
+      this.ctx = {
+        game: deepClone(snapshot.game) as S,
+        players: [...snapshot.players],
+        currentPlayers: [...snapshot.currentPlayers],
+        lastPlayer: snapshot.lastPlayer,
+        actionCount: snapshot.actionCount,
+        result: snapshot.result ? deepClone(snapshot.result) : null,
+        log: deepClone(snapshot.log),
+        random: wrapRandom(this.rng),
+      };
+      this.phase = snapshot.phase;
+      this.stage = snapshot.stage;
+      this.finished = snapshot.finished;
+      this.revision = snapshot.revision;
+      return;
+    }
+
     // Setup initial state
-    const random = createRandom(options?.seed);
+    this.rng = new SeededRandom(options?.seed ?? Date.now());
+    const random = wrapRandom(this.rng);
     const game = config.setup({
       numPlayers: players.length,
       players,
@@ -50,18 +88,14 @@ export class CroupierCore<S extends GameState = GameState> {
     // Initialize CroupierContext
     this.ctx = {
       game,
-      players,
+      players: [...players],
       currentPlayers: [],
       lastPlayer: null,
       actionCount: 0,
       result: null,
       log: [],
+      random,
     };
-
-    // Sort end conditions by priority
-    this.endConditions = [...(config.endConditions ?? [])].sort(
-      (a, b) => (a.priority ?? 100) - (b.priority ?? 100),
-    );
 
     // Enter the initial phase
     const initialPhase =
@@ -114,6 +148,7 @@ export class CroupierCore<S extends GameState = GameState> {
     };
     this.ctx.log.push(logEntry);
     this.ctx.actionCount++;
+    this.revision++;
     this.ctx.lastPlayer = playerId;
     this.emitter.emit("action", logEntry);
 
@@ -173,6 +208,7 @@ export class CroupierCore<S extends GameState = GameState> {
     }
 
     this.ctx.players.push(playerId);
+    this.revision++;
     this.emitter.emit("playerJoin", { playerId });
     this.emitStateChange();
 
@@ -214,7 +250,60 @@ export class CroupierCore<S extends GameState = GameState> {
       result ??
       this.config.getResult?.(this.ctx.game, this.ctx) ??
       { reason: "Session ended" };
+    this.revision++;
     this.endGame(finalResult);
+  }
+
+  // ====================
+  // Snapshot / Restore
+  // ====================
+
+  /** Monotonic counter incremented on every state mutation
+   *  (dispatch, addPlayer, endSession). Use it as an optimistic-lock version:
+   *  load → dispatch → save only if the stored revision is unchanged. */
+  getRevision(): number {
+    return this.revision;
+  }
+
+  /** Export the full engine state as a JSON-serializable snapshot.
+   *  Game state and action payloads must themselves be JSON-serializable. */
+  toSnapshot(options?: SnapshotOptions): CroupierSnapshot<S> {
+    const limit = options?.logLimit;
+    const log =
+      limit === undefined
+        ? this.ctx.log
+        : limit <= 0
+          ? []
+          : this.ctx.log.slice(-limit);
+    return {
+      format: SNAPSHOT_FORMAT,
+      version: SNAPSHOT_VERSION,
+      gameName: this.config.name,
+      revision: this.revision,
+      game: deepClone(this.ctx.game),
+      players: [...this.ctx.players],
+      currentPlayers: [...this.ctx.currentPlayers],
+      lastPlayer: this.ctx.lastPlayer,
+      actionCount: this.ctx.actionCount,
+      phase: this.phase,
+      stage: this.stage,
+      finished: this.finished,
+      result: this.ctx.result ? deepClone(this.ctx.result) : null,
+      randomState: this.rng.getState(),
+      log: deepClone(log),
+    };
+  }
+
+  /** Recreate an engine from a snapshot produced by toSnapshot().
+   *  Does not re-run setup() or any onEnter hook.
+   *  Throws if the snapshot format/version or game does not match the config. */
+  static fromSnapshot<S extends GameState>(
+    config: CroupierConfig<S>,
+    snapshot: CroupierSnapshot<S>,
+  ): CroupierCore<S> {
+    assertSnapshotCompatible(config, snapshot);
+    const options: InternalOptions = { [RESTORE]: snapshot };
+    return new CroupierCore(config, snapshot.players, options);
   }
 
   /** Get the game configuration */
@@ -632,5 +721,33 @@ export class CroupierCore<S extends GameState = GameState> {
       state: deepClone(this.ctx.game) as any,
       engine: this.getEngineState(),
     });
+  }
+}
+
+function assertSnapshotCompatible<S extends GameState>(
+  config: CroupierConfig<S>,
+  snapshot: CroupierSnapshot<S>,
+): void {
+  if (!snapshot || snapshot.format !== SNAPSHOT_FORMAT) {
+    throw new Error("Invalid snapshot: unknown format");
+  }
+  if (snapshot.version !== SNAPSHOT_VERSION) {
+    throw new Error(
+      `Unsupported snapshot version ${snapshot.version} (expected ${SNAPSHOT_VERSION})`,
+    );
+  }
+  if (snapshot.gameName !== config.name) {
+    throw new Error(
+      `Snapshot is for game "${snapshot.gameName}", not "${config.name}"`,
+    );
+  }
+  const phase = config.phases[snapshot.phase];
+  if (!phase) {
+    throw new Error(`Snapshot phase "${snapshot.phase}" not found in config`);
+  }
+  if (snapshot.stage !== undefined && !phase.stages?.[snapshot.stage]) {
+    throw new Error(
+      `Snapshot stage "${snapshot.stage}" not found in phase "${snapshot.phase}"`,
+    );
   }
 }

@@ -131,6 +131,48 @@ on<K extends keyof CroupierEvents>(
 ): void
 ```
 
+## Snapshot & Restore
+
+The full engine state can be exported as a JSON-serializable snapshot and restored on another process or instance (for example, state kept in Redis behind several WebSocket servers).
+
+### `toSnapshot(options?)`
+
+```typescript
+toSnapshot(options?: { logLimit?: number }): CroupierSnapshot<S>
+```
+
+Includes the game state, players, current players, phase/stage, finished/result, the seeded random state and the action log. `logLimit` keeps only the most recent N log entries (`0` drops the log). Game state and action payloads must be JSON-serializable.
+
+### `CroupierCore.fromSnapshot(config, snapshot)`
+
+```typescript
+static fromSnapshot<S>(config: CroupierConfig<S>, snapshot: CroupierSnapshot<S>): CroupierCore<S>
+```
+
+Recreates the engine without re-running `setup()` or any `onEnter` hook. Throws if the snapshot `format`/`version` is unsupported, it was produced by a different game (`config.name`), or its phase/stage no longer exists.
+
+### `getRevision()`
+
+A counter incremented on every successful `dispatch`, `addPlayer` and `endSession`. Unlike `actionCount` it never resets on phase changes, so it can serve as an optimistic-lock version:
+
+```typescript
+const snap = JSON.parse(await redis.get(key));
+const engine = CroupierCore.fromSnapshot(config, snap);
+const res = engine.dispatch(playerId, action, payload);
+if (res.ok) {
+  // Save only if nobody else saved since we loaded snap.revision; otherwise reload and retry
+  await saveIfRevision(key, snap.revision, JSON.stringify(engine.toSnapshot()));
+}
+```
+
+### Randomness
+
+Use `ctx.random` (`shuffle`, `integer`, `pick`, `next`) inside actions and hooks instead of `Math.random`. It continues the same seeded sequence used by `setup()`, and its state is part of the snapshot, so a restored engine produces the same results for the same dispatches.
+
+### Testing plugins
+
+`@croupier/core/testing` provides `runSnapshotRoundTrip(config, players, { seed, maxSteps, decide })`, which plays a game (with `config.bot` by default) and checks before and after every dispatch that an engine restored from a JSON round-tripped snapshot behaves identically.
+
 ## Events
 
 ```typescript
