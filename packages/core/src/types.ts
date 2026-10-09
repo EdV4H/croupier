@@ -28,15 +28,24 @@ export interface GameResult {
   [key: string]: unknown;
 }
 
+/** Seeded random helpers available to setup(), actions and hooks.
+ *  Use these instead of Math.random so games stay reproducible and snapshot-safe. */
+export interface GameRandom {
+  /** Return a shuffled copy of the array */
+  shuffle: <T>(arr: T[]) => T[];
+  /** Integer in [min, max] (inclusive) */
+  integer: (min: number, max: number) => number;
+  /** Pick a random element */
+  pick: <T>(arr: T[]) => T;
+  /** Float in [0, 1) */
+  next: () => number;
+}
+
 /** Context passed to setup() */
 export interface SetupContext {
   numPlayers: number;
   players: PlayerId[];
-  random: {
-    shuffle: <T>(arr: T[]) => T[];
-    integer: (min: number, max: number) => number;
-    pick: <T>(arr: T[]) => T;
-  };
+  random: GameRandom;
 }
 
 // ============================================================
@@ -51,6 +60,8 @@ export interface CroupierContext<S extends GameState = GameState> {
   actionCount: number;
   result: GameResult | null;
   log: ActionLogEntry[];
+  /** Seeded random shared with setup(). Its state is included in snapshots. */
+  random: GameRandom;
 }
 
 // ============================================================
@@ -222,6 +233,46 @@ export interface CroupierConfig<S extends GameState = GameState> {
   /** Compute a result snapshot from the current game state.
    *  Used for games without endConditions or for mid-game result queries. */
   getResult?: (game: S, ctx: CroupierContext<S>) => GameResult;
+}
+
+// ============================================================
+// Snapshot (serializable full engine state)
+// ============================================================
+
+/** Identifies the snapshot payload shape */
+export const SNAPSHOT_FORMAT = "croupier/snapshot";
+/** Bump when the snapshot shape changes in a backward-incompatible way */
+export const SNAPSHOT_VERSION = 1;
+
+/** JSON-serializable snapshot of a CroupierCore instance.
+ *  Produced by `engine.toSnapshot()`, consumed by `CroupierCore.fromSnapshot()`. */
+export interface CroupierSnapshot<S extends GameState = GameState> {
+  format: typeof SNAPSHOT_FORMAT;
+  version: number;
+  /** config.name of the game that produced this snapshot */
+  gameName: string;
+  /** Monotonic counter incremented on every state mutation.
+   *  Use as an optimistic-lock version when persisting. */
+  revision: number;
+  game: S;
+  players: PlayerId[];
+  currentPlayers: PlayerId[];
+  lastPlayer: PlayerId | null;
+  actionCount: number;
+  phase: string;
+  stage?: string;
+  finished: boolean;
+  result: GameResult | null;
+  /** Internal state of the seeded PRNG */
+  randomState: number;
+  /** Action log (possibly truncated to the most recent entries, see SnapshotOptions) */
+  log: ActionLogEntry[];
+}
+
+export interface SnapshotOptions {
+  /** Max number of most recent log entries to include.
+   *  0 excludes the log entirely. Default: include all entries. */
+  logLimit?: number;
 }
 
 // ============================================================

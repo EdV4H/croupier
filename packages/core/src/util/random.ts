@@ -1,3 +1,5 @@
+import type { GameRandom } from "../types.js";
+
 /**
  * Simple seeded PRNG (mulberry32).
  * Provides reproducible randomness for game setup and testing.
@@ -7,6 +9,16 @@ export class SeededRandom {
 
   constructor(seed: number) {
     this.state = seed;
+  }
+
+  /** Get the internal PRNG state (for snapshots) */
+  getState(): number {
+    return this.state;
+  }
+
+  /** Restore the internal PRNG state (from snapshots) */
+  setState(state: number): void {
+    this.state = state;
   }
 
   /** Generate a float in [0, 1) */
@@ -39,13 +51,20 @@ export class SeededRandom {
 }
 
 /**
- * Create a SetupContext-compatible random object.
+ * Wrap a SeededRandom as a GameRandom.
  */
-export function createRandom(seed?: number) {
-  const rng = new SeededRandom(seed ?? Date.now());
+export function wrapRandom(rng: SeededRandom): GameRandom {
   return {
     shuffle: <T>(arr: T[]) => rng.shuffle([...arr]),
     integer: (min: number, max: number) => rng.integer(min, max),
     pick: <T>(arr: T[]) => rng.pick(arr),
+    next: () => rng.next(),
   };
+}
+
+/**
+ * Create a SetupContext-compatible random object.
+ */
+export function createRandom(seed?: number): GameRandom {
+  return wrapRandom(new SeededRandom(seed ?? Date.now()));
 }
