@@ -1,15 +1,32 @@
 import {
   type BotStrategy,
   type CroupierConfig,
-  type EngineState,
+  type CroupierContext,
   type PlayerId,
-  ROUND_ROBIN,
   countOnly,
   custom,
 } from "@croupier/core";
-import type { Card, ValuesCardState } from "./types.js";
+import type {
+  BaseCard,
+  Card,
+  CardId,
+  ValuesCardEndReason,
+  ValuesCardEndRule,
+  ValuesCardResult,
+  ValuesCardState,
+} from "./types.js";
 
-export type { Card, DiscardEntry, PlayerState, ValuesCardState } from "./types.js";
+export type {
+  BaseCard,
+  Card,
+  CardId,
+  DiscardEntry,
+  PlayerState,
+  ValuesCardEndReason,
+  ValuesCardEndRule,
+  ValuesCardResult,
+  ValuesCardState,
+} from "./types.js";
 
 /** Default set of value cards */
 export const DEFAULT_VALUES_CARDS: Card[] = [
@@ -85,35 +102,102 @@ export const DEFAULT_VALUES_CARDS: Card[] = [
   { id: "v70", name: "自然体" },
 ];
 
-const HAND_SIZE = 5;
+export const HAND_SIZE = 5;
 
-export interface ValuesCardOptions {
+export interface ValuesCardOptions<C extends BaseCard = Card> {
+  /** Theme decided before the game starts (e.g. by the host) */
   theme?: string;
-  cards?: Card[];
+  /** Card master. Defaults to DEFAULT_VALUES_CARDS (demo list). */
+  cards?: C[];
   /** Timeout per turn in ms. */
   turnTimeoutMs?: number;
+  /** How the game ends. Default: "deckEmpty" (renew-values-card spec). */
+  endRule?: ValuesCardEndRule;
+  /** End the game after this many completed turns (safety cap, e.g. when nobody draws from the deck). */
+  maxTurns?: number;
+  /** Extra end check evaluated after every discard. Return true to end the game. */
+  shouldEnd?: (game: ValuesCardState<C>) => boolean;
+  /** Strategy for bots and turn-timeout takeover. Default: valuesCardAutoPlayStrategy. */
+  bot?: BotStrategy<ValuesCardState<C>>;
 }
 
-export function createValuesCardConfig(
-  options: ValuesCardOptions = {},
-): CroupierConfig<ValuesCardState> {
-  const { theme = "人生で大事な5つの価値観", cards = DEFAULT_VALUES_CARDS, turnTimeoutMs } =
-    options;
+const END_REASON_TEXT: Record<ValuesCardEndReason, string> = {
+  deckEmpty: "The deck ran out",
+  lastRound: "All cards have been exchanged",
+  maxTurns: "Turn limit reached",
+  custom: "Game ended",
+};
+
+function currentPlayerOf<C extends BaseCard>(game: ValuesCardState<C>): PlayerId {
+  return game.playerOrder[game.currentPlayerIndex];
+}
+
+/** Build the end-of-game result: theme and each player's final hand in hand order */
+export function buildValuesCardResult<C extends BaseCard>(
+  game: ValuesCardState<C>,
+): ValuesCardResult<C> {
+  const endReason = game.endReason ?? "custom";
+  const finalHands: Record<PlayerId, C[]> = {};
+  const playerResults: Record<PlayerId, { stats: { finalHand: C[] } }> = {};
+  for (const pid of game.playerOrder) {
+    finalHands[pid] = game.players[pid].hand.map((c) => ({ ...c }));
+    playerResults[pid] = { stats: { finalHand: game.players[pid].hand.map((c) => ({ ...c })) } };
+  }
+  return {
+    reason: END_REASON_TEXT[endReason],
+    endReason,
+    theme: game.theme,
+    finalHands,
+    playerResults,
+    turnCount: game.turnCount,
+    summary: Object.fromEntries(
+      game.playerOrder.map((pid) => [
+        pid,
+        game.players[pid].hand.map((c) => ("name" in c ? (c as { name: unknown }).name : c.id)),
+      ]),
+    ),
+  };
+}
+
+export function createValuesCardConfig<C extends BaseCard = Card>(
+  options: ValuesCardOptions<C> = {},
+): CroupierConfig<ValuesCardState<C>> {
+  const {
+    theme = "人生で大事な5つの価値観",
+    cards = DEFAULT_VALUES_CARDS as unknown as C[],
+    turnTimeoutMs,
+    endRule = "deckEmpty",
+    maxTurns,
+    shouldEnd,
+    bot = valuesCardAutoPlayStrategy as unknown as BotStrategy<ValuesCardState<C>>,
+  } = options;
+
+  type S = ValuesCardState<C>;
 
   // Custom turn order that tracks currentPlayerIndex (pure — reads from ctx.game)
-  const valuesCardTurnOrder = custom<ValuesCardState>({
-    first: (ctx) => {
-      return ctx.game.playerOrder[ctx.game.currentPlayerIndex];
-    },
+  const valuesCardTurnOrder = custom<S>({
+    first: (ctx) => currentPlayerOf(ctx.game),
     next: () => null, // single action per turn handled by stages
   });
+
+  /** Decide whether the game is over after a discard */
+  function endReasonAfterDiscard(game: S, deckEmptiedThisTurn: boolean): ValuesCardEndReason | null {
+    if (endRule === "deckEmpty") {
+      if (deckEmptiedThisTurn) return "deckEmpty";
+    } else if (game.lastRoundTurnsLeft !== null && game.lastRoundTurnsLeft <= 0) {
+      return "lastRound";
+    }
+    if (maxTurns !== undefined && game.turnCount >= maxTurns) return "maxTurns";
+    if (shouldEnd?.(game)) return "custom";
+    return null;
+  }
 
   return {
     name: "values-card",
 
     setup: (ctx) => {
       const deck = ctx.random.shuffle([...cards]);
-      const players: Record<PlayerId, { hand: Card[] }> = {};
+      const players: S["players"] = {};
       const playerOrder = [...ctx.players];
 
       // Deal 5 cards to each player
@@ -130,6 +214,8 @@ export function createValuesCardConfig(
         playerOrder,
         turnCount: 0,
         lastRoundTurnsLeft: null,
+        drawnCardId: null,
+        endReason: null,
       };
     },
 
@@ -138,6 +224,7 @@ export function createValuesCardConfig(
         execute: (game, playerId) => {
           const card = game.deck.shift()!;
           game.players[playerId].hand.push(card);
+          game.drawnCardId = card.id;
         },
         validate: (game, playerId) => {
           if (game.deck.length === 0) return "Deck is empty";
@@ -149,15 +236,14 @@ export function createValuesCardConfig(
 
       drawFromDiscard: {
         execute: (game, playerId, payload) => {
-          const { cardId } = payload as { cardId: string };
-          const idx = game.discardPool.findIndex(
-            (e) => e.card.id === cardId,
-          );
+          const { cardId } = payload as { cardId: CardId };
+          const idx = game.discardPool.findIndex((e) => e.card.id === cardId);
           const entry = game.discardPool.splice(idx, 1)[0];
           game.players[playerId].hand.push(entry.card);
+          game.drawnCardId = entry.card.id;
         },
         validate: (game, playerId, payload) => {
-          const { cardId } = payload as { cardId: string };
+          const cardId = (payload as { cardId?: CardId } | undefined)?.cardId;
           if (game.players[playerId].hand.length !== HAND_SIZE)
             return "Already drew a card";
           if (!game.discardPool.find((e) => e.card.id === cardId))
@@ -168,25 +254,32 @@ export function createValuesCardConfig(
 
       discardCard: {
         execute: (game, playerId, payload) => {
-          const { cardId } = payload as { cardId: string };
+          const { cardId } = payload as { cardId: CardId };
           const hand = game.players[playerId].hand;
           const idx = hand.findIndex((c) => c.id === cardId);
           const card = hand.splice(idx, 1)[0];
           game.discardPool.push({ card, discardedBy: playerId });
+          game.drawnCardId = null;
 
           // Advance to next player
           game.currentPlayerIndex =
             (game.currentPlayerIndex + 1) % game.playerOrder.length;
           game.turnCount++;
-          // Start last round countdown after the turn that emptied the deck
-          if (game.deck.length === 0 && game.lastRoundTurnsLeft === null) {
-            game.lastRoundTurnsLeft = game.playerOrder.length;
-          } else if (game.lastRoundTurnsLeft !== null) {
-            game.lastRoundTurnsLeft--;
+
+          const deckEmptiedThisTurn = game.deck.length === 0 && game.lastRoundTurnsLeft === null;
+          if (endRule === "lastRound") {
+            // Start last round countdown after the turn that emptied the deck
+            if (deckEmptiedThisTurn) {
+              game.lastRoundTurnsLeft = game.playerOrder.length;
+            } else if (game.lastRoundTurnsLeft !== null) {
+              game.lastRoundTurnsLeft--;
+            }
           }
+
+          game.endReason = endReasonAfterDiscard(game, deckEmptiedThisTurn);
         },
         validate: (game, playerId, payload) => {
-          const { cardId } = payload as { cardId: string };
+          const cardId = (payload as { cardId?: CardId } | undefined)?.cardId;
           if (game.players[playerId].hand.length !== HAND_SIZE + 1)
             return "Must draw a card first";
           if (!game.players[playerId].hand.find((c) => c.id === cardId))
@@ -206,12 +299,9 @@ export function createValuesCardConfig(
             always: [
               {
                 target: "waitingForDiscard",
-                guard: (ctx) => {
-                  // Check if current player has 6 cards (drew one)
-                  const currentPlayer =
-                    ctx.game.playerOrder[ctx.game.currentPlayerIndex];
-                  return ctx.game.players[currentPlayer].hand.length > HAND_SIZE;
-                },
+                // Current player has 6 cards (drew one)
+                guard: (ctx) =>
+                  ctx.game.players[currentPlayerOf(ctx.game)].hand.length > HAND_SIZE,
               },
             ],
           },
@@ -221,13 +311,10 @@ export function createValuesCardConfig(
               {
                 target: "__done__",
                 guard: (ctx) => {
-                  // Check if current player is back to 5 cards
-                  // Note: after discard, currentPlayerIndex has already advanced
-                  // So we check the *previous* player
-                  const prevIdx =
-                    (ctx.game.currentPlayerIndex - 1 + ctx.game.playerOrder.length) %
-                    ctx.game.playerOrder.length;
-                  const prevPlayer = ctx.game.playerOrder[prevIdx];
+                  // After discard, currentPlayerIndex has already advanced,
+                  // so check that the *previous* player is back to 5 cards
+                  const n = ctx.game.playerOrder.length;
+                  const prevPlayer = ctx.game.playerOrder[(ctx.game.currentPlayerIndex - 1 + n) % n];
                   return ctx.game.players[prevPlayer].hand.length === HAND_SIZE;
                 },
               },
@@ -248,37 +335,17 @@ export function createValuesCardConfig(
 
     endConditions: [
       {
-        guard: (ctx) =>
-          ctx.game.lastRoundTurnsLeft !== null &&
-          ctx.game.lastRoundTurnsLeft <= 0,
-        result: (ctx) => {
-          const playerResults: Record<string, { stats: Record<string, unknown> }> = {};
-          for (const pid of ctx.game.playerOrder) {
-            playerResults[pid] = {
-              stats: {
-                finalHand: ctx.game.players[pid].hand.map((c: Card) => c.name),
-              },
-            };
-          }
-          return {
-            reason: "All cards have been exchanged",
-            playerResults,
-            summary: Object.fromEntries(
-              ctx.game.playerOrder.map((pid: PlayerId) => [
-                pid,
-                ctx.game.players[pid].hand.map((c: Card) => c.name),
-              ]),
-            ),
-          };
-        },
+        guard: (ctx: CroupierContext<S>) => ctx.game.endReason !== null,
+        result: (ctx: CroupierContext<S>) => buildValuesCardResult(ctx.game),
       },
     ],
 
+    getResult: (game) => buildValuesCardResult(game),
+
     view: {
       playerView: (state, playerId) => {
-        const gameOver =
-          state.lastRoundTurnsLeft !== null &&
-          state.lastRoundTurnsLeft <= 0;
+        const gameOver = state.endReason !== null;
+        const isCurrent = currentPlayerOf(state) === playerId;
         const view: any = {
           theme: state.theme,
           deckCount: countOnly(state.deck),
@@ -287,6 +354,9 @@ export function createValuesCardConfig(
           playerOrder: state.playerOrder,
           turnCount: state.turnCount,
           lastRound: state.lastRoundTurnsLeft !== null,
+          // Only the drawer knows which card came from the deck
+          drawnCardId: isCurrent ? state.drawnCardId : null,
+          endReason: state.endReason,
           players: {},
         };
 
@@ -304,40 +374,64 @@ export function createValuesCardConfig(
       },
     },
 
-    bot: valuesCardBotStrategy,
+    bot,
   };
 }
 
-const valuesCardBotStrategy: BotStrategy<ValuesCardState> = {
-  decide(playerId: PlayerId, playerView: unknown, engineState: EngineState) {
+/**
+ * Auto-play used for disconnected / idle players (renew-values-card spec):
+ * with 5 cards, draw from the deck; then discard the card that was just drawn.
+ * Never draws from the discard pool while the deck has cards. When the deck is empty
+ * (only reachable with the "lastRound" rule) it takes the newest discard and gives it back.
+ */
+export const valuesCardAutoPlayStrategy: BotStrategy<ValuesCardState<BaseCard>> = {
+  decide(playerId: PlayerId, playerView: unknown) {
     const view = playerView as any;
     const me = view.players?.[playerId];
-    if (!me) return null;
+    if (!me?.hand || view.endReason) return null;
+    if (view.playerOrder[view.currentPlayerIndex] !== playerId) return null;
 
-    const hand = me.hand as any[];
+    const hand = me.hand as BaseCard[];
 
-    // If hand has 6 cards, need to discard
     if (hand.length > HAND_SIZE) {
-      // Discard a random card
-      const discardIdx = Math.floor(Math.random() * hand.length);
-      return {
-        action: "discardCard",
-        payload: { cardId: hand[discardIdx].id },
-      };
+      const drawn = hand.find((c) => c.id === view.drawnCardId) ?? hand[hand.length - 1];
+      return { action: "discardCard", payload: { cardId: drawn.id } };
     }
 
-    // If hand has 5 cards, need to draw
     if (hand.length === HAND_SIZE) {
-      if (view.deckCount > 0) {
-        return { action: "drawFromDeck" };
-      }
-      // If deck is empty, draw from discard pool
-      const pool = view.discardPool as any[];
+      if (view.deckCount > 0) return { action: "drawFromDeck" };
+      const pool = view.discardPool as { card: BaseCard }[];
       if (pool.length > 0) {
-        return {
-          action: "drawFromDiscard",
-          payload: { cardId: pool[0].card.id },
-        };
+        return { action: "drawFromDiscard", payload: { cardId: pool[pool.length - 1].card.id } };
+      }
+    }
+
+    return null;
+  },
+};
+
+/**
+ * Demo bot that plays with some variety: draws from the deck (or the discard pool
+ * once the deck is empty) and discards a random card.
+ */
+export const valuesCardRandomBotStrategy: BotStrategy<ValuesCardState<BaseCard>> = {
+  decide(playerId: PlayerId, playerView: unknown) {
+    const view = playerView as any;
+    const me = view.players?.[playerId];
+    if (!me?.hand) return null;
+
+    const hand = me.hand as BaseCard[];
+
+    if (hand.length > HAND_SIZE) {
+      const discardIdx = Math.floor(Math.random() * hand.length);
+      return { action: "discardCard", payload: { cardId: hand[discardIdx].id } };
+    }
+
+    if (hand.length === HAND_SIZE) {
+      if (view.deckCount > 0) return { action: "drawFromDeck" };
+      const pool = view.discardPool as { card: BaseCard }[];
+      if (pool.length > 0) {
+        return { action: "drawFromDiscard", payload: { cardId: pool[0].card.id } };
       }
     }
 

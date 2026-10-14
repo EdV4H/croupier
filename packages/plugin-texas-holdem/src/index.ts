@@ -2,6 +2,7 @@ import {
   type BotStrategy,
   type CroupierConfig,
   type EngineState,
+  type GameRandom,
   type PlayerId,
   countOnly,
   custom,
@@ -119,23 +120,13 @@ function resetBettingRound(state: HoldemState): void {
   state.lastRaiserIndex = null;
 }
 
-/** Simple Fisher-Yates shuffle */
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
 /** Reset state for a new hand (next round) */
-function startNewHand(state: HoldemState): void {
+function startNewHand(state: HoldemState, random: GameRandom): void {
   // Move dealer button to next player with chips
   state.dealerPosition = nextPlayerWithChipsIndex(state, state.dealerPosition);
 
   // Fresh deck
-  state.deck = shuffle(createDeck());
+  state.deck = random.shuffle(createDeck());
   state.communityCards = [];
   state.pot = 0;
   state.currentHighestBet = 0;
@@ -536,7 +527,7 @@ export function createTexasHoldemConfig(
 
       showdown: {
         allowedActions: [],
-        onEnter: (game) => {
+        onEnter: (game, ctx) => {
           // Deal remaining community cards if needed (e.g., all players allIn)
           const needed = 5 - game.communityCards.length;
           if (needed > 0) {
@@ -545,7 +536,7 @@ export function createTexasHoldemConfig(
           resolveShowdown(game);
           // Prepare next hand (if game continues)
           if (playersWithChips(game).length > 1) {
-            startNewHand(game);
+            startNewHand(game, ctx.random);
           }
         },
         always: [
