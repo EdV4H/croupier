@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CroupierCore } from "@croupier/core";
+import { CroupierCore } from "@edv4h/croupier-core";
 import { createTrustBankConfig, CARD_DEFINITIONS, getCardDefinition } from "../src/index.js";
 import type { TrustBankState } from "../src/types.js";
 import { MISSION_DEFINITIONS, BONUS_BY_DIFFICULTY } from "../src/missions.js";

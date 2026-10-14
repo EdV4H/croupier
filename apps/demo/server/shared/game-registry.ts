@@ -1,10 +1,10 @@
-import type { CroupierConfig, PlayerId } from "@croupier/core";
-import { createTexasHoldemConfig } from "@croupier/plugin-texas-holdem";
-import { createPlanningPokerConfig } from "@croupier/plugin-planning-poker";
-import { createValuesCardConfig } from "@croupier/plugin-values-card";
-import { createDigitalTCGConfig } from "@croupier/plugin-digital-tcg";
-import { createDaifugoConfig } from "@croupier/plugin-daifugo";
-import { createTrustBankConfig } from "@croupier/plugin-trust-bank";
+import type { CroupierConfig, PlayerId } from "@edv4h/croupier-core";
+import { createTexasHoldemConfig } from "@edv4h/croupier-plugin-texas-holdem";
+import { createPlanningPokerConfig } from "@edv4h/croupier-plugin-planning-poker";
+import { createValuesCardConfig } from "@edv4h/croupier-plugin-values-card";
+import { createDigitalTCGConfig } from "@edv4h/croupier-plugin-digital-tcg";
+import { createDaifugoConfig } from "@edv4h/croupier-plugin-daifugo";
+import { createTrustBankConfig } from "@edv4h/croupier-plugin-trust-bank";
 import type { GameInfo } from "./types.js";
 
 export const AVAILABLE_GAMES: GameInfo[] = [

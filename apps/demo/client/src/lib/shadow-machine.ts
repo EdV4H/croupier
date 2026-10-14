@@ -5,7 +5,7 @@
  * synchronize via GOTO_PHASE / GOTO_STAGE / GAME_END events.
  */
 import { setup } from "xstate";
-import type { PhaseGraph } from "@croupier/core";
+import type { PhaseGraph } from "@edv4h/croupier-core";
 
 type ShadowEvent =
   | { type: "GOTO_PHASE"; phase: string }

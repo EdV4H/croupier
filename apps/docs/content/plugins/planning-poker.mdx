@@ -1,18 +1,18 @@
 # Planning Poker
 
-`@croupier/plugin-planning-poker` implements agile estimation with story point voting.
+`@edv4h/croupier-plugin-planning-poker` implements agile estimation with story point voting.
 
 ## Installation
 
 ```bash
-pnpm add @croupier/plugin-planning-poker
+pnpm add @edv4h/croupier-plugin-planning-poker
 ```
 
 ## Usage
 
 ```typescript
-import { CroupierCore } from "@croupier/core";
-import { createPlanningPokerConfig } from "@croupier/plugin-planning-poker";
+import { CroupierCore } from "@edv4h/croupier-core";
+import { createPlanningPokerConfig } from "@edv4h/croupier-plugin-planning-poker";
 
 const game = new CroupierCore(
   createPlanningPokerConfig(),

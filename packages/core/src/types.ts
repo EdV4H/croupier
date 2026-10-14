@@ -1,5 +1,5 @@
 // ============================================================
-// @croupier/core — Type Definitions (XState v5 Native Design)
+// @edv4h/croupier-core — Type Definitions (XState v5 Native Design)
 // ============================================================
 
 /** Player identifier */

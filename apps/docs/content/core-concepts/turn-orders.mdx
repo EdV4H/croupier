@@ -25,7 +25,7 @@ Both methods receive the full `CroupierContext`, giving access to `ctx.game` (ga
 Players take turns one at a time, cycling through the player list.
 
 ```typescript
-import { ROUND_ROBIN } from "@croupier/core";
+import { ROUND_ROBIN } from "@edv4h/croupier-core";
 
 phases: {
   play: {
@@ -42,7 +42,7 @@ phases: {
 Two players alternate, each getting one action per turn.
 
 ```typescript
-import { ALTERNATING } from "@croupier/core";
+import { ALTERNATING } from "@edv4h/croupier-core";
 
 phases: {
   main: {
@@ -59,7 +59,7 @@ phases: {
 All players can act at the same time (barrier synchronization).
 
 ```typescript
-import { SIMULTANEOUS } from "@croupier/core";
+import { SIMULTANEOUS } from "@edv4h/croupier-core";
 
 phases: {
   voting: {
@@ -80,7 +80,7 @@ Both `first()` and `next()` return all players. Transition happens when an `alwa
 Use `custom()` for game-specific logic:
 
 ```typescript
-import { custom } from "@croupier/core";
+import { custom } from "@edv4h/croupier-core";
 
 const pokerTurnOrder = custom({
   first(ctx) {

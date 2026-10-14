@@ -2,7 +2,7 @@ import { serve } from "@hono/node-server";
 import { createNodeWebSocket } from "@hono/node-ws";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { isBotPlayer } from "@croupier/core";
+import { isBotPlayer } from "@edv4h/croupier-core";
 import { AVAILABLE_GAMES, GameManager } from "./game-manager.js";
 import { RoomManager } from "./rooms.js";
 import { createLogger } from "./shared/logger.js";
