@@ -8,7 +8,7 @@ Start by defining the types for your game state:
 
 ```typescript
 // types.ts
-import type { GameState, PlayerId } from "@croupier/core";
+import type { GameState, PlayerId } from "@edv4h/croupier-core";
 
 export interface RPSState extends GameState {
   choices: Record<PlayerId, "rock" | "paper" | "scissors" | null>;
@@ -25,8 +25,8 @@ Build your `CroupierConfig`:
 
 ```typescript
 // index.ts
-import type { CroupierConfig, CroupierContext } from "@croupier/core";
-import { SIMULTANEOUS } from "@croupier/core";
+import type { CroupierConfig, CroupierContext } from "@edv4h/croupier-core";
+import { SIMULTANEOUS } from "@edv4h/croupier-core";
 import type { RPSState } from "./types";
 
 export function createRPSConfig(maxRounds = 3): CroupierConfig<RPSState> {
@@ -147,7 +147,7 @@ export function createRPSConfig(maxRounds = 3): CroupierConfig<RPSState> {
 ## Step 3: Test It
 
 ```typescript
-import { CroupierCore } from "@croupier/core";
+import { CroupierCore } from "@edv4h/croupier-core";
 import { createRPSConfig } from "./index";
 
 const game = new CroupierCore(
@@ -236,7 +236,7 @@ For a plugin package:
 
 ```
 my-game-plugin/
-  package.json        # name: "@croupier/plugin-my-game"
+  package.json        # name: "@edv4h/croupier-plugin-my-game"
   tsconfig.json
   tsup.config.ts
   src/

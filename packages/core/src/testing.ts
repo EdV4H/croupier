@@ -1,5 +1,5 @@
 /**
- * @croupier/core/testing
+ * @edv4h/croupier-core/testing
  *
  * Helpers for verifying that a game survives snapshot → JSON → restore
  * at every step of play. Intended for plugin test suites.

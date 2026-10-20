@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+jobs:
+  release:
+    name: Release
+    # Off until the first manual publish and trusted publishers are done
+    # (set the repository variable NPM_RELEASE=true; see docs/npm-publishing.md)
+    if: vars.NPM_RELEASE == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: "https://registry.npmjs.org"
+          scope: "@edv4h"
+
+      - run: pnpm install --frozen-lockfile
+
+      # npm Trusted Publishing (OIDC): no long-lived NPM_TOKEN. Each package needs a
+      # trusted publisher on npmjs.com pointing at this repo + workflow
+      # (see docs/npm-publishing.md). npm >= 11.5.1 is required to detect OIDC.
+      - name: Ensure OIDC-capable npm
+        run: npm install --global npm@latest
+
+      - name: Create Release PR or Publish to npm
+        uses: changesets/action@v1
+        with:
+          version: pnpm run version
+          publish: pnpm run release
+          title: "🎉 release: Version Packages"
+          commit: "🎉 release: version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

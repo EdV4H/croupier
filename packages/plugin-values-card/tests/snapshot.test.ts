@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runSnapshotRoundTrip } from "@croupier/core/testing";
+import { runSnapshotRoundTrip } from "@edv4h/croupier-core/testing";
 import { createValuesCardConfig } from "../src/index.js";
 
 describe("snapshot round-trip", () => {

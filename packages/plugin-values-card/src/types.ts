@@ -1,4 +1,4 @@
-import type { GameState, PlayerId } from "@croupier/core";
+import type { GameState, PlayerId } from "@edv4h/croupier-core";
 
 /** Card identifier. Master data from a DB typically uses numeric ids. */
 export type CardId = string | number;

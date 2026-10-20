@@ -7,7 +7,7 @@ import {
   type PlayerId,
   SIMULTANEOUS,
   custom,
-} from "@croupier/core";
+} from "@edv4h/croupier-core";
 import type { PlanningPokerState, Role, Task } from "./types.js";
 
 export type {

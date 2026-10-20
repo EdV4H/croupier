@@ -4,7 +4,7 @@
  * turn violations, game end and auto-play.
  */
 import { describe, expect, it } from "vitest";
-import { CroupierCore, executeBotTakeover } from "@croupier/core";
+import { CroupierCore, executeBotTakeover } from "@edv4h/croupier-core";
 import {
   createValuesCardConfig,
   valuesCardAutoPlayStrategy,
