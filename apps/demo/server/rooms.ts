@@ -1,5 +1,5 @@
 import type { WSContext } from "hono/ws";
-import type { PlayerId } from "@croupier/core";
+import type { PlayerId } from "@edv4h/croupier-core";
 import type { GameManager } from "./game-manager.js";
 import { createLogger, truncatePayload } from "./shared/logger.js";
 

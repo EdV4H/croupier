@@ -5,9 +5,13 @@
     "build": "turbo build",
     "test": "turbo test",
     "lint": "turbo lint",
-    "dev": "turbo dev"
+    "dev": "turbo dev",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "turbo build --filter=./packages/* && changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "2.31.1",
     "turbo": "^2.4.0",
     "typescript": "^5.7.0"
   },

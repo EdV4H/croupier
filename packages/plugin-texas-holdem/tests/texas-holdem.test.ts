@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CroupierCore } from "@croupier/core";
+import { CroupierCore } from "@edv4h/croupier-core";
 import { createTexasHoldemConfig } from "../src/index.js";
 import type { HoldemState } from "../src/types.js";
 

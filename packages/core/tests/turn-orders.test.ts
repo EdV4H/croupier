@@ -6,6 +6,7 @@ import {
   custom,
 } from "../src/turn-orders.js";
 import type { CroupierContext } from "../src/types.js";
+import { createRandom } from "../src/util/random.js";
 
 function makeCtx(
   overrides: Partial<CroupierContext> = {},
@@ -18,6 +19,7 @@ function makeCtx(
     actionCount: 0,
     result: null,
     log: [],
+    random: createRandom(1),
     ...overrides,
   };
 }

@@ -8,7 +8,7 @@ import {
   createBotId,
   isBotPlayer,
   extractPhaseGraph,
-} from "@croupier/core";
+} from "@edv4h/croupier-core";
 export type { GameInfo } from "./shared/types.js";
 export { AVAILABLE_GAMES, createGameConfig } from "./shared/game-registry.js";
 import { AVAILABLE_GAMES, createGameConfig } from "./shared/game-registry.js";

@@ -1,6 +1,7 @@
 {
-  "name": "@croupier/plugin-digital-tcg",
+  "name": "@edv4h/croupier-plugin-digital-tcg",
   "version": "0.1.0",
+  "description": "Digital trading card game plugin for croupier",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -12,17 +13,31 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run"
   },
   "dependencies": {
-    "@croupier/core": "workspace:*"
+    "@edv4h/croupier-core": "workspace:*"
   },
   "devDependencies": {
     "tsup": "^8.0.0",
     "vitest": "^3.0.0",
     "typescript": "^5.7.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EdV4H/croupier.git",
+    "directory": "packages/plugin-digital-tcg"
+  },
+  "homepage": "https://github.com/EdV4H/croupier#readme",
+  "bugs": {
+    "url": "https://github.com/EdV4H/croupier/issues"
   }
 }
