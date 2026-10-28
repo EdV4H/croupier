@@ -147,4 +147,4 @@ See the [Create Your Own Game](apps/docs/content/guides/create-your-own-game.mdx
 
 ## License
 
-Private
+[MIT](LICENSE)
