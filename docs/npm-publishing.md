@@ -18,7 +18,7 @@ spire と同じく、公開 npm の `@edv4h` スコープに changesets と **Gi
 
 各パッケージは tsup で ESM（`dist/index.js`）と CJS（`dist/index.cjs`）と型定義を出す。`@edv4h/croupier-core` は `@edv4h/croupier-core/testing`（スナップショット往復テスト用ヘルパー）も出す。プラグインの `workspace:*` 依存は `pnpm publish` が実バージョンに置き換える。
 
-## 初回のブートストラップ（未実施）
+## 初回のブートストラップ（2026-10-29 実施済み、0.1.0）
 
 trusted publisher は **npm 上に既にあるパッケージにしか付けられない**ので、初回だけ手で publish する。それまで Release ワークフローはリポジトリ変数 `NPM_RELEASE` が `true` でない限り動かない。
 
@@ -39,6 +39,8 @@ pnpm publish -r --access public --registry https://registry.npmjs.org/
 そのあと GitHub のリポジトリ設定（Settings → Secrets and variables → Actions → Variables）で `NPM_RELEASE=true` を足す。
 
 - `--registry` を付けても `~/.npmrc` に `//registry.npmjs.org/:_authToken` が無いと匿名で PUT して `E404` になる（spire で踏んだもの）。`npm login` を先に済ませる。
+- `~/.npmrc` などで `allow-file=none` にしていると、pnpm が tarball を `npm publish` に渡すところで `EALLOWFILE` になる。その場合は `npm_config_allow_file=all pnpm publish -r ...` のようにそのコマンドだけ許可する。
+- `npm login` のセッションは数時間で切れる。`npm trust` が `401 You must be logged in` を返したらログインし直す。2FA を回避する古いトークンも `npm trust` では使えない。
 - リポジトリが private のあいだは provenance が付かない見込み（npm は公開リポジトリからの publish にだけ provenance を付ける）。
 
 ## 平常運転
