@@ -14,6 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@croupier/server": "workspace:*",
     "@edv4h/croupier-core": "workspace:*",
     "@edv4h/croupier-plugin-digital-tcg": "workspace:*",
     "@edv4h/croupier-plugin-planning-poker": "workspace:*",
@@ -21,10 +22,7 @@
     "@edv4h/croupier-plugin-daifugo": "workspace:*",
     "@edv4h/croupier-plugin-trust-bank": "workspace:*",
     "@edv4h/croupier-plugin-values-card": "workspace:*",
-    "@hono/node-server": "^1.13.0",
-    "@hono/node-ws": "^1.1.0",
     "@statelyai/inspect": "^0.4.0",
-    "hono": "^4.7.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "xstate": "^5.28.0"

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getPlayerSecret } from "../lib/identity.js";
 
 export interface ActionLogEntry {
   playerId: string;
@@ -21,6 +22,8 @@ export interface GameStateData {
   actionLog: ActionLogEntry[];
   playerId: string;
   turnDeadline?: number | null;
+  /** Increases with every state change; older states are dropped */
+  revision: number;
 }
 
 export interface UseGameStateReturn {
@@ -51,6 +54,7 @@ export function useGameState(
   // Reset game state when roomId changes (e.g., leaving a game)
   useEffect(() => {
     setGameState(null);
+    setRoomPlayers(null);
     setRoomDeleted(false);
     setLastError(null);
     setLastActionResult(null);
@@ -59,55 +63,84 @@ export function useGameState(
   useEffect(() => {
     if (!roomId || !playerId) return;
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.host;
-    const ws = new WebSocket(`${protocol}//${host}/ws/${roomId}/${encodeURIComponent(playerId)}`);
-    wsRef.current = ws;
+    let disposed = false;
+    let gone = false;
+    let attempt = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let latestRevision = -1;
 
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => {
-      setConnected(false);
-      wsRef.current = null;
-    };
+    const connect = () => {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const secret = encodeURIComponent(getPlayerSecret());
+      const ws = new WebSocket(
+        `${protocol}//${window.location.host}/ws/${roomId}/${encodeURIComponent(playerId)}?secret=${secret}`,
+      );
+      wsRef.current = ws;
 
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        switch (msg.type) {
-          case "gameState":
-            setGameState(msg.data);
-            // Don't clear lastError on gameState — let it persist briefly
-            break;
-          case "actionResult":
-            setLastActionResult(msg.data);
-            if (!msg.data.ok) {
-              setLastError(msg.data.error ?? "Action failed");
-              setTimeout(() => setLastError(null), 3000);
-            } else {
-              setLastError(null);
-            }
-            break;
-          case "error":
-            setLastError(msg.error);
-            break;
-          case "roomDeleted":
-            setRoomDeleted(true);
-            break;
-          case "playerJoined":
-            setRoomPlayers(msg.data?.players ?? null);
-            break;
-          case "connected":
-            // Request latest state in case we missed a broadcast
-            ws.send(JSON.stringify({ type: "getState" }));
-            break;
+      ws.onopen = () => {
+        attempt = 0;
+        setConnected(true);
+      };
+
+      ws.onclose = async () => {
+        if (wsRef.current === ws) wsRef.current = null;
+        setConnected(false);
+        if (disposed || gone) return;
+        // Reconnect unless the room no longer exists
+        const res = await fetch(`/api/rooms/${roomId}`).catch(() => null);
+        if (disposed) return;
+        if (res?.status === 404) {
+          gone = true;
+          setRoomDeleted(true);
+          return;
         }
-      } catch {
-        // Ignore parse errors
-      }
+        const delay = Math.min(10_000, 500 * 2 ** attempt++);
+        retryTimer = setTimeout(connect, delay);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          switch (msg.type) {
+            case "gameState":
+              if (msg.data.revision < latestRevision) break;
+              latestRevision = msg.data.revision;
+              setGameState(msg.data);
+              // Don't clear lastError on gameState — let it persist briefly
+              break;
+            case "actionResult":
+              setLastActionResult(msg.data);
+              if (!msg.data.ok) {
+                setLastError(msg.data.error ?? "Action failed");
+                setTimeout(() => setLastError(null), 3000);
+              } else {
+                setLastError(null);
+              }
+              break;
+            case "error":
+              setLastError(msg.error);
+              setTimeout(() => setLastError(null), 3000);
+              break;
+            case "roomDeleted":
+              gone = true;
+              setRoomDeleted(true);
+              break;
+            case "room":
+              setRoomPlayers(msg.data?.players ?? null);
+              break;
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      };
     };
+
+    connect();
 
     return () => {
-      ws.close();
+      disposed = true;
+      clearTimeout(retryTimer);
+      wsRef.current?.close();
       wsRef.current = null;
     };
   }, [roomId, playerId]);

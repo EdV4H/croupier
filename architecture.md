@@ -128,10 +128,10 @@ croupier/
       tsconfig.json
       vite.config.ts
 
-      server/                # Hono.js APIサーバー
-        index.ts             # エントリポイント
-        rooms.ts             # ルーム管理 (WebSocket)
-        game-manager.ts      # CroupierCore インスタンス管理
+      server/                # packages/server を使うエントリポイントだけ
+        index.ts             # ローカル (Node) 起動
+        workers/index.ts     # Cloudflare Workers + Durable Objects
+        shared/game-registry.ts  # デモで遊べるゲームの一覧と設定
 
       client/                # Vite + React フロントエンド
         index.html
