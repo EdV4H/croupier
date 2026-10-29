@@ -19,11 +19,3 @@ export class Logger {
 export function createLogger(source: "local" | "workers") {
   return new Logger(source);
 }
-
-export function truncatePayload(payload: unknown): string {
-  try {
-    return JSON.stringify(payload).slice(0, 200);
-  } catch {
-    return "[unserializable]";
-  }
-}

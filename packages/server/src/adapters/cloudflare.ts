@@ -64,8 +64,14 @@ function lobbyPort(env: CroupierEnv): Lobby {
   };
 }
 
+export interface CloudflareServer {
+  GameRoomDO: new (ctx: DurableObjectState, env: CroupierEnv) => GameRoomObject;
+  LobbyDO: new (ctx: DurableObjectState, env: CroupierEnv) => LobbyObject;
+  worker: ExportedHandler<CroupierEnv>;
+}
+
 /** Build the Durable Object classes and Worker for a game registry */
-export function createCloudflareServer(opts: CloudflareOptions) {
+export function createCloudflareServer(opts: CloudflareOptions): CloudflareServer {
   class GameRoomDO extends DurableObject<CroupierEnv> implements GameRoomObject {
     readonly host: RoomHost;
 

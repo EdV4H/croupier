@@ -1,11 +1,11 @@
 import type { CroupierConfig, PlayerId } from "@edv4h/croupier-core";
+import type { GameInfo, GameRegistry } from "@croupier/server";
 import { createTexasHoldemConfig } from "@edv4h/croupier-plugin-texas-holdem";
 import { createPlanningPokerConfig } from "@edv4h/croupier-plugin-planning-poker";
 import { createValuesCardConfig } from "@edv4h/croupier-plugin-values-card";
 import { createDigitalTCGConfig } from "@edv4h/croupier-plugin-digital-tcg";
 import { createDaifugoConfig } from "@edv4h/croupier-plugin-daifugo";
 import { createTrustBankConfig } from "@edv4h/croupier-plugin-trust-bank";
-import type { GameInfo } from "./types.js";
 
 export const AVAILABLE_GAMES: GameInfo[] = [
   {
@@ -113,3 +113,8 @@ export function createGameConfig(
       throw new Error(`Unknown game: ${gameId}`);
   }
 }
+
+export const registry: GameRegistry = {
+  games: AVAILABLE_GAMES,
+  createConfig: createGameConfig,
+};

@@ -3,6 +3,7 @@ import { GameBoard } from "./components/game-board.js";
 import type { UIMode } from "./components/game-board.js";
 import { GameSelector } from "./components/game-selector.js";
 import { useGameState } from "./hooks/use-game-state.js";
+import { playerBody } from "./lib/identity.js";
 
 type Screen =
   | { type: "login" }
@@ -60,7 +61,7 @@ export function App() {
       const res = await fetch(`/api/rooms/${screen.roomId}/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerId }),
+        body: playerBody(playerId),
       });
       const data = await res.json();
       if (data.started) {
@@ -137,7 +138,15 @@ export function App() {
           connected={connected}
           roomPlayers={roomPlayers}
           onStart={handleStartGame}
-          onBack={() => setScreen({ type: "lobby" })}
+          onBack={() => {
+            // Give the seat back; the server keeps it once the game has started
+            void fetch(`/api/rooms/${screen.roomId}/leave`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: playerBody(playerId),
+            }).catch(() => {});
+            setScreen({ type: "lobby" });
+          }}
         />
       );
 

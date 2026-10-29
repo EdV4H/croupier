@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { DeckCustomizer } from "./deck-customizer.js";
+import { playerBody } from "../lib/identity.js";
 
 interface GameInfo {
   id: string;
@@ -66,7 +67,7 @@ export function GameSelector({ playerId, onJoinRoom, onChangeName }: GameSelecto
     const res = await fetch("/api/rooms", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gameId, playerId, botCount, ...(opts ? { gameOptions: opts } : {}) }),
+      body: playerBody(playerId, { gameId, botCount, ...(opts ? { gameOptions: opts } : {}) }),
     });
     const data = await res.json();
     if (data.id) {
@@ -86,7 +87,7 @@ export function GameSelector({ playerId, onJoinRoom, onChangeName }: GameSelecto
       const res = await fetch(`/api/rooms/${roomId}/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerId }),
+        body: playerBody(playerId),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -106,8 +107,10 @@ export function GameSelector({ playerId, onJoinRoom, onChangeName }: GameSelecto
   };
 
   const deleteRoom = async (roomId: string) => {
-    await fetch(`/api/rooms/${roomId}?playerId=${encodeURIComponent(playerId)}`, {
+    await fetch(`/api/rooms/${roomId}`, {
       method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: playerBody(playerId),
     });
     fetchData();
   };
