@@ -66,4 +66,21 @@ describe("RoomLogic", () => {
     const outcome = await logic.wake(state, T0 + 1_000);
     expect((outcome.state!.engine!.game as any).count).toBe(2);
   });
+
+  it("falls back when a bot decide() hangs during a turn-timeout takeover", async () => {
+    const slow: GameRegistry = {
+      ...registry,
+      createConfig: () => ({
+        ...createRaceConfig(),
+        bot: { decide: () => new Promise(() => {}), fallback: () => ({ action: "step" }) },
+      }),
+    };
+    const logic = new RoomLogic(slow, { botDecideTimeoutMs: 10 });
+    let state = logic.create(null, "ROOM", { gameId: "race", playerId: "alice", secret: SECRET_A }, T0).state!;
+    state = logic.join(state, { playerId: "bob", secret: SECRET_B }, T0).state!;
+    state = logic.start(state, { playerId: "alice", secret: SECRET_A }, T0).state!;
+    const outcome = await logic.wake(state, state.timers.turnDeadline!);
+    expect((outcome.state!.engine!.game as any).count).toBe(1);
+    expect(logic.restoreEngine(outcome.state!)!.getEngineState().currentPlayers).toBe("bob");
+  });
 });

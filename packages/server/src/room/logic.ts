@@ -283,7 +283,9 @@ export class RoomLogic {
       const before = engine.getRevision();
       if (strategy) {
         try {
-          await executeBotTakeover(engine, strategy);
+          // Same time bound as bot turns: a hung decide() must not block the room's queue
+          const bounded: BotStrategy = { ...strategy, decide: (id, view, es) => this.decide(strategy, id, view, es) };
+          await executeBotTakeover(engine, bounded);
         } catch {
           // A failing strategy must not break the room; treated as no move
         }
