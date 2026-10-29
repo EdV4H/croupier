@@ -1,5 +1,7 @@
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+// Node 20 (CI) has no global WebSocket
+import WebSocket from "ws";
 import { startNodeServer } from "../src/adapters/node.js";
 import { MessageLog } from "./harness.js";
 import { registry, SECRET_A, SECRET_B } from "./fixtures.js";
@@ -30,7 +32,7 @@ describe("node adapter", () => {
     const ws = new WebSocket(`ws://${base}/ws/${roomId}/${playerId}?secret=${secret}`);
     const log = new MessageLog();
     ws.addEventListener("message", (e) => log.push(JSON.parse(String(e.data))));
-    // Node's WebSocket reports a refused upgrade with "error" and may never fire "close"
+    // A refused upgrade is reported with "error"; "close" may not follow
     const closed = new Promise<void>((resolve) => {
       ws.addEventListener("close", () => resolve());
       ws.addEventListener("error", () => resolve());
