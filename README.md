@@ -64,7 +64,8 @@ croupier/
 │   ├── plugin-texas-holdem/     # Texas Hold'em with hand evaluation
 │   ├── plugin-digital-tcg/      # Hearthstone-style TCG
 │   ├── plugin-planning-poker/   # Agile estimation game
-│   └── plugin-values-card/      # Wevox Values Card game
+│   ├── plugin-values-card/      # Wevox Values Card game
+│   └── values-card-wire/        # Values Card state ⇄ Wevox Values Card WebSocket messages
 ├── apps/
 │   ├── demo/                    # Vite + React + Hono WebSocket demo
 │   └── docs/                    # Nextra documentation site
@@ -144,6 +145,12 @@ See the [Create Your Own Game](apps/docs/content/guides/create-your-own-game.mdx
 | `@edv4h/croupier-plugin-digital-tcg` | Hearthstone-style TCG with mana, deck, and board management | 2 |
 | `@edv4h/croupier-plugin-planning-poker` | Agile estimation with facilitator/voter roles and Fibonacci deck | 2+ |
 | `@edv4h/croupier-plugin-values-card` | Wevox Values Card — choose values that matter most to you | 3+ |
+
+### Adapters
+
+| Package | Description |
+|---------|-------------|
+| `@edv4h/croupier-values-card-wire` | Converts Values Card state into the Wevox Values Card WebSocket events / `snapshot.game`, and its commands into croupier actions |
 
 ## License
 
