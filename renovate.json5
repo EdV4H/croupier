@@ -1,0 +1,92 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+    // 脆弱性修正はスケジュールを無視してすぐ PR を出す
+    ':enableVulnerabilityAlertsWithLabel(security)',
+  ],
+  timezone: 'Asia/Tokyo',
+  // 毎週月曜の朝にまとめて PR を出す（平日に PR が散らばらないように）
+  schedule: ['before 9am on monday'],
+  labels: ['dependencies'],
+  // リポジトリのコミット規約（gitmoji + conventional）に合わせる
+  commitMessagePrefix: '⬆️ chore(deps):',
+  // 公開直後に取り下げられた版や乗っ取られた版を拾わないよう、3 日寝かせてから PR を出す
+  minimumReleaseAge: '3 days',
+  prConcurrentLimit: 10,
+  // lockfile の間接依存も月 1 回まとめて更新する
+  lockFileMaintenance: {
+    enabled: true,
+    schedule: ['before 9am on the first day of the month'],
+    automerge: true,
+  },
+  // GitHub の auto-merge ではなく Renovate 自身が CI の成功を確かめてからマージする
+  // （main にブランチ保護の必須チェックが無くても、CI が落ちた PR はマージされない）
+  platformAutomerge: false,
+  packageRules: [
+    {
+      description: 'devDependencies の minor / patch は CI が通れば自動マージ',
+      matchDepTypes: ['devDependencies'],
+      matchUpdateTypes: ['minor', 'patch'],
+      automerge: true,
+    },
+    {
+      description: 'GitHub Actions の minor / patch / digest はひとまとめにして自動マージ',
+      matchManagers: ['github-actions'],
+      matchUpdateTypes: ['minor', 'patch', 'digest'],
+      groupName: 'GitHub Actions',
+      automerge: true,
+    },
+    {
+      description: 'ビルド・テスト系ツールの minor / patch はひとまとめにする',
+      matchPackageNames: ['typescript', 'tsup', 'tsx', 'turbo', 'concurrently'],
+      matchUpdateTypes: ['minor', 'patch'],
+      groupName: 'build tooling',
+    },
+    {
+      description: 'vitest まわりはまとめて上げる（@cloudflare/vitest-pool-workers は vitest の版に縛られる）',
+      matchPackageNames: ['vitest', '@vitest/**', '@cloudflare/vitest-pool-workers'],
+      groupName: 'vitest',
+    },
+    {
+      description: 'Cloudflare 系（wrangler / workers-types）はまとめる',
+      matchPackageNames: ['wrangler', '@cloudflare/workers-types'],
+      groupName: 'Cloudflare',
+    },
+    {
+      description: '@cloudflare/workers-types はほぼ毎日出るので月 1 回にする',
+      matchPackageNames: ['@cloudflare/workers-types'],
+      schedule: ['before 9am on the first day of the month'],
+    },
+    {
+      description: 'React の型定義はまとめる',
+      matchPackageNames: ['@types/react', '@types/react-dom'],
+      groupName: 'React types',
+    },
+    {
+      description: 'Testing Library はまとめる',
+      matchPackageNames: ['@testing-library/**'],
+      groupName: 'Testing Library',
+    },
+    {
+      description: 'trading-card は @ark-ui/react と @zag-js/* を同じ版で揃えているので一緒に上げる',
+      matchPackageNames: ['@ark-ui/react', '@zag-js/**'],
+      groupName: 'Ark UI / Zag',
+    },
+    {
+      description: 'docs サイト（Next.js / Nextra）はまとめる',
+      matchPackageNames: ['next', 'nextra', 'nextra-theme-docs'],
+      groupName: 'docs site',
+    },
+    {
+      description: 'peerDependencies は範囲を狭めず広げる（利用者側の互換性を保つ）',
+      matchDepTypes: ['peerDependencies'],
+      rangeStrategy: 'widen',
+    },
+    {
+      description: 'major は自動マージしない（念のため明示）',
+      matchUpdateTypes: ['major'],
+      automerge: false,
+    },
+  ],
+}
