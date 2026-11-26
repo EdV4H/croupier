@@ -2,7 +2,7 @@
 
 spire と同じく、公開 npm の `@edv4h` スコープに changesets と **GitHub OIDC の trusted publishing** で出す。長命の `NPM_TOKEN` は使わない。
 
-## 公開するもの（7パッケージ）
+## 公開するもの（8パッケージ）
 
 ```
 @edv4h/croupier-core
@@ -12,6 +12,7 @@ spire と同じく、公開 npm の `@edv4h` スコープに changesets と **Gi
 @edv4h/croupier-plugin-texas-holdem
 @edv4h/croupier-plugin-trust-bank
 @edv4h/croupier-plugin-values-card
+@edv4h/croupier-trading-card
 ```
 
 `apps/demo`・`apps/docs` は `private: true` なので publish されず、`.changeset/config.json` の `ignore` にも入れてある。
@@ -42,6 +43,10 @@ pnpm publish -r --access public --registry https://registry.npmjs.org/
 - `~/.npmrc` などで `allow-file=none` にしていると、pnpm が tarball を `npm publish` に渡すところで `EALLOWFILE` になる。その場合は `npm_config_allow_file=all pnpm publish -r ...` のようにそのコマンドだけ許可する。
 - `npm login` のセッションは数時間で切れる。`npm trust` が `401 You must be logged in` を返したらログインし直す。2FA を回避する古いトークンも `npm trust` では使えない。
 - リポジトリが private のあいだは provenance が付かない見込み（npm は公開リポジトリからの publish にだけ provenance を付ける）。
+
+## パッケージを足したとき
+
+trusted publisher は npm 上に既にあるパッケージにしか付けられないので、新しいパッケージ（`@edv4h/croupier-trading-card` など）は初回だけ上の手順で手で publish してから `./scripts/setup-npm-trusted-publishers.sh` を流し直す。それまでは Release ワークフローの publish がそのパッケージで失敗する。
 
 ## 平常運転
 
