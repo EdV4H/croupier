@@ -30,6 +30,7 @@ npm install -g npm@11                                        # npm >= 11.5.1(11 
 npm login --scope=@edv4h --registry=https://registry.npmjs.org/
 
 git checkout main && git pull
+mise trust && mise install                                   # mise.toml の node 24 / pnpm 12.22.0
 pnpm install --frozen-lockfile
 pnpm turbo build --filter='./packages/*'
 
