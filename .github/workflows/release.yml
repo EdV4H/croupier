@@ -36,8 +36,10 @@ jobs:
       # npm Trusted Publishing (OIDC): no long-lived NPM_TOKEN. Each package needs a
       # trusted publisher on npmjs.com pointing at this repo + workflow
       # (see docs/npm-publishing.md). npm >= 11.5.1 is required to detect OIDC.
+      # Pinned to 11: npm@latest (newer than 11) rejects the `--git-checks` flag that pnpm passes
+      # through to `npm publish` (EUNKNOWNCONFIG), so every publish failed.
       - name: Ensure OIDC-capable npm
-        run: npm install --global npm@latest
+        run: npm install --global npm@11
 
       - name: Create Release PR or Publish to npm
         uses: changesets/action@v1

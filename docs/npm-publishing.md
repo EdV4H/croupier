@@ -26,7 +26,7 @@ spire と同じく、公開 npm の `@edv4h` スコープに changesets と **Gi
 trusted publisher は **npm 上に既にあるパッケージにしか付けられない**ので、初回だけ手で publish する。それまで Release ワークフローはリポジトリ変数 `NPM_RELEASE` が `true` でない限り動かない。
 
 ```bash
-npm install -g npm@latest                                    # npm >= 11.5.1
+npm install -g npm@11                                        # npm >= 11.5.1(11 より新しい版は下の EUNKNOWNCONFIG で落ちる)
 npm login --scope=@edv4h --registry=https://registry.npmjs.org/
 
 git checkout main && git pull
@@ -43,6 +43,7 @@ pnpm publish -r --access public --registry https://registry.npmjs.org/
 
 - `--registry` を付けても `~/.npmrc` に `//registry.npmjs.org/:_authToken` が無いと匿名で PUT して `E404` になる（spire で踏んだもの）。`npm login` を先に済ませる。
 - `~/.npmrc` などで `allow-file=none` にしていると、pnpm が tarball を `npm publish` に渡すところで `EALLOWFILE` になる。その場合は `npm_config_allow_file=all pnpm publish -r ...` のようにそのコマンドだけ許可する。
+- npm@latest(11 より新しい版)だと `pnpm publish` が npm に渡す `--git-checks` を知らないフラグとして弾き、`EUNKNOWNCONFIG Unknown cli flag: --git-checks` で全パッケージが落ちる（2026-11-27 の Release で踏んだ）。publish に使う npm は 11 に固定する（Release ワークフローも `npm@11`）。
 - `npm login` のセッションは数時間で切れる。`npm trust` が `401 You must be logged in` を返したらログインし直す。2FA を回避する古いトークンも `npm trust` では使えない。
 - リポジトリが private のあいだは provenance が付かない見込み（npm は公開リポジトリからの publish にだけ provenance を付ける）。
 
