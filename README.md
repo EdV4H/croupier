@@ -39,6 +39,9 @@ Universal game engine framework for turn-based and real-time multiplayer games.
 ## Quick Start
 
 ```bash
+# Node 24 / pnpm 12.22.0 (mise.toml; run `mise trust` once)
+mise install
+
 # Install dependencies
 pnpm install
 

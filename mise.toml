@@ -1,0 +1,5 @@
+# 手元の node / pnpm を CI(.github/workflows の Node 24)と package.json の packageManager にそろえる。
+# 初回だけ `mise trust` が要る。
+[tools]
+node = "24"
+pnpm = "12.22.0"
