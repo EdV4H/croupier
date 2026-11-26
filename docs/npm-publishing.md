@@ -2,7 +2,7 @@
 
 spire と同じく、公開 npm の `@edv4h` スコープに changesets と **GitHub OIDC の trusted publishing** で出す。長命の `NPM_TOKEN` は使わない。
 
-## 公開するもの（8パッケージ）
+## 公開するもの（10パッケージ）
 
 ```
 @edv4h/croupier-core
@@ -13,6 +13,8 @@ spire と同じく、公開 npm の `@edv4h` スコープに changesets と **Gi
 @edv4h/croupier-plugin-trust-bank
 @edv4h/croupier-plugin-values-card
 @edv4h/croupier-trading-card
+@edv4h/croupier-box
+@edv4h/croupier-box-render
 ```
 
 `apps/demo`・`apps/docs` は `private: true` なので publish されず、`.changeset/config.json` の `ignore` にも入れてある。
@@ -46,7 +48,7 @@ pnpm publish -r --access public --registry https://registry.npmjs.org/
 
 ## パッケージを足したとき
 
-trusted publisher は npm 上に既にあるパッケージにしか付けられないので、新しいパッケージ（`@edv4h/croupier-trading-card` など）は初回だけ上の手順で手で publish してから `./scripts/setup-npm-trusted-publishers.sh` を流し直す。それまでは Release ワークフローの publish がそのパッケージで失敗する。
+trusted publisher は npm 上に既にあるパッケージにしか付けられないので、新しいパッケージ（`@edv4h/croupier-trading-card` / `@edv4h/croupier-box` / `@edv4h/croupier-box-render` など）は初回だけ上の手順で手で publish してから `./scripts/setup-npm-trusted-publishers.sh` を流し直す。それまでは Release ワークフローの publish がそのパッケージで失敗する。
 
 ## 平常運転
 
