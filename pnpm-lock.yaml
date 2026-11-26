@@ -116,6 +116,38 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  packages/box:
+    dependencies:
+      zod:
+        specifier: ^4.0.0
+        version: 4.3.6
+    devDependencies:
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@25.3.2)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/box-render:
+    dependencies:
+      '@edv4h/croupier-box':
+        specifier: workspace:*
+        version: link:../box
+    devDependencies:
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.4(@types/debug@4.1.12)(@types/node@25.3.2)(tsx@4.21.0)(yaml@2.8.2)
+
   packages/core:
     dependencies:
       xstate:

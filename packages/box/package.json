@@ -1,0 +1,63 @@
+{
+  "name": "@edv4h/croupier-box",
+  "version": "0.0.0",
+  "description": "Game box parts for croupier: layered templates, cards, tokens, pieces, boards, dice, sets and rulebooks as plain data",
+  "license": "MIT",
+  "author": "Yusuke Maruyama",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./examples": {
+      "import": {
+        "types": "./dist/examples/index.d.ts",
+        "default": "./dist/examples/index.js"
+      },
+      "require": {
+        "types": "./dist/examples/index.d.cts",
+        "default": "./dist/examples/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EdV4H/croupier.git",
+    "directory": "packages/box"
+  },
+  "homepage": "https://github.com/EdV4H/croupier#readme",
+  "bugs": {
+    "url": "https://github.com/EdV4H/croupier/issues"
+  }
+}
