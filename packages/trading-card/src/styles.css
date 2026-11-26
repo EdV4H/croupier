@@ -1,0 +1,226 @@
+/*
+ * TradingCard の骨格 CSS(Panda なしで使うとき用)。
+ *
+ * atrae-ui の wevox-style-panda の tradingCard レシピと同じ骨格を、data-scope / data-part の
+ * セレクタで当てる。どれも :where() で包んで詳細度を 0 にしてあるので、利用者の class や
+ * Panda のレシピがあれば必ずそちらが勝つ(Panda を使う側はこのファイルを読まなくてよい)。
+ *
+ * 光の層(箔・ホロ・グレア)の見た目は出荷しない。layer スロットは配置だけを与え、
+ * 実際の background / mix-blend-mode / opacity は利用者の CSS が当てる。
+ *
+ * 色と角丸は次の変数で差し替える:
+ *   --tc-radius         面の角丸(既定 12px)
+ *   --tc-media-radius   media の角丸(既定 8px)
+ *   --tc-surface        content / back の地の色
+ *   --tc-on-surface     content / back の文字色
+ *   --tc-media-surface  画像の読み込み前の地の色
+ *   --tc-focus          フォーカスリングの色
+ *
+ * --tc-px / --tc-py は単位なしの数値(レイヤー側で calc(var(--tc-px) * 1%) として使う)。
+ */
+
+:where([data-scope="trading-card"][data-part="root"]) {
+  --tc-px: 50;
+  --tc-py: 50;
+  --tc-rx: 0deg;
+  --tc-ry: 0deg;
+  --tc-hyp: 0;
+  --tc-drx: 0deg;
+  --tc-dry: 0deg;
+  --tc-flip: 0deg;
+  --tc-sc: 1;
+  --tc-t: 680ms;
+
+  position: relative;
+  perspective: 1300px;
+  /* front / back は inset:0 の絶対配置なので root が寸法を持つ。既定は実物のトレカ比(63×88mm) */
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+
+:where([data-scope="trading-card"][data-part="root"][data-state="dragging"]) {
+  cursor: grabbing;
+}
+
+/* ドラッグ回転が効かない状態では掴む見た目をやめる(条件は Root が data-drag-disabled にまとめて出す) */
+:where([data-scope="trading-card"][data-part="root"][data-drag-disabled]) {
+  touch-action: manipulation;
+  cursor: auto;
+}
+:where([data-scope="trading-card"][data-part="root"][data-drag-disabled][role="button"]) {
+  cursor: pointer;
+}
+
+/* flipTrigger="card" のときはカード自体が操作子。リングは面の外に出す */
+:where([data-scope="trading-card"][data-part="root"][role="button"]:focus-visible) {
+  outline: 2px solid var(--tc-focus, Highlight);
+  outline-offset: 4px;
+  border-radius: var(--tc-radius, 12px);
+}
+
+/* shadow と inner は Root が中で描く構造の入れ物 */
+:where([data-scope="trading-card"][data-part="shadow"]) {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 12%;
+  bottom: 2%;
+  border-radius: var(--tc-radius, 12px);
+  background: rgba(0, 0, 0, 1);
+  filter: blur(34px);
+  opacity: 0.5;
+  transform: translate3d(0, 26px, 0) scale(0.94);
+  transition:
+    transform var(--tc-t) cubic-bezier(0.2, 0, 0, 1),
+    opacity var(--tc-t) linear;
+  pointer-events: none;
+  z-index: 0;
+}
+
+:where([data-scope="trading-card"][data-part="inner"]) {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  /* hover の傾き・ドラッグ回転・Flip を 1 本の transform にまとめる */
+  transform: rotateX(calc(var(--tc-rx) + var(--tc-drx)))
+    rotateY(calc(var(--tc-ry) + var(--tc-dry) + var(--tc-flip))) scale(var(--tc-sc));
+  transition: transform var(--tc-t) cubic-bezier(0.2, 0, 0, 1);
+  will-change: transform;
+  z-index: 1;
+}
+
+:where([data-scope="trading-card"][data-part="front"]),
+:where([data-scope="trading-card"][data-part="back"]) {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: var(--tc-radius, 12px);
+  overflow: hidden;
+  /* ブレンドをカードの内側に閉じ込める(color-dodge / screen が背後のページを巻き込まないように) */
+  isolation: isolate;
+}
+
+:where([data-scope="trading-card"][data-part="back"]) {
+  transform: rotateY(180deg);
+  background: var(--tc-surface, #ffffff);
+  color: var(--tc-on-surface, #1b1b1f);
+}
+
+/* 本文は不透明な地と自前の重ね合わせ文脈を持ち、ブレンドに洗われない。光らせたい絵は media に置く */
+:where([data-scope="trading-card"][data-part="content"]) {
+  position: relative;
+  isolation: isolate;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--tc-surface, #ffffff);
+  color: var(--tc-on-surface, #1b1b1f);
+}
+
+:where([data-scope="trading-card"][data-part="media"]) {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--tc-media-radius, 8px);
+  background: var(--tc-media-surface, #e8e8ec);
+}
+:where([data-scope="trading-card"][data-part="media"]) :where(img, video, svg) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 骨格のみ。見た目は利用者が当てる */
+:where([data-scope="trading-card"][data-part="layer"]) {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+:where([data-reduced-motion]) :where([data-scope="trading-card"][data-part="layer"]) {
+  animation: none;
+}
+/* 画面外のカードはループを止める(paused なので戻れば続きから) */
+:where([data-offscreen]) :where([data-scope="trading-card"][data-part="layer"]) {
+  animation-play-state: paused;
+}
+
+/* 走査光。通常は不可視で、scan の演出中だけ動く */
+:where([data-scope="trading-card"][data-part="beam"]) {
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: 0;
+  width: 38%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 出現演出の光・粒子が入る場。カードの外へはみ出して光るので overflow は切らない */
+:where([data-scope="trading-card"][data-part="reveal-stage"]) {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+:where([data-scope="trading-card"][data-part="flip-trigger"]) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+  color: var(--tc-on-surface, #1b1b1f);
+  background: var(--tc-surface-container, #f0f0f4);
+  transition: background-color 160ms ease;
+}
+:where([data-scope="trading-card"][data-part="flip-trigger"]:hover) {
+  background: var(--tc-surface-container-high, #e4e4ea);
+}
+:where([data-scope="trading-card"][data-part="flip-trigger"]:focus-visible) {
+  outline: 2px solid var(--tc-focus, Highlight);
+  outline-offset: 2px;
+}
+:where([data-scope="trading-card"][data-part="flip-trigger"]:disabled) {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where([data-scope="trading-card"][data-part="root"]) {
+    touch-action: manipulation;
+    cursor: auto;
+  }
+  :where([data-scope="trading-card"][data-part="root"][role="button"]) {
+    cursor: pointer;
+  }
+  :where([data-scope="trading-card"][data-part="shadow"]),
+  :where([data-scope="trading-card"][data-part="inner"]),
+  :where([data-scope="trading-card"][data-part="flip-trigger"]) {
+    transition: none;
+  }
+  :where([data-scope="trading-card"][data-part="layer"]) {
+    animation: none;
+  }
+}
+
+@media (hover: none) {
+  :where([data-scope="trading-card"][data-part="root"]) {
+    touch-action: manipulation;
+    cursor: auto;
+  }
+  :where([data-scope="trading-card"][data-part="inner"]) {
+    transition: none;
+  }
+}
