@@ -35,7 +35,7 @@ export const assetRefSchema = z
   .string()
   .regex(/^(asset:[A-Za-z0-9._-]+|https?:\/\/.+)$/, "asset:<id> か http(s) の URL");
 
-export const partKindSchema = z.enum(["card", "token", "piece", "board", "die"]);
+export const partKindSchema = z.enum(["card", "token", "piece", "board", "dice"]);
 export type PartKind = z.infer<typeof partKindSchema>;
 
 // ---------------------------------------------------------------------------

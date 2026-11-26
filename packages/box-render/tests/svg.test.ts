@@ -34,7 +34,7 @@ describe("renderFaceSvg", () => {
   });
 
   it("サイコロは 6 面ぶん描ける", () => {
-    const faces = resolveFaces(mr.templateOf("action-die"), mr.part("action-die"), { language: "ja" });
+    const faces = resolveFaces(mr.templateOf("action-dice"), mr.part("action-dice"), { language: "ja" });
     const svgs = faces.map((f) => renderFaceSvg(f));
     expect(svgs).toHaveLength(6);
     expect(svgs[3]).toContain(">話す</tspan>");

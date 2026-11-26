@@ -99,9 +99,9 @@ describe("validateBox", () => {
 
   it("サイコロの面の数を list の長さで縛る", () => {
     const box = clone(missionRoadBox);
-    const die = box.parts.find((p) => p.key === "action-die")!;
-    (die.fields.faces as unknown[]).pop();
-    expect(validateBox(box).issues).toContainEqual({ path: "parts[action-die].fields.faces", message: "6 件以上" });
+    const dice = box.parts.find((p) => p.key === "action-dice")!;
+    (dice.fields.faces as unknown[]).pop();
+    expect(validateBox(box).issues).toContainEqual({ path: "parts[action-dice].fields.faces", message: "6 件以上" });
   });
 });
 
@@ -129,7 +129,7 @@ describe("resolveFaces", () => {
   });
 
   it("サイコロは list の 1 件ごとに 1 面", () => {
-    const faces = resolveFaces(mr.templateOf("action-die"), mr.part("action-die"), { language: "ja" });
+    const faces = resolveFaces(mr.templateOf("action-dice"), mr.part("action-dice"), { language: "ja" });
     expect(faces.map((f) => f.name)).toEqual(["face-1", "face-2", "face-3", "face-4", "face-5", "face-6"]);
     expect(faces[4]!.layers.find((l) => l.kind === "text")).toMatchObject({ text: "助ける", align: "center", shrink: true });
   });

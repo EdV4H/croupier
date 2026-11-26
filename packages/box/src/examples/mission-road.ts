@@ -96,8 +96,8 @@ export const missionRoadBox: BoxDocument = {
       ],
     },
     {
-      key: "mr-die-d6",
-      kind: "die",
+      key: "mr-dice-d6",
+      kind: "dice",
       size: { w: 120, h: 120 },
       outline: { shape: "rect", radius: 20 },
       fields: {
@@ -189,8 +189,8 @@ export const missionRoadBox: BoxDocument = {
     { key: "issue", template: "mr-token-round", fields: { icon: "asset:mr-issue", color: "#B8383D" } },
     { key: "achievement", template: "mr-token-hex", fields: { icon: "asset:mr-star", color: "#C9A227" } },
     {
-      key: "action-die",
-      template: "mr-die-d6",
+      key: "action-dice",
+      template: "mr-dice-d6",
       fields: {
         faces: [
           { icon: "asset:mr-step", label: "進む 1" },
@@ -269,7 +269,7 @@ export const missionRoadBox: BoxDocument = {
         { part: "trust", quantity: 40 },
         { part: "issue", quantity: 20 },
         { part: "achievement", quantity: 10 },
-        { part: "action-die", quantity: 2 },
+        { part: "action-dice", quantity: 2 },
       ],
     },
     {
@@ -302,7 +302,7 @@ export const missionRoadBox: BoxDocument = {
         "1. 盤を広げ、課題トークンを GOAL の手前に置く ::part[issue]",
         "2. 各自 ::set[starter] を受け取る",
         "3. 役割カードを 1 枚ずつ配る ::set[roles]",
-        "4. 手番では ::part[action-die] を振る",
+        "4. 手番では ::part[action-dice] を振る",
         "",
       ].join("\n"),
     },
@@ -315,7 +315,7 @@ export const missionRoadBox: BoxDocument = {
         "1. Lay out the board and place issue tokens before the goal ::part[issue]",
         "2. Each player takes ::set[starter]",
         "3. Deal one role card to each player ::set[roles]",
-        "4. On your turn, roll ::part[action-die]",
+        "4. On your turn, roll ::part[action-dice]",
         "",
       ].join("\n"),
     },
