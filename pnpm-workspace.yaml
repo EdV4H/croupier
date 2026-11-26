@@ -1,3 +1,9 @@
 packages:
   - "packages/*"
   - "apps/*"
+
+# pnpm 10 以降は依存のビルドスクリプトを既定で止める。pnpm 9 のときと同じく動かすものを並べる
+allowBuilds:
+  esbuild: true
+  sharp: true
+  workerd: true
