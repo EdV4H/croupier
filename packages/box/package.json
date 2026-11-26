@@ -1,6 +1,6 @@
 {
   "name": "@edv4h/croupier-box",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Game box parts for croupier: layered templates, cards, tokens, pieces, boards, dice, sets and rulebooks as plain data",
   "license": "MIT",
   "author": "Yusuke Maruyama",

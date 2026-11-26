@@ -1,6 +1,6 @@
 {
   "name": "@edv4h/croupier-box-render",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "SVG renderer for croupier-box parts: layered card, token, piece, board and dice faces",
   "license": "MIT",
   "author": "Yusuke Maruyama",

@@ -1,6 +1,6 @@
 {
   "name": "@edv4h/croupier-trading-card",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Headless React trading card for croupier: pointer tilt, glare, flip, drag rotation and reveal effects, with a skeleton stylesheet",
   "license": "MIT",
   "author": "Yusuke Maruyama",
